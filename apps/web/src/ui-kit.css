@@ -3131,3 +3131,57 @@ html {
   outline: none;
   box-shadow: none;
 }
+.room-select-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: 200px;
+  min-width: 200px;
+  overflow-y: auto;
+}
+.room-select-menu:not(:popover-open) {
+  display: none;
+}
+.room-select-menu .select-option {
+  width: 100%;
+  text-align: left;
+}
+.room-select-menu .select-option:focus {
+  outline: none;
+  background: #f1f1f1;
+}
+.compact-rooms .select-trigger:focus-visible {
+  outline: none;
+  border-color: #17191d;
+  box-shadow: 0 0 0 3px #17191d10;
+}
+.term .select-trigger-compact {
+  min-height: 34px;
+  height: 34px;
+  min-width: 100px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  gap: 12px;
+  background: #f7f7f7;
+}
+.select-menu.select-menu-compact {
+  width: var(--radix-select-trigger-width);
+  min-width: 116px;
+  border-radius: 14px;
+}
+.select-menu-compact .select-options {
+  padding: 5px;
+}
+.select-menu-compact .select-option {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  gap: 12px;
+}
+.room-select-menu .select-option[aria-selected='true'] {
+  background: #f0f0f2;
+  color: #17191d;
+  font-weight: 500;
+}

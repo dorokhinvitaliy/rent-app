@@ -1494,6 +1494,7 @@ function Term({ months, setMonths }: { months: number; setMonths: (v: number) =>
     <label className="term">
       Планирую снимать{' '}
       <Select
+        compact
         aria-label="Планирую снимать"
         value={months}
         onChange={(e) => setMonths(Number(e.target.value))}

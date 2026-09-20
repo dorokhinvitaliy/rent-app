@@ -7,6 +7,7 @@ type Props = {
   onChange: (event: { target: { value: string } }) => void;
   children: ReactNode;
   disabled?: boolean;
+  compact?: boolean;
   className?: string;
   'aria-label': string;
 };
@@ -16,6 +17,7 @@ export function Select({
   onChange,
   children,
   disabled,
+  compact,
   className,
   'aria-label': label,
 }: Props) {
@@ -35,7 +37,7 @@ export function Select({
       <Primitive.Trigger
         ref={trigger}
         aria-label={label}
-        className={`select-trigger ${className || ''}`}
+        className={`select-trigger ${compact ? 'select-trigger-compact' : ''} ${className || ''}`}
       >
         <Primitive.Value />
         <Primitive.Icon className="select-chevron">
@@ -44,7 +46,7 @@ export function Select({
       </Primitive.Trigger>
       <Primitive.Portal container={trigger.current?.closest('dialog') ?? undefined}>
         <Primitive.Content
-          className="select-menu"
+          className={`select-menu ${compact ? 'select-menu-compact' : ''}`}
           position="popper"
           sideOffset={7}
           collisionPadding={12}

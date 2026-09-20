@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from './Auth';
 import { MetroPicker } from './MetroPicker';
 import { Select } from './Select';
+import { RoomSelect } from './RoomSelect';
 import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { Search, ArrowUpRight, LoaderCircle, SlidersHorizontal } from 'lucide-react';
 import { cianSearchSchema, buildCianSearchUrl, searchCities, type CianSearch } from '@rent/shared';
@@ -335,32 +336,7 @@ export function SearchPanel({
                 </option>
               ))}
             </Select>
-            <details className="compact-rooms">
-              <summary>
-                {criteria.rooms.length
-                  ? criteria.rooms.map((n) => n || 'Ст').join(', ') + ' комн.'
-                  : 'Комнат'}
-              </summary>
-              <div className="compact-options">
-                {[0, 1, 2, 3, 4, 5].map((n) => (
-                  <label key={n}>
-                    <input
-                      type="checkbox"
-                      checked={criteria.rooms.includes(n)}
-                      onChange={() =>
-                        change(
-                          'rooms',
-                          criteria.rooms.includes(n)
-                            ? criteria.rooms.filter((r) => r !== n)
-                            : [...criteria.rooms, n],
-                        )
-                      }
-                    />
-                    {n === 0 ? 'Студия' : n + ' комн.'}
-                  </label>
-                ))}
-              </div>
-            </details>
+            <RoomSelect value={criteria.rooms} onChange={(rooms) => change('rooms', rooms)} />
             <label className="compact-price">
               <input
                 aria-label="Аренда до"

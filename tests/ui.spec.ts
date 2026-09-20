@@ -779,6 +779,21 @@ test('Sticky search shares criteria and navigation can collapse persistently', a
   await page.getByRole('button', { name: 'Ещё загрузить с Циана' }).scrollIntoViewIfNeeded();
   const compact = page.getByRole('form', { name: 'Быстрый поиск квартир' });
   await expect(compact).toBeVisible();
+  await compact.getByRole('combobox', { name: 'Количество комнат' }).click();
+  const rooms = page.getByRole('listbox', { name: 'Количество комнат' });
+  await rooms.getByRole('option', { name: 'Студия', exact: true }).click();
+  await rooms.getByRole('option', { name: '2 комн.', exact: true }).click();
+  await expect(rooms.getByRole('option', { name: 'Студия', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(rooms.getByRole('option', { name: '2 комн.', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.screenshot({ path: 'test-results/room-select.png' });
+  await page.keyboard.press('Escape');
+  await expect(rooms).toBeHidden();
   await compact.getByRole('spinbutton', { name: 'Аренда до', exact: true }).fill('95000');
   await expect(page.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toHaveValue('95000');
   await page.screenshot({ path: 'test-results/compact-header-desktop.png' });
