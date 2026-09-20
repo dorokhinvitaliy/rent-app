@@ -379,6 +379,9 @@ export default function App() {
                 setResultsOnly(false);
                 reset();
               }}
+              onOpenBrowser={(id) =>
+                void action(() => api('/imports/' + id + '/open-browser', 'POST', {}))
+              }
               onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
             />
           )}
@@ -418,11 +421,12 @@ export default function App() {
               <div className="info-box">
                 <Globe size={22} />
                 <div>
-                  <b>Браузер работает вместе с вами</b>
+                  <b>Сбор работает в фоне</b>
                   <p>
-                    Playwright откроет отдельное окно Chromium. Если появится капча, пройдите ее
-                    вручную — сбор продолжится. При изменении разметки доступен импорт сохраненного
-                    HTML и ручное добавление. Сессия браузера остается на этом компьютере.
+                    Обычно окно браузера не открывается. При капче нажмите «Открыть окно проверки» и
+                    пройдите ее вручную — сбор продолжится. При изменении разметки доступен импорт
+                    сохраненного HTML и ручное добавление. Сессия браузера остается на этом
+                    компьютере.
                   </p>
                 </div>
               </div>
@@ -473,6 +477,16 @@ export default function App() {
                         {statusNames[j.status]}
                         <small>{new Date(j.createdAt).toLocaleString('ru-RU')}</small>
                       </span>
+                      {j.canOpenBrowser && (
+                        <button
+                          className="button secondary"
+                          onClick={() =>
+                            void action(() => api('/imports/' + j.id + '/open-browser', 'POST', {}))
+                          }
+                        >
+                          Открыть окно проверки
+                        </button>
+                      )}
                       {['running', 'waiting'].includes(j.status) && (
                         <button
                           className="text-button"
@@ -1457,7 +1471,7 @@ function ImportModal({
           </button>
           <button className="button primary" disabled={busy || (mode === 'html' && !html)}>
             {busy ? <LoaderCircle size={17} className="spin" /> : <ArrowRight size={17} />}{' '}
-            {mode === 'browser' ? 'Открыть и собрать' : 'Импортировать'}
+            {mode === 'browser' ? 'Собрать в фоне' : 'Импортировать'}
           </button>
         </div>
       </form>

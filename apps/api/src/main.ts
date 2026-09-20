@@ -103,6 +103,9 @@ class AppController {
       throw new BadRequestException((e as Error).message);
     }
   }
+  @Post('imports/:id/open-browser') openBrowser(@Param('id') id: string) {
+    return this.importer.openBrowser(id);
+  }
   @Post('imports/:id/cancel') cancel(@Param('id') id: string) {
     return this.importer.cancel(id);
   }

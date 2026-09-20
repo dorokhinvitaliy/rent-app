@@ -17,11 +17,13 @@ export function SearchPanel({
   running,
   onStarted,
   onCancel,
+  onOpenBrowser,
 }: {
   job?: Job;
   running: boolean;
   onStarted: (job: Job) => void;
   onCancel: (id: string) => void;
+  onOpenBrowser: (id: string) => void;
 }) {
   const [criteria, setCriteria] = useState<CianSearch>(() => {
     try {
@@ -261,7 +263,7 @@ export function SearchPanel({
           <p>
             Объявления напрямую с Циана.
             <br />
-            <span>Если появится капча, пройдите ее в открывшемся браузере.</span>
+            <span>Сбор идет в фоне. Если появится капча, предложим открыть окно проверки.</span>
           </p>
           <div>
             {preview && (
@@ -314,6 +316,15 @@ export function SearchPanel({
               </details>
             )}
           </div>
+          {job.canOpenBrowser && (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => onOpenBrowser(job.id)}
+            >
+              Открыть окно проверки
+            </button>
+          )}
           {['running', 'waiting'].includes(job.status) && (
             <button type="button" onClick={() => onCancel(job.id)}>
               Остановить

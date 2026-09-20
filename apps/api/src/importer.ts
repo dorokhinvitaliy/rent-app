@@ -7,7 +7,14 @@ import { Store, dataDir, type ImportJob } from './store';
 import { sourceUrl, isChallenge, extractLinks, parseHtml } from './parser';
 @Injectable()
 export class Importer implements OnModuleDestroy {
-  private active?: { job: ImportJob; context?: BrowserContext; cancelled: boolean };
+  private active?: {
+    job: ImportJob;
+    context?: BrowserContext;
+    page?: Page;
+    headless?: boolean;
+    showRequested?: boolean;
+    cancelled: boolean;
+  };
   constructor(private readonly store: Store) {}
   start(url: string, limit: number, pages: number, search?: CianSearch) {
     const checked = sourceUrl(url);
@@ -19,7 +26,7 @@ export class Importer implements OnModuleDestroy {
       id: randomUUID(),
       url: checked.url,
       status: 'running',
-      message: 'Открываем браузер…',
+      message: 'Запускаем фоновый сбор…',
       count: 0,
       added: 0,
       updated: 0,
@@ -43,18 +50,63 @@ export class Importer implements OnModuleDestroy {
     }
     return { ok: true };
   }
+  openBrowser(id: string) {
+    if (!this.active || this.active.job.id !== id || !this.active.job.canOpenBrowser)
+      throw new BadRequestException('Окно проверки сейчас не требуется');
+    this.active.showRequested = true;
+    return { ok: true };
+  }
+  private async launchBrowser(state: NonNullable<Importer['active']>, headless: boolean) {
+    state.context = await chromium.launchPersistentContext(resolve(dataDir, 'browser-profile'), {
+      headless,
+      viewport: { width: 1280, height: 900 },
+      locale: 'ru-RU',
+      acceptDownloads: false,
+    });
+    if (state.cancelled) throw new Error('Сбор отменен');
+    // Disallow browser subresources targeting local services.
+    await state.context.route('**/*', async (route) => {
+      const u = new URL(route.request().url());
+      if (
+        /^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(
+          u.hostname,
+        )
+      )
+        return route.abort();
+      return route.continue();
+    });
+    const page = state.context.pages()[0] || (await state.context.newPage());
+    page.setDefaultNavigationTimeout(45000);
+    state.page = page;
+    state.headless = headless;
+    return page;
+  }
   private async waitForPage(page: Page, state: NonNullable<Importer['active']>) {
-    const deadline = Date.now() + 180000;
+    let deadline = Date.now() + 180000;
     await page.waitForTimeout(1200);
     while (isChallenge(await page.content())) {
       if (state.cancelled) throw new Error('Сбор отменен');
       if (Date.now() > deadline)
         throw new Error('Время ожидания капчи истекло. Запустите импорт повторно.');
       state.job.status = 'waiting';
-      state.job.message = 'Пройдите проверку в открывшемся браузере. Ожидание до 3 минут.';
+      state.job.canOpenBrowser = !!state.headless;
+      state.job.message = state.headless
+        ? 'Площадка запросила проверку. Откройте окно браузера, чтобы пройти капчу.'
+        : 'Пройдите проверку в открывшемся браузере. Ожидание до 3 минут.';
       this.store.saveJob(state.job);
+      if (state.headless && state.showRequested) {
+        state.showRequested = false;
+        state.job.canOpenBrowser = false;
+        this.store.saveJob(state.job);
+        const url = page.url();
+        await state.context?.close();
+        page = await this.launchBrowser(state, false);
+        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        deadline = Date.now() + 180000;
+      }
       await page.waitForTimeout(1500);
     }
+    state.job.canOpenBrowser = false;
     state.job.status = 'running';
     this.store.saveJob(state.job);
     await page
@@ -75,26 +127,7 @@ export class Importer implements OnModuleDestroy {
     const visited = new Set<string>();
     const existing = new Set(this.store.all().map((l) => l.url));
     try {
-      state.context = await chromium.launchPersistentContext(resolve(dataDir, 'browser-profile'), {
-        headless: false,
-        viewport: { width: 1280, height: 900 },
-        locale: 'ru-RU',
-        acceptDownloads: false,
-      });
-      if (state.cancelled) throw new Error('Сбор отменен');
-      // Disallow browser subresources targeting local services.
-      await state.context.route('**/*', async (route) => {
-        const u = new URL(route.request().url());
-        if (
-          /^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(
-            u.hostname,
-          )
-        )
-          return route.abort();
-        return route.continue();
-      });
-      const page = state.context.pages()[0] || (await state.context.newPage());
-      page.setDefaultNavigationTimeout(45000);
+      let page = await this.launchBrowser(state, true);
       const isDetail = /\/(rent\/flat|offer)\/\d+/.test(job.url);
       for (let p = 1; p <= (isDetail ? 1 : pages) && imported.size < limit; p++) {
         if (state.cancelled) throw new Error('Сбор отменен');
@@ -109,7 +142,13 @@ export class Importer implements OnModuleDestroy {
         this.store.saveJob(job);
         const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
         let html = await this.waitForPage(page, state);
-        if (response && response.status() >= 400 && !extractLinks(html, job.url).length)
+        page = state.page!;
+        if (
+          !isDetail &&
+          response &&
+          response.status() >= 400 &&
+          !extractLinks(html, job.url).length
+        )
           throw new Error(`Площадка вернула HTTP ${response.status()}`);
         const catalogLinks = extractLinks(html, job.url);
         const links = isDetail ? [job.url] : catalogLinks.filter((x) => !visited.has(x));
@@ -135,6 +174,7 @@ export class Importer implements OnModuleDestroy {
               await page.waitForTimeout(2000);
               await page.goto(link, { waitUntil: 'domcontentloaded' });
               html = await this.waitForPage(page, state);
+              page = state.page!;
             }
             const parsed = parseHtml(html, link);
             parsed.listings.forEach((l) => {
@@ -195,6 +235,7 @@ export class Importer implements OnModuleDestroy {
         job.message =
           'Установите браузер: npx playwright install chromium, затем повторите импорт.';
     } finally {
+      job.canOpenBrowser = false;
       await state.context?.close().catch(() => {});
       this.store.saveJob(job);
       this.active = undefined;

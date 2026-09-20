@@ -22,6 +22,7 @@ export type Job = {
   added?: number;
   updated?: number;
   alreadySaved?: number;
+  canOpenBrowser?: boolean;
   warnings: string[];
   listingIds?: string[];
   search?: import('@rent/shared').CianSearch;

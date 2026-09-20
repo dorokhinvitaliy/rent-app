@@ -416,3 +416,65 @@ test('Cian station extraction retains all walking routes and excludes driving ro
   const l = parseHtml(stateHtml(offer), `https://www.cian.ru/rent/flat/${offer.id}/`).listings[0];
   assert.deepEqual(l.metroStops, [{ id: 116, name: 'Сокол', minutes: 13 }]);
 });
+
+test('Background import opens a visible browser only on request and resumes the same job', async () => {
+  const { chromium } = await import('playwright');
+  const { Importer } = require('../apps/api/dist/importer.js');
+  const { Store } = require('../apps/api/dist/store.js');
+  const original = chromium.launchPersistentContext;
+  const modes: boolean[] = [],
+    profiles: string[] = [];
+  let closed = 0;
+  chromium.launchPersistentContext = async (profile: string, options: any) => {
+    modes.push(options.headless);
+    profiles.push(profile);
+    let current = url;
+    const page = {
+      setDefaultNavigationTimeout() {},
+      url: () => current,
+      async goto(u: string) {
+        current = u;
+        return { status: () => (options.headless ? 403 : 200) };
+      },
+      async waitForTimeout() {
+        await new Promise((r) => setTimeout(r, 1));
+      },
+      async waitForFunction() {},
+      async content() {
+        return options.headless ? '<title>Вы не робот?</title>' : fixture;
+      },
+    };
+    return {
+      route: async () => {},
+      pages: () => [page],
+      close: async () => {
+        closed++;
+      },
+    } as any;
+  };
+  process.env.DATABASE_PATH = ':memory:';
+  const store = new Store();
+  try {
+    const importer = new Importer(store);
+    const job = importer.start(url, 1, 1);
+    for (let i = 0; i < 100 && !store.jobs()[0].canOpenBrowser; i++)
+      await new Promise((r) => setTimeout(r, 5));
+    assert.deepEqual(modes, [true]);
+    assert.equal(store.jobs()[0].status, 'waiting');
+    assert.throws(() => importer.openBrowser('wrong-id'));
+    importer.openBrowser(job.id);
+    for (let i = 0; i < 100 && ['running', 'waiting'].includes(store.jobs()[0].status); i++)
+      await new Promise((r) => setTimeout(r, 5));
+    assert.deepEqual(modes, [true, false]);
+    assert.equal(profiles[0], profiles[1]);
+    assert.equal(closed, 2);
+    assert.equal(store.jobs()[0].id, job.id);
+    assert.equal(store.jobs()[0].count, 1);
+    assert.equal(store.jobs()[0].canOpenBrowser, false);
+    assert.equal(store.all().length, 1);
+  } finally {
+    chromium.launchPersistentContext = original;
+    store.onModuleDestroy();
+    delete process.env.DATABASE_PATH;
+  }
+});

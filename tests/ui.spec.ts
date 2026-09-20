@@ -112,12 +112,18 @@ test('Parameter search submits criteria, shows progress and isolates results fro
 }) => {
   let submitted: any;
   let job: any;
+  let opened = false;
+  await page.route('**/api/imports/search-e2e/open-browser', (route) => {
+    opened = true;
+    return route.fulfill({ json: { ok: true } });
+  });
   await page.route('**/api/search/cian', async (route) => {
     submitted = route.request().postDataJSON();
     job = {
       id: 'search-e2e',
       url: 'https://www.cian.ru/cat.php?deal_type=rent&type=4',
       status: 'waiting',
+      canOpenBrowser: true,
       message: 'Пройдите проверку в открывшемся браузере',
       count: 0,
       scanned: 0,
@@ -172,6 +178,8 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await expect(
     panel.getByText('Пройдите проверку в открывшемся браузере', { exact: true }),
   ).toBeVisible();
+  await panel.getByRole('button', { name: 'Открыть окно проверки' }).click();
+  await expect.poll(() => opened).toBe(true);
   await expect(page.locator('.apartment-card')).toHaveCount(8);
   await page.getByRole('button', { name: 'Показать только результаты запуска' }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(0);

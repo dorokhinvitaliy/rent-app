@@ -112,6 +112,7 @@ export type ImportJob = {
   added?: number;
   updated?: number;
   alreadySaved?: number;
+  canOpenBrowser?: boolean;
   warnings: string[];
   search?: CianSearch;
   listingIds?: string[];
