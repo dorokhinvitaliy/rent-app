@@ -204,6 +204,9 @@ export function parseHtml(
       title: title.slice(0, 200),
       address: address || '',
       rent,
+      metroStops: metroOptions
+        .filter((m) => m.minutes !== null)
+        .map((m) => ({ id: null, name: m.name, minutes: m.minutes! })),
       metro: nearest?.name || '',
       metroMinutes: nearest?.minutes ?? null,
       rooms: /студи/i.test(title) ? 0 : numeric(roomsMatch?.[1] || roomsMatch?.[2]),

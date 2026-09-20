@@ -1,5 +1,6 @@
+import { MetroPicker } from './MetroPicker';
 import { Select } from './Select';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Search,
   ArrowUpRight,
@@ -37,6 +38,12 @@ export function SearchPanel({
     [expanded, setExpanded] = useState(false);
   const change = <K extends keyof CianSearch>(field: K, value: CianSearch[K]) =>
     setCriteria((prev) => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!cianSearchSchema.safeParse(criteria).success) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(criteria));
+    } catch {}
+  }, [criteria]);
   const parsed = cianSearchSchema.safeParse(criteria);
   const preview = parsed.success ? buildCianSearchUrl(parsed.data) : null;
   const submit = async (e: FormEvent) => {
@@ -49,9 +56,6 @@ export function SearchPanel({
     setBusy(true);
     try {
       const result = await api<Job>('/search/cian', 'POST', parsed.data);
-      try {
-        localStorage.setItem(key, JSON.stringify(parsed.data));
-      } catch {}
       onStarted(result);
     } catch (e) {
       setError((e as Error).message);
@@ -116,7 +120,13 @@ export function SearchPanel({
             <Select
               aria-label="Город"
               value={criteria.region}
-              onChange={(e) => change('region', e.target.value as CianSearch['region'])}
+              onChange={(e) =>
+                setCriteria((prev) => ({
+                  ...prev,
+                  region: e.target.value as CianSearch['region'],
+                  metroStations: [],
+                }))
+              }
             >
               {Object.entries(searchCities).map(([id, name]) => (
                 <option key={id} value={id}>
@@ -145,6 +155,12 @@ export function SearchPanel({
             </Select>
           </label>
         </div>
+        <MetroPicker
+          key={criteria.region}
+          region={criteria.region}
+          selected={criteria.metroStations}
+          onChange={(ids) => change('metroStations', ids)}
+        />
         <div className="search-rooms">
           <span>Комнат</span>
           <div>

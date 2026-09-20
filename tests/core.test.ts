@@ -345,3 +345,43 @@ test('Cian state rejects a different offer, conflicting price and actual daily r
 test('Unscoped price text is never used as the rent', () => {
   assert.throws(() => parseHtml('<h1>Квартира</h1><aside>26 000 ₽/мес.</aside>', url));
 });
+
+test('Selected metro stations are validated by city and passed as Cian IDs', async () => {
+  const { cianSearchSchema, buildCianSearchUrl } = await import('@rent/shared');
+  const criteria = cianSearchSchema.parse({ metroStations: [9, 116, 9], metroMinutes: 15 });
+  const url = new URL(buildCianSearchUrl(criteria));
+  assert.equal(url.searchParams.get('metro[0]'), '9');
+  assert.equal(url.searchParams.get('metro[1]'), '116');
+  assert.equal(url.searchParams.get('metro[2]'), null);
+  assert.equal(url.searchParams.get('foot_min'), '15');
+  assert.equal(cianSearchSchema.safeParse({ region: '2', metroStations: [9] }).success, false);
+  assert.equal(cianSearchSchema.safeParse({ metroStations: [999999] }).success, false);
+});
+test('Metro matching uses any selected walking station and its own travel time', async () => {
+  const { cianSearchSchema, searchMismatch, matchingMetroStops } = await import('@rent/shared');
+  const l = listingSchema.parse({
+    title: 'Квартира у метро',
+    rent: 80000,
+    metro: 'Аэропорт',
+    metroMinutes: 4,
+    metroStops: [
+      { id: 9, name: 'Аэропорт', minutes: 4 },
+      { id: 116, name: 'Сокол', minutes: 13 },
+    ],
+  });
+  const s = cianSearchSchema.parse({ metroStations: [116], metroMinutes: 15 });
+  assert.equal(searchMismatch(l, s), null);
+  assert.equal(matchingMetroStops(l, s)[0].name, 'Сокол');
+  assert.match(searchMismatch(l, { ...s, metroMinutes: 10 })!, /станций/);
+  assert.equal(searchMismatch(l, { ...s, metroStations: [9, 116], metroMinutes: 5 }), null);
+  assert.match(searchMismatch({ ...l, metroStops: [], metroMinutes: null }, s)!, /станций/);
+});
+test('Cian station extraction retains all walking routes and excludes driving routes', () => {
+  const offer = structuredClone(offers[0]);
+  offer.geo.undergrounds = [
+    { id: 9, name: 'Аэропорт', travelType: 'transport', travelTime: 3 },
+    { id: 116, name: 'Сокол', travelType: 'walk', travelTime: 13 },
+  ];
+  const l = parseHtml(stateHtml(offer), `https://www.cian.ru/rent/flat/${offer.id}/`).listings[0];
+  assert.deepEqual(l.metroStops, [{ id: 116, name: 'Сокол', minutes: 13 }]);
+});

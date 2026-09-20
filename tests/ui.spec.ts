@@ -159,3 +159,54 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/search-mobile.png' });
 });
+
+test('Metro multi-selection supports search, removal, city reset and persisted search criteria', async ({
+  page,
+}) => {
+  let submitted: any;
+  await page.route('**/api/search/cian', async (route) => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({
+      json: {
+        id: 'metro-test',
+        status: 'completed',
+        message: 'Готово',
+        count: 0,
+        scanned: 0,
+        warnings: [],
+        listingIds: [],
+        search: submitted,
+      },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Желаемые станции метро' }).click();
+  const query = page.getByRole('searchbox', { name: 'Найти станцию метро' });
+  await query.fill('Аэропорт');
+  await page.getByRole('checkbox', { name: 'Аэропорт', exact: true }).check();
+  await query.fill('Сокол');
+  await page.getByRole('checkbox', { name: 'Сокол', exact: true }).check();
+  await page.getByRole('button', { name: 'Убрать станцию Аэропорт', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Убрать станцию Сокол', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: 'test-results/metro-picker.png' });
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
+  await page.getByRole('button', { name: 'Найти квартиры', exact: true }).click();
+  await expect.poll(() => submitted?.metroStations).toEqual([116]);
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Убрать станцию Сокол', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('combobox', { name: 'Город', exact: true }).click();
+  await page.getByRole('option', { name: 'Санкт-Петербург', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Убрать станцию Сокол', exact: true })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: 'Желаемые станции метро' }).click();
+  await page.getByRole('searchbox', { name: 'Найти станцию метро' }).fill('Автово');
+  await page.getByRole('checkbox', { name: 'Автово', exact: true }).check();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('.metro-picker').screenshot({ path: 'test-results/metro-picker-mobile.png' });
+});

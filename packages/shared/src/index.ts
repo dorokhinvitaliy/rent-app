@@ -1,3 +1,11 @@
+import { metroStations } from './metro-stations';
+export { metroStations } from './metro-stations';
+export const normalizeMetro = (name: string) =>
+  name
+    .toLocaleLowerCase('ru')
+    .replace(/ё/g, 'е')
+    .replace(/[\s-]+/g, ' ')
+    .trim();
 import { z } from 'zod';
 const money = z.number().finite().min(0).max(100_000_000);
 const optionalMoney = money.nullable().default(null);
@@ -13,6 +21,16 @@ export const listingSchema = z.object({
   address: z.string().trim().max(500).default(''),
   metro: z.string().max(100).default(''),
   metroMinutes: z.number().int().min(0).max(300).nullable().default(null),
+  metroStops: z
+    .array(
+      z.object({
+        id: z.number().int().positive().nullable(),
+        name: z.string().max(100),
+        minutes: z.number().nonnegative().max(300),
+      }),
+    )
+    .max(50)
+    .default([]),
   rooms: z.number().int().min(0).max(20).nullable().default(null),
   area: z.number().positive().max(10000).nullable().default(null),
   floor: z.number().int().min(0).max(200).nullable().default(null),
@@ -71,6 +89,11 @@ const searchNumber = z.number().finite().nonnegative().nullable().default(null);
 export const cianSearchSchema = z
   .object({
     region: z.enum(['1', '2', '4777']).default('1'),
+    metroStations: z
+      .array(z.number().int().positive())
+      .max(100)
+      .default([])
+      .transform((ids) => [...new Set(ids)]),
     rooms: z.array(z.number().int().min(0).max(5)).max(6).default([]),
     minRent: searchNumber.refine((n) => n === null || n <= 10000000),
     maxRent: searchNumber.refine((n) => n === null || n <= 10000000),
@@ -84,6 +107,15 @@ export const cianSearchSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    const available = new Set(
+      metroStations.filter((s) => s.region === v.region).flatMap((s) => s.ids),
+    );
+    if (v.metroStations.some((id) => !available.has(id)))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['metroStations'],
+        message: 'Выберите станции из справочника выбранного города',
+      });
     for (const [min, max] of [
       ['minRent', 'maxRent'],
       ['minArea', 'maxArea'],
@@ -110,6 +142,7 @@ export function buildCianSearchUrl(input: CianSearch): string {
     currency: '2',
     with_neighbors: '0',
   }).forEach(([k, v]) => p.set(k, v));
+  s.metroStations.forEach((id, i) => p.set(`metro[${i}]`, String(id)));
   for (const room of new Set(s.rooms)) p.set(`room${room === 0 ? 9 : room}`, '1');
   for (const [field, key] of [
     ['minRent', 'minprice'],
@@ -134,10 +167,41 @@ export function searchMismatch(l: ListingInput, s: CianSearch): string | null {
   if ((s.minArea !== null || s.maxArea !== null) && l.area === null) return 'Не указана площадь';
   if ((s.minArea !== null && l.area! < s.minArea) || (s.maxArea !== null && l.area! > s.maxArea))
     return 'Площадь вне диапазона';
-  if (s.metroMinutes !== null && (l.metroMinutes === null || l.metroMinutes > s.metroMinutes))
+  if (s.metroStations.length && !matchingMetroStops(l, s).length)
+    return 'Не подтвержден путь пешком до выбранных станций метро за указанное время';
+  if (
+    !s.metroStations.length &&
+    s.metroMinutes !== null &&
+    (l.metroMinutes === null || l.metroMinutes > s.metroMinutes)
+  )
     return 'Не подтверждено нужное время пешком до метро';
   if (s.minFloor !== null && (l.floor === null || l.floor < s.minFloor))
     return 'Не подходит или не указан этаж';
   if (s.noCommission && l.commission !== 0) return 'Не подтверждено отсутствие комиссии';
   return null;
+}
+
+export function matchingMetroStops(l: ListingInput, s: CianSearch) {
+  const names = new Set(
+    metroStations
+      .filter(
+        (station) =>
+          station.region === s.region && station.ids.some((id) => s.metroStations.includes(id)),
+      )
+      .map((station) => normalizeMetro(station.name)),
+  );
+  const stops = l.metroStops?.length
+    ? l.metroStops
+    : l.metro && l.metroMinutes !== null
+      ? [{ id: null, name: l.metro, minutes: l.metroMinutes }]
+      : [];
+  return stops
+    .filter(
+      (stop) =>
+        (stop.id !== null
+          ? s.metroStations.includes(stop.id)
+          : names.has(normalizeMetro(stop.name))) &&
+        (s.metroMinutes === null || stop.minutes <= s.metroMinutes),
+    )
+    .sort((a, b) => a.minutes - b.minutes);
 }

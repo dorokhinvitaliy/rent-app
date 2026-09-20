@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, OnModuleDestroy } from '@nestjs/common
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { searchMismatch, type CianSearch } from '@rent/shared';
+import { matchingMetroStops, searchMismatch, type CianSearch } from '@rent/shared';
 import { Store, dataDir, type ImportJob } from './store';
 import { sourceUrl, isChallenge, extractLinks, parseHtml } from './parser';
 @Injectable()
@@ -134,6 +134,13 @@ export class Importer implements OnModuleDestroy {
                 job.skipped = (job.skipped || 0) + 1;
                 job.warnings.push(`${l.url}: ${mismatch}`);
                 return;
+              }
+              if (job.search?.metroStations.length) {
+                const stop = matchingMetroStops(l, job.search)[0];
+                if (stop) {
+                  l.metro = stop.name;
+                  l.metroMinutes = stop.minutes;
+                }
               }
               const saved = this.store.save(l);
               job.listingIds!.push(saved.id);

@@ -32,7 +32,14 @@ const offerSchema = z.object({
       .array(z.object({ shortName: z.string().optional(), name: z.string().optional() }))
       .default([]),
     undergrounds: z
-      .array(z.object({ name: z.string(), travelType: z.string(), travelTime: amount }))
+      .array(
+        z.object({
+          id: z.number().int().positive().optional(),
+          name: z.string(),
+          travelType: z.string(),
+          travelTime: amount,
+        }),
+      )
       .default([]),
   }),
 });
@@ -99,6 +106,9 @@ export function readCianState($: CheerioAPI, url: string): ListingInput | null {
         .map((a) => a.shortName || a.name)
         .filter(Boolean)
         .join(', '),
+      metroStops: o.geo.undergrounds
+        .filter((m) => m.travelType === 'walk')
+        .map((m) => ({ id: m.id ?? null, name: m.name, minutes: m.travelTime })),
       metro: nearest?.name || '',
       metroMinutes: nearest?.travelTime ?? null,
       rooms: o.flatType === 'studio' ? 0 : (o.roomsCount ?? null),
