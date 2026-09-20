@@ -1879,3 +1879,254 @@ input[type='checkbox']:checked {
   max-height: none;
   object-fit: fill;
 }
+
+/* Search workspace: quiet fields, compact choices, one primary action. */
+.search-panel {
+  padding: 24px;
+  border-radius: 24px;
+  margin-bottom: 30px;
+}
+.search-panel-heading {
+  margin-bottom: 22px;
+}
+.search-panel h2 {
+  font-size: 22px;
+  letter-spacing: -0.65px;
+}
+.search-panel-heading p {
+  margin-top: 5px;
+  color: #777;
+  font-size: 12px;
+}
+.search-platform {
+  background: #f5f5f5;
+  color: #555;
+  padding: 9px 13px;
+  font-size: 12px;
+}
+.search-main-fields {
+  gap: 10px;
+}
+.search-panel .field input,
+.search-panel .field .select-trigger,
+.search-panel .range-control {
+  border-radius: 14px;
+  background: #f7f7f7;
+  border-color: transparent;
+}
+.search-panel .field input:hover,
+.search-panel .field .select-trigger:hover,
+.search-panel .range-control:hover {
+  background: #f2f2f2;
+}
+.search-panel .field .select-trigger[data-state='open'],
+.search-panel .range-control:focus-within {
+  background: #fff;
+  border-color: #17191d;
+  box-shadow: 0 0 0 2px #25272b0d;
+}
+.search-secondary-fields {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 28px;
+  margin-top: 20px;
+  align-items: start;
+}
+.search-secondary-fields .search-rooms {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+}
+.search-secondary-fields .search-rooms > span {
+  font-size: 11px;
+  color: #777;
+}
+.search-secondary-fields .search-rooms > div {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.search-secondary-fields .search-rooms > div button {
+  height: 36px;
+  min-width: 36px;
+  border-radius: 11px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+.search-secondary-fields .metro-picker {
+  margin-top: 0;
+  min-width: 0;
+}
+.search-secondary-fields .metro-picker-trigger {
+  border-radius: 14px;
+  min-height: 58px;
+  padding: 12px 14px;
+  font-size: 12px;
+  gap: 8px;
+}
+.search-secondary-fields .metro-picker-trigger > span {
+  flex: 1;
+}
+.search-secondary-fields .metro-picker-trigger > small {
+  flex: none;
+  margin-left: 0;
+  white-space: nowrap;
+}
+.search-secondary-fields .metro-chips {
+  gap: 5px;
+}
+.search-secondary-fields .metro-chips button {
+  padding: 6px 9px;
+  color: #606060;
+  font-size: 11px;
+}
+.search-secondary-fields .metro-chips .metro-overflow {
+  color: #24262a;
+  background: #eaeaea;
+}
+.search-secondary-fields .metro-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.search-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 18px 0;
+}
+.search-options-row .search-more {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f5f5f5;
+  color: #4c4e53;
+  font-size: 12px;
+}
+.search-options-row .search-more[aria-expanded='true'] {
+  background: #24262b;
+  color: #fff;
+}
+.search-options-row > span {
+  font-size: 11px;
+  color: #929292;
+}
+.search-panel .search-footer {
+  padding-top: 18px;
+  gap: 16px;
+}
+.search-panel .search-only-new {
+  margin: 0;
+  gap: 9px;
+  font-size: 12px;
+}
+.search-panel .search-only-new small {
+  font-size: 10px;
+  margin-top: 4px;
+  color: #898989;
+}
+.search-panel .search-footer .primary {
+  min-height: 44px;
+  padding: 11px 20px;
+  font-size: 13px;
+  background: #22252a;
+}
+.search-panel .search-footer > div {
+  flex-shrink: 0;
+}
+@media (max-width: 1100px) {
+  .search-panel .search-main-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .search-secondary-fields {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+@media (max-width: 600px) {
+  .search-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+  .search-panel-heading {
+    gap: 10px;
+  }
+  .search-panel h2 {
+    font-size: 20px;
+  }
+  .search-panel-heading p {
+    font-size: 11px;
+    max-width: 240px;
+  }
+  .search-platform {
+    align-self: flex-start;
+    padding: 8px 10px;
+  }
+  .search-panel .search-main-fields > * {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .search-panel .range-half {
+    padding-left: 9px;
+    padding-right: 5px;
+  }
+  .search-panel .range-control input {
+    font-size: 12px;
+  }
+  .search-panel .range-control input::placeholder {
+    font-size: 10px;
+  }
+  .search-panel .field-caption,
+  .search-panel .search-range legend {
+    left: 12px;
+    font-size: 10px;
+  }
+  .search-panel .field .select-trigger {
+    padding-left: 12px;
+    font-size: 12px;
+  }
+  .search-secondary-fields .metro-picker-trigger {
+    flex-wrap: nowrap;
+  }
+  .search-secondary-fields .metro-picker-trigger > span {
+    font-size: 11px;
+  }
+  .search-secondary-fields .metro-picker-trigger > small {
+    font-size: 10px;
+  }
+  .search-secondary-fields .metro-options {
+    grid-template-columns: 1fr;
+  }
+  .search-options-row > span {
+    display: none;
+  }
+  .search-panel .search-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-panel .search-footer > div,
+  .search-panel .search-footer .primary {
+    width: 100%;
+  }
+  .search-panel .search-extra {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.search-extra-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #222;
+  font-size: 10px;
+}
+@media (max-width: 600px) {
+  .search-options-row .search-more {
+    width: auto;
+    justify-content: center;
+  }
+  .search-secondary-fields .search-rooms > div button {
+    min-height: 40px;
+  }
+}

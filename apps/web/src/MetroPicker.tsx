@@ -47,7 +47,7 @@ export function MetroPicker({
       </button>
       {chosen.length > 0 && (
         <div className="metro-chips">
-          {chosen.map((s) => (
+          {(open ? chosen : chosen.slice(0, 2)).map((s) => (
             <button
               type="button"
               key={s.ids[0]}
@@ -59,9 +59,16 @@ export function MetroPicker({
               <X size={13} />
             </button>
           ))}
-          <button type="button" className="metro-clear" onClick={() => onChange([])}>
-            Очистить
-          </button>
+          {!open && chosen.length > 2 && (
+            <button type="button" className="metro-overflow" onClick={() => setOpen(true)}>
+              Ещё {chosen.length - 2}
+            </button>
+          )}
+          {open && (
+            <button type="button" className="metro-clear" onClick={() => onChange([])}>
+              Очистить
+            </button>
+          )}
         </div>
       )}
       {open && (

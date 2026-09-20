@@ -21,8 +21,6 @@ import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpRight,
-  Building2,
-  Calculator,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -51,10 +49,7 @@ import { api, type Job } from './api';
 import { SearchPanel } from './SearchPanel';
 const rub = (n: number) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
-const plural = (n: number, one: string, few: string, many: string) => {
-  const form = new Intl.PluralRules('ru').select(n);
-  return form === 'one' ? one : form === 'few' ? few : many;
-};
+
 const cx = (...v: (string | false | undefined)[]) => v.filter(Boolean).join(' ');
 const statusNames: Record<string, string> = {
   running: 'В процессе',
@@ -703,54 +698,6 @@ export default function App() {
                   </button>
                 </section>
               )}
-              <section className="stats">
-                <div className="stat">
-                  <span className="stat-icon">
-                    <Building2 size={21} />
-                  </span>
-                  <div>
-                    <p>
-                      {view === 'archive'
-                        ? 'В архиве'
-                        : view === 'ranking'
-                          ? 'В рейтинге'
-                          : 'В подборке'}
-                    </p>
-                    <b>
-                      {collection.length}
-                      <span>{plural(collection.length, 'квартира', 'квартиры', 'квартир')}</span>
-                    </b>
-                  </div>
-                  <span className="stat-hint">Без повторов</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-icon">
-                    <Heart size={21} />
-                  </span>
-                  <div>
-                    <p>В избранном</p>
-                    <b>
-                      {favorites.length}
-                      <span>{plural(favorites.length, 'вариант', 'варианта', 'вариантов')}</span>
-                    </b>
-                  </div>
-                </div>
-                <div className="stat">
-                  <span className="stat-icon">
-                    <Calculator size={21} />
-                  </span>
-                  <div>
-                    <p>
-                      Минимум на въезд{collection.some((l) => costs(l).incomplete) ? ' · от' : ''}
-                    </p>
-                    <b>
-                      {collection.length
-                        ? rub(Math.min(...collection.map((l) => costs(l).moveIn)))
-                        : '—'}
-                    </b>
-                  </div>
-                </div>
-              </section>
               <div className="collection-heading">
                 <div>
                   <h2>

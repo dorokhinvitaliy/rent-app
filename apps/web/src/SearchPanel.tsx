@@ -80,7 +80,7 @@ export function SearchPanel({
             step={min === 'minArea' ? '0.1' : '1'}
             value={criteria[min] ?? ''}
             onChange={(e) => change(min, e.target.value === '' ? null : Number(e.target.value))}
-            placeholder="Не важно"
+            placeholder="—"
           />
         </label>
         <label className="range-half">
@@ -94,7 +94,7 @@ export function SearchPanel({
             step={min === 'minArea' ? '0.1' : '1'}
             value={criteria[max] ?? ''}
             onChange={(e) => change(max, e.target.value === '' ? null : Number(e.target.value))}
-            placeholder="Не важно"
+            placeholder="—"
           />
         </label>
       </div>
@@ -104,16 +104,21 @@ export function SearchPanel({
     <section className="search-panel" id="cian-search" aria-label="Поиск квартир на Циане">
       <div className="search-panel-heading">
         <div>
-          <span className="search-overline">
-            <i />
-            ПОИСК НА ЦИАНЕ
-          </span>
-          <h2>Квартира по вашим правилам.</h2>
-          <p>Выберите главное. Подходящие объявления соберем в вашу подборку.</p>
+          <h2>Найти квартиру</h2>
+          <p>Задайте параметры — сохраним подходящие варианты с Циана.</p>
         </div>
-        <span className="search-platform">
-          Циан <ArrowUpRight size={15} />
-        </span>
+        {preview && (
+          <a
+            aria-label="Посмотреть поиск на Циане"
+            className="search-platform"
+            href={preview}
+            target="_blank"
+            rel="noreferrer"
+            title="Открыть поиск на Циане"
+          >
+            Циан <ArrowUpRight size={15} />
+          </a>
+        )}
       </div>
       <form onSubmit={submit}>
         <div className="search-main-fields">
@@ -157,34 +162,37 @@ export function SearchPanel({
             </Select>
           </label>
         </div>
-        <MetroPicker
-          key={criteria.region}
-          region={criteria.region}
-          selected={criteria.metroStations}
-          onChange={(ids) => change('metroStations', ids)}
-        />
-        <div className="search-rooms">
-          <span>Комнат</span>
-          <div>
-            {[0, 1, 2, 3, 4, 5].map((n) => (
-              <button
-                type="button"
-                aria-pressed={criteria.rooms.includes(n)}
-                key={n}
-                onClick={() =>
-                  change(
-                    'rooms',
-                    criteria.rooms.includes(n)
-                      ? criteria.rooms.filter((r) => r !== n)
-                      : [...criteria.rooms, n],
-                  )
-                }
-              >
-                {n === 0 ? 'Студия' : n}
-              </button>
-            ))}
+        <div className="search-secondary-fields">
+          <div className="search-rooms">
+            <span>Комнат</span>
+            <div>
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <button
+                  type="button"
+                  aria-pressed={criteria.rooms.includes(n)}
+                  key={n}
+                  onClick={() =>
+                    change(
+                      'rooms',
+                      criteria.rooms.includes(n)
+                        ? criteria.rooms.filter((r) => r !== n)
+                        : [...criteria.rooms, n],
+                    )
+                  }
+                >
+                  {n === 0 ? 'Студия' : n}
+                </button>
+              ))}
+            </div>
           </div>
-          <small>{criteria.rooms.length ? 'Можно выбрать несколько' : 'Любое количество'}</small>
+          <MetroPicker
+            key={criteria.region}
+            region={criteria.region}
+            selected={criteria.metroStations}
+            onChange={(ids) => change('metroStations', ids)}
+          />
+        </div>
+        <div className="search-options-row">
           <button
             type="button"
             className="search-more"
@@ -193,7 +201,13 @@ export function SearchPanel({
           >
             <SlidersHorizontal size={16} />
             Еще параметры
+            {(criteria.noCommission || criteria.minFloor != null) && (
+              <b className="search-extra-count">
+                {Number(criteria.noCommission) + Number(criteria.minFloor != null)}
+              </b>
+            )}
           </button>
+          <span>Выбранные параметры сохраняются автоматически</span>
         </div>
         {expanded && (
           <div className="search-extra">
@@ -248,29 +262,19 @@ export function SearchPanel({
             </label>
           </div>
         )}
-        <label className="search-only-new check-label">
-          <input
-            type="checkbox"
-            checked={criteria.onlyNew}
-            onChange={(e) => change('onlyNew', e.target.checked)}
-          />
-          <span>
-            Искать только новые объявления
-            <small>Уже сохраненные пропускаем. Снимите отметку, чтобы обновить их условия.</small>
-          </span>
-        </label>
         <div className="search-footer">
-          <p>
-            Объявления напрямую с Циана.
-            <br />
-            <span>Сбор идет в фоне. Если появится капча, предложим открыть окно проверки.</span>
-          </p>
+          <label className="search-only-new check-label">
+            <input
+              type="checkbox"
+              checked={criteria.onlyNew}
+              onChange={(e) => change('onlyNew', e.target.checked)}
+            />
+            <span>
+              Искать только новые объявления
+              <small>Снимите отметку, чтобы обновить сохранённые</small>
+            </span>
+          </label>
           <div>
-            {preview && (
-              <a href={preview} target="_blank" rel="noreferrer">
-                Посмотреть поиск на Циане <ArrowUpRight size={14} />
-              </a>
-            )}
             <button className="button primary" disabled={busy || running}>
               {busy || running ? <LoaderCircle size={18} className="spin" /> : <Search size={18} />}{' '}
               {running ? 'Поиск выполняется' : 'Найти квартиры'}
