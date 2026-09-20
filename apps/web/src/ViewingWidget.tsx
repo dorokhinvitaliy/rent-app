@@ -10,9 +10,11 @@ const labels = { planned: 'Запланирован', visited: 'Состоялс
 export function ViewingWidget({
   listingId,
   initialViewingId,
+  onDone,
 }: {
   listingId: string;
   initialViewingId: string | null;
+  onDone?: () => void;
 }) {
   const { user, open: login } = useAuth();
   const [saved, setSaved] = useState<Viewing | null>(null),
@@ -117,6 +119,7 @@ export function ViewingWidget({
               setExpanded(false);
               setCalendar(false);
               window.dispatchEvent(new Event('viewings-changed'));
+              onDone?.();
             } catch (e) {
               setError((e as Error).message);
             } finally {
@@ -274,18 +277,19 @@ export function ViewingWidget({
           )}
           <div className="viewing-widget-options">
             {saved && (
-              <Select
-                compact
-                aria-label="Статус просмотра"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as Viewing['status'])}
-              >
-                {Object.entries(labels).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
+              <div className="viewing-status-control" role="group" aria-label="Статус просмотра">
+                {Object.entries(labels).map(([key, label]) => (
+                  <button
+                    type="button"
+                    key={key}
+                    aria-pressed={status === key}
+                    disabled={busy}
+                    onClick={() => setStatus(key as Viewing['status'])}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </Select>
+              </div>
             )}
             <button
               type="button"
@@ -326,6 +330,7 @@ export function ViewingWidget({
                     setFeedback('');
                     setExpanded(false);
                     window.dispatchEvent(new Event('viewings-changed'));
+                    onDone?.();
                   } catch (e) {
                     setError((e as Error).message);
                   } finally {
@@ -343,6 +348,8 @@ export function ViewingWidget({
               onClick={() => {
                 if (saved) load(saved);
                 setExpanded(false);
+                setCalendar(false);
+                onDone?.();
               }}
               disabled={busy}
             >

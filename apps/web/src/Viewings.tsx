@@ -1,5 +1,6 @@
+import { ViewingWidget } from './ViewingWidget';
 import { useEffect, useState } from 'react';
-import { CalendarDays, ArrowUpRight, Phone } from 'lucide-react';
+import { CalendarDays, ArrowUpRight, Phone, Pencil } from 'lucide-react';
 import { type Listing, type Viewing } from '@rent/shared';
 import { api } from './api';
 import { useAuth } from './Auth';
@@ -15,7 +16,8 @@ export function Viewings({
 }) {
   const { user, open: login } = useAuth();
   const [items, setItems] = useState<Viewing[]>([]),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [editing, setEditing] = useState<string | null>(null);
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -108,10 +110,21 @@ export function Viewings({
                     <button
                       className="viewing-edit"
                       aria-label={'Редактировать просмотр ' + l.title}
-                      onClick={() => onOpen(l.id, v.id)}
+                      onClick={() => setEditing(editing === v.id ? null : v.id)}
+                      aria-expanded={editing === v.id}
                     >
-                      <ArrowUpRight size={18} />
+                      <Pencil size={16} />
                     </button>
+                    {editing === v.id && (
+                      <div className="viewing-inline-editor">
+                        <ViewingWidget
+                          key={v.id}
+                          listingId={l.id}
+                          initialViewingId={v.id}
+                          onDone={() => setEditing(null)}
+                        />
+                      </div>
+                    )}
                   </article>
                 );
               })}

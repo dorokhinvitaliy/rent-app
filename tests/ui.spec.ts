@@ -929,11 +929,23 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await expect(page.locator('.viewing-card')).toHaveCount(1);
   await expect(page.locator('.viewing-card')).toContainText('Уточнить парковку');
   await page.locator('.viewing-edit').click();
-  await page.getByRole('combobox', { name: 'Статус просмотра' }).click();
-  await page.getByRole('option', { name: 'Состоялся', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByLabel('Фидбэк о просмотре').fill('После встречи: тихий двор, уточнить договор');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .locator('.viewing-card')
+    .screenshot({ path: 'test-results/viewing-inline-mobile.png' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await page
+    .getByRole('group', { name: 'Статус просмотра' })
+    .getByRole('button', { name: 'Состоялся', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
-  await modal.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.viewing-inline-editor')).toHaveCount(0);
   await expect(page.locator('.viewing-status')).toHaveText('Состоялся');
+  await expect(page.locator('.viewing-card')).toContainText('После встречи: тихий двор');
   await page.screenshot({ path: 'test-results/viewings-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/viewings-mobile.png', fullPage: true });
@@ -1009,6 +1021,14 @@ test('Guests export the filtered results to PDF without logging in', async ({
       },
     })
   ).json();
+  await request.patch('/api/listings/' + listing.id, { data: { notes: 'PRIVATE_PDF_COMMENT' } });
+  await request.post('/api/viewings', {
+    data: {
+      listingId: listing.id,
+      startsAt: '2026-10-01T15:00:00Z',
+      feedback: 'PRIVATE_PDF_VIEWING',
+    },
+  });
   const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   await page.goto('/');

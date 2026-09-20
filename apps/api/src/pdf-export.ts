@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { amenityLabels, costs, type Listing } from '@rent/shared';
+import { amenityLabels, costs, type Listing, type Viewing } from '@rent/shared';
 import { BadRequestException } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -19,7 +19,7 @@ const fontCss = [400, 700]
 const house =
   '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10 12 3l9 7v10H3zM9 20v-7h6v7"/></svg>';
 let busy = false;
-export async function collectionPdf(name: string, listings: Listing[]) {
+export async function collectionPdf(name: string, listings: Listing[], viewings: Viewing[] = []) {
   if (busy) throw new BadRequestException('PDF уже формируется. Повторите через минуту.');
   if (!listings.length) throw new BadRequestException('В подборке пока нет квартир');
   if (listings.length > 300)
@@ -51,7 +51,7 @@ export async function collectionPdf(name: string, listings: Listing[]) {
     await page.setContent(
       `<!doctype html><html lang="ru"><meta charset="utf-8"><style>${fontCss}
  *{box-sizing:border-box}body{font-family:Golos,Arial,sans-serif;color:#23262b;margin:0;font-size:12px;-webkit-print-color-adjust:exact}.sheet{break-after:page}.sheet:last-child{break-after:auto}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}.brand{display:flex;gap:9px;align-items:center;font-size:27px;font-weight:700;letter-spacing:-1.4px}.brand-icon{display:grid;place-items:center;width:34px;height:34px;background:#f0f0ed;border-radius:11px}.edition{font-size:8px;color:#8b8e8b;letter-spacing:1.8px;text-transform:uppercase}h1{font-size:28px;line-height:1.17;letter-spacing:-.9px;margin:0;max-width:95%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.intro{display:flex;justify-content:space-between;gap:12px;color:#8b8e91;font-size:10px;margin:12px 0 26px}.card{height:350px;display:grid;grid-template-columns:47% 1fr;background:#f5f5f2;border-radius:21px;overflow:hidden;margin-bottom:20px;break-inside:avoid}.visual{position:relative;background:#eaeae6;height:350px;overflow:hidden}.photo{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}.placeholder{position:absolute;inset:0;display:flex;gap:10px;align-items:center;justify-content:center;flex-direction:column;color:#a0a19a;font-size:11px}.badge{position:absolute;z-index:2;left:16px;top:16px;border-radius:15px;background:#fffffff0;padding:7px 11px;color:#343630;font-size:9px}.number{position:absolute;z-index:2;left:16px;bottom:15px;color:white;background:#2229;padding:5px 9px;border-radius:10px;font-size:10px}.info{padding:20px;display:flex;flex-direction:column;min-width:0}.overline{font-size:8px;color:#90918c;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}.price{font-size:29px;line-height:1.2;font-weight:700;letter-spacing:-1px;white-space:nowrap}.price small{font-size:10px;font-weight:400;color:#8b8d88;letter-spacing:0}h2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-shrink:0;font-size:15px;font-weight:700;line-height:1.4;margin:10px 0 5px;letter-spacing:-.2px}.facts{font-size:11px;color:#73766f;margin-bottom:8px}.address{font-size:11px;color:#72756f;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.metro{font-size:10px;line-height:1.5;margin-top:7px;color:#50574e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#777e72;margin-right:5px;vertical-align:middle}.bottom{margin-top:auto;border-top:1px solid #dedfd8;padding-top:13px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.entry small{display:block;font-size:9px;color:#8c8f85;margin-bottom:3px}.entry b{font-size:19px;letter-spacing:-.6px;white-space:nowrap}.link{font-size:10px;color:#353b32;text-decoration:none;border-bottom:1px solid #aaa;white-space:nowrap;padding-bottom:2px}.note{font-size:9px;color:#969992;line-height:1.5;margin-top:15px}
-.expenses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:11px 0 8px}.expense small{display:block;font-size:8px;color:#8b8e85;margin-bottom:3px}.expense b{font-size:10px;font-weight:400;white-space:nowrap}.features{font-size:9px;line-height:1.5;color:#656a60;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;flex-shrink:0}.bottom{flex-shrink:0} </style>${pages
+.expenses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:11px 0 8px}.expense small{display:block;font-size:8px;color:#8b8e85;margin-bottom:3px}.expense b{font-size:10px;font-weight:400;white-space:nowrap}.features{font-size:9px;line-height:1.5;color:#656a60;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;flex-shrink:0}.bottom{flex-shrink:0}.personal-note{position:absolute;z-index:3;left:14px;right:14px;bottom:43px;padding:12px 14px;border-radius:14px 14px 3px 14px;background:#292d2be8;color:#fff;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.personal-note small{display:block;color:#c7cbc6;font-size:8px;margin-bottom:4px}.personal-note p{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}.visit{font-size:9px;line-height:1.45;background:#e9ece6;border-radius:8px;padding:7px 9px;margin:0 0 8px;flex-shrink:0}.visit b{font-weight:700}.visit-feedback{margin-top:8px!important} </style>${pages
         .map(
           (batch, pi) =>
             `<section class="sheet"><header><div class="brand"><span class="brand-icon">${house}</span>место.</div><span class="edition">Подборка квартир</span></header><h1>${escape(name)}</h1><div class="intro"><span>${listings.length} вариантов · ${escape(date)}</span><span>${pi * 2 + 1}–${Math.min(pi * 2 + 2, listings.length)} / ${listings.length}</span></div>${batch
@@ -114,7 +114,32 @@ export async function collectionPdf(name: string, listings: Listing[]) {
                   .filter(Boolean)
                   .slice(0, 4)
                   .join(' · ');
-                return `<article class="card"><div class="visual"><div class="placeholder">${house}<span>Фотография недоступна</span></div>${l.photos[0] ? `<img class="photo" src="${escape(l.photos[0])}" onerror="this.remove()">` : ''}<span class="badge">${l.source === 'cian' ? 'Циан' : l.source === 'yandex' ? 'Яндекс' : 'Квартира'}</span><span class="number">${String(pi * 2 + i + 1).padStart(2, '0')}</span></div><div class="info"><div class="overline">Аренда в месяц</div><div class="price">${escape(rub(l.rent))}</div><h2>${escape(title)}</h2><div class="facts">${escape(facts)}</div><div class="address">${escape(l.address)}</div>${l.metro ? `<div class="metro"><i class="dot"></i>${escape(l.metro)}${l.metroMinutes != null ? ' · ' + l.metroMinutes + ' мин. пешком' : ''}</div>` : ''}<div class="expenses">${expenses.map(([label, value]) => `<div class="expense"><small>${escape(label)}</small><b>${escape(value)}</b></div>`).join('')}</div>${features ? `<div class="features">${escape(features)}</div>` : ''}<div class="bottom"><div class="entry"><small>На въезд${c.incomplete ? ' · от' : ''}</small><b>${escape(rub(c.moveIn))}</b></div>${l.url ? `<a class="link" href="${escape(l.url)}">Открыть ↗</a>` : ''}</div></div></article>`;
+                const meetings = viewings.filter((v) => v.listingId === l.id);
+                const viewing =
+                  meetings
+                    .filter((v) => v.status === 'planned')
+                    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ??
+                  meetings.sort((a, b) => b.startsAt.localeCompare(a.startsAt))[0];
+                const visitDate = viewing
+                  ? new Date(viewing.startsAt).toLocaleString('ru-RU', {
+                      timeZone: 'Europe/Moscow',
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '';
+                const visitStatus = viewing
+                  ? {
+                      planned: 'Просмотр',
+                      visited: 'Просмотр состоялся',
+                      cancelled: 'Просмотр отменён',
+                    }[viewing.status]
+                  : '';
+                const excerpt = (text: string) =>
+                  text.length > 280 ? text.slice(0, 277).trimEnd() + '…' : text;
+                const personal = l.notes.trim() || viewing?.feedback.trim();
+                return `<article class="card"><div class="visual"><div class="placeholder">${house}<span>Фотография недоступна</span></div>${l.photos[0] ? `<img class="photo" src="${escape(l.photos[0])}" onerror="this.remove()">` : ''}<span class="badge">${l.source === 'cian' ? 'Циан' : l.source === 'yandex' ? 'Яндекс' : 'Квартира'}</span>${personal ? `<div class="personal-note">${l.notes.trim() ? `<small>Мой комментарий</small><p>${escape(excerpt(l.notes.trim()))}</p>` : ''}${viewing?.feedback.trim() ? `<small class="visit-feedback">О просмотре</small><p>${escape(excerpt(viewing.feedback.trim()))}</p>` : ''}</div>` : ''}<span class="number">${String(pi * 2 + i + 1).padStart(2, '0')}</span></div><div class="info"><div class="overline">Аренда в месяц</div><div class="price">${escape(rub(l.rent))}</div><h2>${escape(title)}</h2><div class="facts">${escape(facts)}</div><div class="address">${escape(l.address)}</div>${l.metro ? `<div class="metro"><i class="dot"></i>${escape(l.metro)}${l.metroMinutes != null ? ' · ' + l.metroMinutes + ' мин. пешком' : ''}</div>` : ''}<div class="expenses">${expenses.map(([label, value]) => `<div class="expense"><small>${escape(label)}</small><b>${escape(value)}</b></div>`).join('')}</div>${features ? `<div class="features">${escape(features)}</div>` : ''}${viewing ? `<div class="visit"><b>${escape(visitStatus)}</b> · ${escape(visitDate)} МСК</div>` : ''}<div class="bottom"><div class="entry"><small>На въезд${c.incomplete ? ' · от' : ''}</small><b>${escape(rub(c.moveIn))}</b></div>${l.url ? `<a class="link" href="${escape(l.url)}">Открыть ↗</a>` : ''}</div></div></article>`;
               })
               .join(
                 '',
