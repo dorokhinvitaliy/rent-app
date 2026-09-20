@@ -160,7 +160,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await minPrice.focus();
   expect(await minPrice.evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('none');
   expect(await minPrice.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
-  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(23, 25, 29)');
+  await expect(minPrice.locator('xpath=../../..')).toHaveCSS('border-color', 'rgb(37, 38, 41)');
   await page.keyboard.press('Tab');
   await expect(panel.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toBeFocused();
   await panel.getByRole('combobox', { name: 'Город', exact: true }).click();
@@ -173,7 +173,6 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await page.screenshot({ path: 'test-results/custom-select.png', animations: 'disabled' });
   await page.getByRole('option', { name: 'До 10 минут', exact: true }).click();
   await panel.getByRole('button', { name: '2', exact: true }).click();
-  await panel.getByRole('button', { name: 'Еще параметры' }).click();
   await panel.getByRole('checkbox', { name: 'Без комиссии' }).check();
   await expect(panel.getByRole('checkbox', { name: 'Без комиссии' })).toHaveCSS(
     'appearance',
@@ -752,4 +751,18 @@ test('Browser crash toast stays compact and hides Chromium diagnostics', async (
   await page.screenshot({ path: 'test-results/search-error-toast.png' });
   await page.getByRole('button', { name: 'Закрыть поиск', exact: true }).click();
   await expect(toast).toHaveCount(0);
+});
+
+test('Search groups expose apartment criteria without parser settings', async ({ page }) => {
+  await page.goto('/');
+  const panel = page.getByRole('region', { name: 'Поиск квартир на Циане' });
+  for (const label of ['Расположение', 'Квартира', 'Бюджет'])
+    await expect(panel.getByRole('region', { name: label, exact: true })).toBeVisible();
+  await expect(panel.getByText('Собрать до', { exact: true })).toHaveCount(0);
+  await expect(panel.getByText('Просмотреть до', { exact: true })).toHaveCount(0);
+  await expect(panel.getByText('Еще параметры', { exact: true })).toHaveCount(0);
+  await panel.screenshot({ path: 'test-results/search-redesign-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await panel.screenshot({ path: 'test-results/search-redesign-mobile.png' });
 });
