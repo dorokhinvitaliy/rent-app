@@ -1,86 +1,22 @@
-/* Soft, light UI kit: shared surfaces and controls across search, collection and dialogs. */
-:root {
-  --accent: #4c86ed;
-  --accent-soft: #edf4ff;
-  --focus: 0 0 0 4px #4c86ed12;
-  --border: #eceef2;
-  --surface-input: #f5f5f7;
-  --ink: #20242c;
-  background: #fff;
-  color: var(--ink);
-}
-body,
-main {
-  background: #fff;
-}
+/* Rounded UI kit geometry. Colors inherit the original palette from styles.css. */
 .sidebar {
-  background: #fafafb;
-  color: var(--ink);
-  border-right: 1px solid #eff0f3;
+  border-right: 1px solid #e5e8ef;
 }
 .brand-icon {
-  background: #171f2c;
-  color: white;
   border-radius: 14px;
 }
-.brand-dot {
-  color: var(--accent);
-}
 .workspace {
-  background: white;
-  border-color: #eceef2;
   border-radius: 18px;
-}
-.workspace-icon,
-.profile > span {
-  background: #edf0f5;
-  color: #536079;
-}
-.workspace small,
-.nav-caption,
-.profile small,
-.local-status small {
-  color: #7b8392;
 }
 .nav-item {
   border-radius: 24px;
-  color: #626c7c;
-}
-.nav-item svg {
-  color: inherit;
-}
-.nav-item:hover {
-  background: #f0f1f4;
-  color: var(--ink);
-}
-.nav-item.chosen {
-  background: #eaf1fe;
-  color: #386fc8;
 }
 .nav-item small {
-  color: inherit;
-  background: #ffffffb3;
   border-radius: 20px;
 }
 .sidebar-tip {
-  background: #f0f3f8;
   border: 0;
   border-radius: 22px;
-}
-.sidebar-tip p,
-.local-status b {
-  color: #697589;
-}
-.sidebar-tip button,
-.tip-icon {
-  color: #427bd7;
-}
-.profile {
-  border-color: #e9ebef;
-}
-.topbar {
-  background: #fff;
-  border-color: #f0f1f4;
 }
 .button {
   border-radius: 999px;
@@ -90,44 +26,29 @@ main {
 }
 .primary,
 .heading-actions .primary {
-  background: var(--accent);
   box-shadow: none;
 }
 .primary:hover:not(:disabled),
 .heading-actions .primary:hover {
-  background: #3976df;
   box-shadow: none;
-}
-.secondary {
-  background: #f0f1f3;
-  border-color: transparent;
-  color: #363d48;
-}
-.secondary:hover:not(:disabled) {
-  background: #e8eaee;
-  border-color: transparent;
 }
 .icon-button {
   border-radius: 50%;
 }
 .search-panel {
   padding: 28px;
-  border-color: #eceef2;
   border-radius: 28px;
   box-shadow: none;
 }
 .search-platform {
   border: 0;
   border-radius: 24px;
-  background: #edf4ff;
-  color: #4479cc;
 }
 .field input,
 .field .select-trigger,
 .field textarea,
 .notes-label textarea {
-  background: var(--surface-input);
-  border: 1px solid transparent;
+  border: 1px solid #e1e5ed;
   border-radius: 20px;
   padding: 14px 18px;
   min-height: 54px;
@@ -141,7 +62,6 @@ main {
   position: absolute;
   top: 11px;
   left: 19px;
-  color: #737b89;
   font-size: 11px;
   line-height: 15px;
   font-weight: 400;
@@ -155,18 +75,11 @@ main {
   padding-bottom: 11px;
   min-height: 64px;
 }
-.field input:hover,
-.field .select-trigger:hover,
-.field textarea:hover {
-  border-color: #e3e6eb;
-}
 .field input:focus-visible,
 .field .select-trigger:focus-visible,
 .field textarea:focus-visible,
 .field .select-trigger[data-state='open'],
 .notes-label textarea:focus-visible {
-  background: #fafcff;
-  border-color: #c9daf9;
   box-shadow: var(--focus);
   outline: none;
 }
@@ -179,7 +92,6 @@ main {
   left: 19px;
   top: 11px;
   z-index: 1;
-  color: #737b89;
   font-weight: 400;
   font-size: 11px;
   line-height: 15px;
@@ -187,16 +99,9 @@ main {
 .range-control {
   min-height: 64px;
   padding-top: 22px;
-  background: var(--surface-input);
   border-radius: 20px;
-  border-color: transparent;
-}
-.range-control:hover {
-  border-color: #e3e6eb;
 }
 .range-control:focus-within {
-  border-color: #c9daf9;
-  background: #fafcff;
   box-shadow: var(--focus);
 }
 .range-half {
@@ -210,56 +115,36 @@ main {
 .range-half + .range-half:before {
   top: 9px;
   bottom: 10px;
-  background: #e0e3e9;
 }
 .search-rooms > div button {
   border-radius: 999px;
-  border-color: transparent;
-  background: #f2f3f5;
   min-width: 39px;
   height: 39px;
 }
-.search-rooms > div button:hover {
-  background: #e9edf4;
-  border-color: transparent;
-}
-.search-rooms > div button[aria-pressed='true'] {
-  background: #1b2432;
-  border-color: #1b2432;
-}
 .search-extra {
-  background: white;
-  border-color: #edf0f3;
   border-radius: 22px;
   padding: 16px;
-}
-.search-footer {
-  border-color: #edf0f3;
 }
 .filter-bar {
   border: 0;
   padding: 0;
-  background: transparent;
   gap: 12px;
 }
 .search-field {
-  background: var(--surface-input);
   border-radius: 999px;
   padding: 0 18px;
   min-height: 48px;
 }
 .filter-bar .select-trigger,
 .price-filter {
-  background: var(--surface-input);
   border-radius: 999px;
-  border-color: transparent;
   min-height: 48px;
   padding-left: 18px;
   padding-right: 18px;
 }
 .sort .select-trigger {
   border-radius: 999px;
-  border: 1px solid #e7e9ed;
+  border: 1px solid #dfe3eb;
   padding: 10px 16px;
   min-height: 40px;
 }
@@ -285,19 +170,14 @@ main {
   padding: 18px 8px 0;
 }
 .card-price > b {
-  color: #339766;
   font-size: 25px;
 }
 .card-title {
   font-size: 14px;
 }
 .card-cost {
-  background: #f7f8fa;
   border-radius: 16px;
   border: 0;
-}
-.card-detail {
-  color: #4379ca;
 }
 .source-tag,
 .no-commission,
@@ -306,12 +186,9 @@ main {
 }
 .modal {
   border-radius: 28px;
-  border-color: #eceef2;
 }
 .calculator {
   border-radius: 24px;
-  background: #f8faff;
-  border-color: #e9eff9;
 }
 .term .select-trigger {
   border-radius: 999px;
@@ -319,15 +196,11 @@ main {
 .select-trigger {
   padding-right: 18px;
 }
-.select-chevron {
-  color: #89919d;
-}
 .select-menu {
-  border-color: #eeeff2;
   border-radius: 24px;
   box-shadow:
-    0 14px 30px #1b243214,
-    0 3px 8px #1b243208;
+    0 14px 30px #18284b1a,
+    0 3px 8px #18284b08;
 }
 .select-options {
   padding: 8px;
@@ -337,35 +210,20 @@ main {
   padding: 12px 16px;
   border-radius: 999px;
   font-weight: 400;
-  color: #3f4753;
 }
 .select-option[data-state='checked'] {
-  background: #edf4ff;
-  color: #417bcf;
   font-weight: 500;
-}
-.select-option[data-highlighted] {
-  background: #f1f2f4;
-  color: #3269ba;
 }
 input[type='checkbox'] {
   width: 20px;
   height: 20px;
-  border: 1px solid transparent;
+  border: 1px solid #c7d0e1;
   border-radius: 6px;
-  background-color: #e3e8ee;
-}
-input[type='checkbox']:hover {
-  border-color: #a3adbc;
-}
-input[type='checkbox']:checked {
-  background-color: #18212e;
-  border-color: #18212e;
 }
 @media (max-width: 720px) {
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid #eceef2;
+    border-bottom: 1px solid #e5e8ef;
   }
   .search-panel {
     padding: 20px 16px;
