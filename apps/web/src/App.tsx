@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowDownToLine,
@@ -537,7 +538,7 @@ export default function App() {
                     placeholder="Адрес, район или метро"
                   />
                 </label>
-                <select
+                <Select
                   aria-label="Источник"
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
@@ -546,8 +547,8 @@ export default function App() {
                   <option value="cian">Циан</option>
                   <option value="yandex">Яндекс Недвижимость</option>
                   <option value="manual">Вручную</option>
-                </select>
-                <select
+                </Select>
+                <Select
                   aria-label="Количество комнат"
                   value={rooms}
                   onChange={(e) => setRooms(e.target.value)}
@@ -557,7 +558,7 @@ export default function App() {
                   <option value="1">1 комната</option>
                   <option value="2">2 комнаты</option>
                   <option value="3+">3 и больше</option>
-                </select>
+                </Select>
                 <label className="price-filter">
                   <input
                     type="number"
@@ -626,7 +627,7 @@ export default function App() {
                 </div>
                 <label className="sort">
                   Сортировка:{' '}
-                  <select
+                  <Select
                     aria-label="Сортировка"
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
@@ -634,7 +635,7 @@ export default function App() {
                     <option value="new">Сначала новые</option>
                     <option value="rent">Дешевле в месяц</option>
                     <option value="entry">Меньше на въезд</option>
-                  </select>
+                  </Select>
                 </label>
               </div>
               {demo && (
@@ -993,13 +994,17 @@ function Term({ months, setMonths }: { months: number; setMonths: (v: number) =>
   return (
     <label className="term">
       Планирую снимать{' '}
-      <select value={months} onChange={(e) => setMonths(Number(e.target.value))}>
+      <Select
+        aria-label="Планирую снимать"
+        value={months}
+        onChange={(e) => setMonths(Number(e.target.value))}
+      >
         {[1, 3, 6, 12, 24, 36].map((n) => (
           <option key={n} value={n}>
             {n} мес.
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -1271,22 +1276,30 @@ function ImportModal({
             <div className="form-grid">
               <label className="field">
                 Максимум квартир
-                <select value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+                <Select
+                  aria-label="Максимум квартир"
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                >
                   <option value={5}>5 квартир</option>
                   <option value={10}>10 квартир</option>
                   <option value={20}>20 квартир</option>
                   <option value={30}>30 квартир</option>
-                </select>
+                </Select>
               </label>
               <label className="field">
                 Страниц каталога
-                <select value={pages} onChange={(e) => setPages(Number(e.target.value))}>
+                <Select
+                  aria-label="Страниц каталога"
+                  value={pages}
+                  onChange={(e) => setPages(Number(e.target.value))}
+                >
                   {[1, 2, 3].map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
             <div className="notice-box">
@@ -1449,7 +1462,8 @@ function EditModal({
           </label>
           <label className="field">
             Источник
-            <select
+            <Select
+              aria-label="Источник"
               value={data.source}
               onChange={(e) => set('source', e.target.value)}
               disabled={!!listing}
@@ -1457,7 +1471,7 @@ function EditModal({
               <option value="manual">Вручную</option>
               <option value="cian">Циан</option>
               <option value="yandex">Яндекс Недвижимость</option>
-            </select>
+            </Select>
           </label>
           <label className="field">
             Ссылка
@@ -1494,13 +1508,14 @@ function EditModal({
           {numericField('Комиссия', 'commission')}
           <label className="field">
             Тип комиссии
-            <select
+            <Select
+              aria-label="Тип комиссии"
               value={data.commissionType}
               onChange={(e) => set('commissionType', e.target.value)}
             >
               <option value="percent">% от месячной аренды</option>
               <option value="fixed">Фиксированная сумма, ₽</option>
-            </select>
+            </Select>
           </label>
           {numericField('Прочие разовые расходы, ₽', 'otherCosts', true)}
           <label className="field span-2">

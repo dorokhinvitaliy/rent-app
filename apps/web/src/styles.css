@@ -26,14 +26,14 @@ body {
 }
 button,
 input,
-select,
+.select-trigger,
 textarea {
   font: inherit;
 }
 button,
 a,
 input,
-select,
+.select-trigger,
 textarea {
   -webkit-tap-highlight-color: transparent;
 }
@@ -64,7 +64,7 @@ p {
 button,
 a,
 input,
-select,
+.select-trigger,
 textarea {
   transition:
     background 0.16s,
@@ -78,7 +78,7 @@ a:focus-visible {
   outline-offset: 4px;
 }
 input,
-select,
+.select-trigger,
 textarea {
   color: var(--ink);
   outline: none;
@@ -89,7 +89,7 @@ textarea::placeholder {
   opacity: 1;
 }
 input:focus-visible,
-select:focus-visible,
+.select-trigger:focus-visible,
 textarea:focus-visible {
   border-color: var(--accent);
   box-shadow: var(--focus);
@@ -109,7 +109,7 @@ input[type='checkbox'] {
   height: 16px;
 }
 input:disabled,
-select:disabled {
+.select-trigger:disabled {
   color: #777f90;
   background: #f4f5f8;
 }
@@ -506,7 +506,7 @@ h1 {
   min-width: 0;
 }
 .field input,
-.field select,
+.field .select-trigger,
 .field textarea,
 .notes-label textarea {
   width: 100%;
@@ -518,8 +518,8 @@ h1 {
   font-weight: 400;
   min-height: 46px;
 }
-.field select,
-select {
+.field .select-trigger,
+.select-trigger {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23748198' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -528,12 +528,12 @@ select {
   cursor: pointer;
 }
 .field input:hover,
-.field select:hover,
+.field .select-trigger:hover,
 .field textarea:hover {
   border-color: #cbd3e2;
 }
 .field input:focus-visible,
-.field select:focus-visible,
+.field .select-trigger:focus-visible,
 .field textarea:focus-visible,
 .notes-label textarea:focus-visible {
   border-color: var(--accent);
@@ -893,7 +893,7 @@ select {
   padding: 8px 2px;
   box-shadow: none;
 }
-.filter-bar select {
+.filter-bar .select-trigger {
   font-size: 12px;
   min-height: 40px;
   padding: 10px 30px 10px 12px;
@@ -1028,7 +1028,7 @@ select {
   font-size: 11px;
   color: #7c889e;
 }
-.sort select {
+.sort .select-trigger {
   border: 0;
   background-color: transparent;
   font-size: 11px;
@@ -1661,7 +1661,7 @@ select {
   color: #748caf;
   margin-bottom: 24px;
 }
-.term select {
+.term .select-trigger {
   background-color: white;
   border: 1px solid #dce5f5;
   border-radius: 7px;
@@ -2320,17 +2320,17 @@ select {
     gap: 8px;
   }
   .field input,
-  .field select,
+  .field .select-trigger,
   .field textarea {
     font-size: 16px;
     padding: 12px 10px;
     min-height: 46px;
   }
-  .field select {
+  .field .select-trigger {
     padding-right: 29px;
     background-position: right 8px center;
   }
-  .search-main-fields .field select {
+  .search-main-fields .field .select-trigger {
     font-size: 12px;
   }
   .search-main-fields > .field:first-child {
@@ -2406,7 +2406,7 @@ select {
     gap: 15px 10px;
   }
   .search-extra .field input,
-  .search-extra .field select {
+  .search-extra .field .select-trigger {
     font-size: 13px;
   }
   .search-extra .check-label {
@@ -2509,7 +2509,7 @@ select {
     font-size: 12px;
     min-height: 35px;
   }
-  .filter-bar select {
+  .filter-bar .select-trigger {
     min-width: 0;
     flex: 1;
     font-size: 10px;
@@ -2556,7 +2556,7 @@ select {
     font-size: 0;
     gap: 0;
   }
-  .sort select {
+  .sort .select-trigger {
     font-size: 9px;
     max-width: 120px;
   }
@@ -2756,5 +2756,144 @@ select {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Shared accessible dropdowns, including portals inside native dialogs. */
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  background-image: none !important;
+  padding-right: 13px;
+  min-width: 0;
+}
+.select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-chevron {
+  display: flex;
+  flex: 0 0 auto;
+  color: #8a96ae;
+  transition: transform 160ms ease;
+}
+.select-trigger[data-state='open'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #4561e810;
+}
+.select-trigger[data-state='open'] .select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.select-menu {
+  z-index: 250;
+  width: var(--radix-select-trigger-width);
+  min-width: 160px;
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-select-content-available-height);
+  overflow: hidden;
+  border: 1px solid #e2e7f1;
+  border-radius: 14px;
+  background: white;
+  box-shadow:
+    0 16px 48px #18284b1a,
+    0 3px 10px #18284b08;
+  color: var(--ink);
+  font-family: inherit;
+  animation: select-enter 120ms ease-out;
+}
+.select-options {
+  padding: 6px;
+}
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 40px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+.select-option[data-state='checked'] {
+  background: #f0f3ff;
+  color: #3d55cf;
+  font-weight: 600;
+}
+.select-option[data-highlighted] {
+  background: #e9eeff;
+  color: #334ac1;
+}
+.select-check {
+  display: flex;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+.select-scroll {
+  display: flex;
+  justify-content: center;
+  padding: 4px;
+  color: var(--accent);
+}
+input[type='checkbox'] {
+  appearance: none;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid #c7d0e1;
+  border-radius: 5px;
+  background: #fff;
+  vertical-align: middle;
+  cursor: pointer;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    box-shadow 120ms;
+}
+input[type='checkbox']:hover {
+  border-color: var(--accent);
+}
+input[type='checkbox']:checked {
+  border-color: var(--accent);
+  background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18' fill='none'%3E%3Cpath d='m4 9 3.2 3.2L14 5.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+}
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px #4561e815;
+}
+input[type='checkbox']:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+@keyframes select-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-menu {
+    animation: none;
+  }
+  .select-chevron {
+    transition: none;
   }
 }

@@ -1,3 +1,4 @@
+import { Select } from './Select';
 import { useState, type FormEvent } from 'react';
 import {
   Search,
@@ -112,7 +113,8 @@ export function SearchPanel({
         <div className="search-main-fields">
           <label className="field">
             Город
-            <select
+            <Select
+              aria-label="Город"
               value={criteria.region}
               onChange={(e) => change('region', e.target.value as CianSearch['region'])}
             >
@@ -121,13 +123,14 @@ export function SearchPanel({
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {range('Аренда в месяц, ₽', 'minRent', 'maxRent')}
           {range('Площадь, м²', 'minArea', 'maxArea')}
           <label className="field">
             Пешком до метро
-            <select
+            <Select
+              aria-label="Пешком до метро"
               value={criteria.metroMinutes ?? ''}
               onChange={(e) =>
                 change('metroMinutes', e.target.value === '' ? null : Number(e.target.value))
@@ -139,7 +142,7 @@ export function SearchPanel({
                   До {m} минут
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <div className="search-rooms">
@@ -191,7 +194,8 @@ export function SearchPanel({
             </label>
             <label className="field">
               Собрать до
-              <select
+              <Select
+                aria-label="Собрать до"
                 value={criteria.limit}
                 onChange={(e) => change('limit', Number(e.target.value))}
               >
@@ -200,11 +204,12 @@ export function SearchPanel({
                     {v} квартир
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="field">
               Просмотреть до
-              <select
+              <Select
+                aria-label="Просмотреть до"
                 value={criteria.pages}
                 onChange={(e) => change('pages', Number(e.target.value))}
               >
@@ -213,7 +218,7 @@ export function SearchPanel({
                     {v} стр.
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="check-label">
               <input

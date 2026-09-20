@@ -8,10 +8,11 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.3.7",
     "@rent/shared": "0.1.0",
+    "lucide-react": "^0.468.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "lucide-react": "^0.468.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/react": "^19.1.16",

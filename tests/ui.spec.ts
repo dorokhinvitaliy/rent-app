@@ -24,6 +24,16 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.getByRole('button', { name: 'Подробнее и расчет' }).click();
   await expect(page.getByText('218 500 ₽', { exact: false }).last()).toBeVisible();
   await page.getByRole('dialog').screenshot({ path: 'test-results/calculator.png' });
+  const term = page.getByRole('dialog').getByRole('combobox', { name: 'Планирую снимать' });
+  await term.click();
+  await page.getByRole('option', { name: '6 мес.', exact: true }).click();
+  await expect(term).toHaveText('6 мес.');
+  await term.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toBeVisible();
   await page
     .getByPlaceholder('Что понравилось? Что уточнить у владельца?')
     .fill('Уточнить счетчики');
@@ -66,6 +76,10 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.getByRole('button', { name: 'Подробнее и расчет' }).first().click();
   await expect(page.locator('.calculator')).toBeVisible();
   await page.getByRole('dialog').screenshot({ path: 'test-results/mobile-detail.png' });
+  await page.getByRole('dialog').getByRole('combobox', { name: 'Планирую снимать' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.screenshot({ path: 'test-results/mobile-select.png', animations: 'disabled' });
+  await page.getByRole('option', { name: '3 мес.', exact: true }).click();
   expect(errors).toEqual([]);
 });
 
@@ -101,12 +115,22 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(69, 97, 232)');
   await page.keyboard.press('Tab');
   await expect(panel.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toBeFocused();
-  await panel.getByRole('combobox', { name: 'Город', exact: true }).selectOption('2');
+  await panel.getByRole('combobox', { name: 'Город', exact: true }).click();
+  await page.getByRole('option', { name: 'Санкт-Петербург', exact: true }).click();
   await panel.getByLabel('Аренда в месяц, ₽ до').fill('90000');
   await panel.getByLabel('Площадь, м² от').fill('40');
   await panel.getByLabel('Площадь, м² до').fill('70');
-  await panel.getByRole('combobox', { name: 'Пешком до метро' }).selectOption('10');
+  await panel.getByRole('combobox', { name: 'Пешком до метро' }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await page.screenshot({ path: 'test-results/custom-select.png', animations: 'disabled' });
+  await page.getByRole('option', { name: 'До 10 минут', exact: true }).click();
   await panel.getByRole('button', { name: '2', exact: true }).click();
+  await panel.getByRole('button', { name: 'Еще параметры' }).click();
+  await panel.getByRole('checkbox', { name: 'Без комиссии' }).check();
+  await expect(panel.getByRole('checkbox', { name: 'Без комиссии' })).toHaveCSS(
+    'appearance',
+    'none',
+  );
   const preview = await panel
     .getByRole('link', { name: 'Посмотреть поиск на Циане' })
     .getAttribute('href');
@@ -119,6 +143,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
     minArea: 40,
     maxArea: 70,
     metroMinutes: 10,
+    noCommission: true,
   });
   await expect(
     panel.getByText('Пройдите проверку в открывшемся браузере', { exact: true }),
