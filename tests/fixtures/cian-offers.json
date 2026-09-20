@@ -1,0 +1,152 @@
+[
+  {
+    "id": 334056198,
+    "cianId": 334056198,
+    "dealType": "rent",
+    "roomsCount": 2,
+    "totalArea": "40.0",
+    "floorNumber": 12,
+    "flatType": "rooms",
+    "photos": [
+      {
+        "fullUrl": "https://images.cdn-cian.ru/example-own.jpg",
+        "isDefault": true
+      }
+    ],
+    "geo": {
+      "address": [],
+      "undergrounds": [
+        {
+          "name": "Бульвар Рокоссовского",
+          "travelType": "walk",
+          "travelTime": 13
+        },
+        {
+          "name": "Преображенская площадь",
+          "travelType": "transport",
+          "travelTime": 7
+        },
+        {
+          "name": "Черкизовская",
+          "travelType": "transport",
+          "travelTime": 7
+        }
+      ]
+    },
+    "bargainTerms": {
+      "price": 82500,
+      "currency": "rur",
+      "paymentPeriod": "monthly",
+      "leaseTermType": "longTerm",
+      "deposit": 82500,
+      "utilitiesTerms": {
+        "includedInPrice": true,
+        "price": 0,
+        "flowMetersNotIncludedInPrice": true
+      },
+      "clientFee": 0,
+      "agentFee": 50
+    }
+  },
+  {
+    "id": 334029938,
+    "cianId": 334029938,
+    "dealType": "rent",
+    "roomsCount": 2,
+    "totalArea": "47.0",
+    "floorNumber": 6,
+    "flatType": "rooms",
+    "photos": [
+      {
+        "fullUrl": "https://images.cdn-cian.ru/example-own.jpg",
+        "isDefault": true
+      }
+    ],
+    "geo": {
+      "address": [],
+      "undergrounds": [
+        {
+          "name": "Сходненская",
+          "travelType": "walk",
+          "travelTime": 6
+        },
+        {
+          "name": "Планерная",
+          "travelType": "walk",
+          "travelTime": 14
+        },
+        {
+          "name": "Тушинская",
+          "travelType": "transport",
+          "travelTime": 8
+        }
+      ]
+    },
+    "bargainTerms": {
+      "price": 29900,
+      "currency": "rur",
+      "paymentPeriod": "monthly",
+      "leaseTermType": "fewMonths",
+      "utilitiesTerms": {
+        "includedInPrice": true,
+        "price": 0
+      },
+      "clientFee": 0,
+      "agentFee": 0
+    }
+  },
+  {
+    "id": 332764226,
+    "cianId": 332764226,
+    "dealType": "rent",
+    "roomsCount": 2,
+    "totalArea": "40.0",
+    "floorNumber": 13,
+    "flatType": "rooms",
+    "photos": [
+      {
+        "fullUrl": "https://images.cdn-cian.ru/example-own.jpg",
+        "isDefault": true
+      }
+    ],
+    "geo": {
+      "address": [],
+      "undergrounds": [
+        {
+          "name": "Верхние Лихоборы",
+          "travelType": "walk",
+          "travelTime": 6
+        },
+        {
+          "name": "Селигерская",
+          "travelType": "walk",
+          "travelTime": 14
+        },
+        {
+          "name": "Дегунино",
+          "travelType": "walk",
+          "travelTime": 19
+        },
+        {
+          "name": "Лихоборы",
+          "travelType": "walk",
+          "travelTime": 20
+        }
+      ]
+    },
+    "bargainTerms": {
+      "price": 80000,
+      "currency": "rur",
+      "paymentPeriod": "monthly",
+      "leaseTermType": "longTerm",
+      "deposit": 80000,
+      "utilitiesTerms": {
+        "includedInPrice": true,
+        "price": 0,
+        "flowMetersNotIncludedInPrice": true
+      },
+      "clientFee": 0,
+      "agentFee": 0
+    }
+  }
+]

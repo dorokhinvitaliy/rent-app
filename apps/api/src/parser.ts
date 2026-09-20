@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { readCianState } from './cian-state';
 import { listingSchema, type ListingInput } from '@rent/shared';
 
 export function sourceUrl(value: string): { url: string; source: 'cian' | 'yandex' } {
@@ -49,6 +50,18 @@ export function parseHtml(
       'Площадка просит пройти проверку. Откройте браузерный импорт и пройдите капчу вручную.',
     );
   const $ = load(html);
+  if (source === 'cian' && /\/rent\/flat\/\d+/.test(url)) {
+    const fromState = readCianState($, url);
+    if (fromState)
+      return {
+        listings: [fromState],
+        warnings: [
+          fromState.utilities === null
+            ? 'Коммунальные платежи или счетчики не указаны полностью. Уточните сумму.'
+            : '',
+        ].filter(Boolean),
+      };
+  }
   const listings: ListingInput[] = [];
   const warnings: string[] = [];
   const isDetail = /\/(rent\/flat|offer)\/\d+/.test(url);
@@ -61,10 +74,6 @@ export function parseHtml(
     if (isDetail) b('[data-name="CardComponent"], .OffersSerpItem').remove();
     b('script:not([type="application/ld+json"]),style,nav,footer,header').remove();
     const text = b('body').text().replace(/\s+/g, ' ').trim();
-    if (/₽\s*\/\s*сут|руб\.?\s*\/\s*сут|в сутки|за сутки/i.test(text)) {
-      warnings.push('Посуточное предложение пропущено');
-      continue;
-    }
     let link = cards.length
       ? b('a[href*="/rent/flat/"], a[href*="/offer/"]').first().attr('href')
       : url;
@@ -90,15 +99,29 @@ export function parseHtml(
       json.find((x) =>
         ['Apartment', 'Product', 'Residence', 'RealEstateListing'].includes(x['@type']),
       ) || {};
-    const priceText =
-      b('[data-mark="MainPrice"], [data-testid="price"], .OfferPrice').first().text() || text;
+    const priceText = b(
+      '[data-name="PriceInfo"], [data-mark="MainPrice"], [data-testid="price"], .OfferPrice',
+    )
+      .first()
+      .text();
+    if (/₽\s*\/\s*сут|руб\.?\s*\/\s*сут|в сутки|за сутки/i.test(priceText)) {
+      warnings.push('Посуточное предложение пропущено: период указан в основной цене');
+      continue;
+    }
     const match =
       priceText.match(/([\d\s\u00a0]+)\s*(?:₽|руб)[^\d]{0,15}(?:мес|месяц)/i) ||
       priceText.match(/([\d\s\u00a0]+)\s*₽/);
     const offer = Array.isArray(structured.offers) ? structured.offers[0] : structured.offers;
-    const rent =
-      numeric(match?.[1]) ||
-      (offer?.priceCurrency === 'RUB' ? numeric(String(offer.price || '')) : null);
+    const domRent = numeric(match?.[1]);
+    const linkedOffer =
+      offer && (!offer.url || new URL(offer.url, link).pathname === new URL(link).pathname)
+        ? offer
+        : null;
+    const jsonRent =
+      linkedOffer?.priceCurrency === 'RUB' ? numeric(String(linkedOffer.price || '')) : null;
+    if (domRent && jsonRent && domRent !== jsonRent)
+      throw new Error('Основная цена и структурированные данные различаются. Импорт остановлен.');
+    const rent = domRent || jsonRent;
     if (!rent) {
       warnings.push(`Не найдена месячная цена: ${link}`);
       continue;
@@ -143,7 +166,10 @@ export function parseHtml(
       : [];
     images.forEach((x: any) => addPhoto(typeof x === 'string' ? x : x.url));
     addPhoto(b('meta[property="og:image"]').attr('content'));
-    b('img').each((_, e) => {
+    (images.length
+      ? b('__no_extra_images__')
+      : b('[data-name="Gallery"] img, [data-name="Photos"] img, img[src*="cdn-cian"]')
+    ).each((_, e) => {
       const src = b(e).attr('src') || b(e).attr('data-src');
       if (src && /cdn-cian|images\.cdn-cian|avatars\.mds\.yandex|realty.*yandex/i.test(src))
         addPhoto(src);

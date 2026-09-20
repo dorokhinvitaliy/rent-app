@@ -58,7 +58,7 @@ export class Importer implements OnModuleDestroy {
       .waitForFunction(
         () =>
           document.querySelector(
-            '[data-mark=MainPrice], [data-name=CardComponent], .OfferPrice, .OffersSerpItem, script[type="application/ld+json"]',
+            '[data-name=PriceInfo], [data-mark=MainPrice], [data-name=CardComponent], .OfferPrice, .OffersSerpItem, script[type="application/ld+json"]',
           ) !== null,
         undefined,
         { timeout: 15000 },

@@ -308,3 +308,40 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
     delete process.env.DATABASE_PATH;
   }
 });
+
+// Minimal financial/transport fields from three live Cian offers, 2026-09-20.
+const offers = JSON.parse(
+  readFileSync(new URL('./fixtures/cian-offers.json', import.meta.url), 'utf8'),
+);
+function stateHtml(offer: any, displayed = offer.bargainTerms.price) {
+  return `<h1>Квартира</h1><aside>Рекомендации: 26 000 ₽/мес. 5 000 ₽ за сутки</aside>
+  <div data-name="PriceInfo">${displayed} ₽/мес.</div>
+  <script>window._cianConfig['frontend-offer-card'] = (window._cianConfig['frontend-offer-card'] || []).concat(${JSON.stringify([{ key: 'defaultState', value: { offerData: { offer } } }])});</script>`;
+}
+test('Cian own offer state ignores daily ads, other prices and agent fee; preserves walking metro and unknown meters', () => {
+  for (const [i, expected] of [
+    [0, [82500, 82500, 13, null]],
+    [1, [29900, null, 6, 0]],
+    [2, [80000, 80000, 6, null]],
+  ] as const) {
+    const offer = offers[i];
+    const l = parseHtml(stateHtml(offer), `https://www.cian.ru/rent/flat/${offer.id}/`).listings[0];
+    assert.deepEqual([l.rent, l.deposit, l.metroMinutes, l.utilities], expected);
+    assert.equal(l.commission, 0);
+    assert.deepEqual(l.photos, ['https://images.cdn-cian.ru/example-own.jpg']);
+  }
+});
+test('Cian state rejects a different offer, conflicting price and actual daily rental', () => {
+  const offer = structuredClone(offers[0]);
+  const ownUrl = `https://www.cian.ru/rent/flat/${offer.id}/`;
+  assert.throws(() => parseHtml(stateHtml(offer), url), /ID/);
+  assert.throws(() => parseHtml(stateHtml(offer, 26000), ownUrl), /различается/);
+  offer.bargainTerms.paymentPeriod = 'daily';
+  assert.throws(() => parseHtml(stateHtml(offer), ownUrl), /Посуточное/);
+  offer.bargainTerms.paymentPeriod = 'monthly';
+  offer.bargainTerms.currency = 'usd';
+  assert.throws(() => parseHtml(stateHtml(offer), ownUrl), /рублях/);
+});
+test('Unscoped price text is never used as the rent', () => {
+  assert.throws(() => parseHtml('<h1>Квартира</h1><aside>26 000 ₽/мес.</aside>', url));
+});
