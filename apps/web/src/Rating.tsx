@@ -12,11 +12,13 @@ export function Rating({
   onChange,
   disabled,
   title,
+  alwaysOpen = false,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
   disabled: boolean;
   title: string;
+  alwaysOpen?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const [open, setOpen] = useState(false);
@@ -25,7 +27,7 @@ export function Rating({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const shown = open || (hovered && !dismissed);
+  const shown = alwaysOpen || open || (hovered && !dismissed);
   const selected = levels.find((l) => l.value === value);
   const active = levels.find((l) => l.value === (preview ?? value));
   useEffect(() => {
@@ -44,7 +46,7 @@ export function Rating({
     return () => document.removeEventListener('pointerdown', outside);
   }, [open]);
   useEffect(() => {
-    if (!shown) return;
+    if (!shown || alwaysOpen) return;
     const escape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
@@ -55,14 +57,14 @@ export function Rating({
     };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
-  }, [shown]);
+  }, [shown, alwaysOpen]);
   return (
     <div
       className="personal-rating"
       data-expanded={shown}
       ref={root}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && !alwaysOpen) {
           e.preventDefault();
           e.stopPropagation();
           setOpen(false);

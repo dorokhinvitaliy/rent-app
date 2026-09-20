@@ -18,6 +18,7 @@ COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/packages/shared ./packages/shared
 RUN npm ci --omit=dev && npx playwright install --with-deps chromium && apt-get update && apt-get install -y --no-install-recommends xvfb xauth x11vnc sqlite3 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/assets ./apps/api/assets
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY deploy/start.sh deploy/prepare-browser-profiles.cjs /app/deploy/
 RUN mkdir -p /data && chown node:node /data && chmod +x /app/deploy/start.sh

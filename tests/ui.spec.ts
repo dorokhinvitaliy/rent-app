@@ -894,15 +894,40 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await expect(modal.getByText('Холодильник', { exact: true })).toBeVisible();
   await modal.screenshot({ path: 'test-results/rich-details.png' });
   await modal.getByRole('button', { name: 'Запланировать просмотр', exact: true }).click();
-  await page.getByLabel('Дата и время просмотра').fill('2026-10-01T18:30');
+  await modal.getByRole('button', { name: 'Выбрать дату просмотра', exact: true }).click();
+  await modal
+    .locator('.viewing-calendar')
+    .screenshot({ path: 'test-results/viewing-calendar.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await modal
+    .locator('.viewing-widget')
+    .screenshot({ path: 'test-results/viewing-widget-mobile.png' });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await modal.getByRole('button', { name: 'Завтра', exact: true }).click();
+  await modal.getByRole('combobox', { name: 'Часы просмотра' }).click();
+  await page.getByRole('option', { name: '18', exact: true }).click();
+  await modal.getByRole('combobox', { name: 'Минуты просмотра' }).click();
+  await page.getByRole('option', { name: '30', exact: true }).click();
+  await modal.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
   await page.getByLabel('Фидбэк о просмотре').fill('Уточнить парковку, понравился вид');
   await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
+  await expect(modal.getByRole('button', { name: 'Изменить просмотр', exact: true })).toContainText(
+    '18:30',
+  );
+  await modal.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.locator('.detail-photo-morph')).toHaveCount(0);
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Просмотры/ })
+    .click();
   await expect(page.locator('.viewing-card')).toHaveCount(1);
   await expect(page.locator('.viewing-card')).toContainText('Уточнить парковку');
   await page.locator('.viewing-edit').click();
   await page.getByRole('combobox', { name: 'Статус просмотра' }).click();
   await page.getByRole('option', { name: 'Состоялся', exact: true }).click();
   await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
+  await modal.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.locator('.viewing-status')).toHaveText('Состоялся');
   await page.screenshot({ path: 'test-results/viewings-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -919,4 +944,49 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   const download = await downloadPromise;
   await download.saveAs('test-results/collection-ui.pdf');
   expect(readFileSync('test-results/collection-ui.pdf').subarray(0, 5).toString()).toBe('%PDF-');
+});
+
+test('Collection review visits only unrated apartments and advances after persisted ratings', async ({
+  page,
+  request,
+}) => {
+  const ids: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const l = await (
+      await request.post('/api/listings', {
+        data: { title: 'Оценить последовательно ' + i, rent: 60000 },
+      })
+    ).json();
+    ids.push(l.id);
+  }
+  await request.patch('/api/listings/' + ids[0], { data: { rating: 5 } });
+  await request.post('/api/collections', {
+    data: { name: 'Последовательная оценка', listingIds: ids },
+  });
+  await page.goto('/');
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await page.getByRole('button', { name: /Последовательная оценка/ }).click();
+  await page.getByRole('button', { name: 'Оценить объявления подборки', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 1');
+  await expect(modal).toContainText('Оценка подборки · 1 из 2');
+  await modal
+    .getByRole('button', { name: 'Оценить Оценить последовательно 1', exact: true })
+    .click();
+  await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 2');
+  await expect(modal).toContainText('Оценка подборки · 2 из 2');
+  await modal
+    .getByRole('button', { name: 'Оценить Оценить последовательно 2', exact: true })
+    .click();
+  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(modal).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Оценить объявления подборки', exact: true }),
+  ).toBeDisabled();
+  const rows = await (await request.get('/api/listings')).json();
+  expect(ids.map((id) => rows.find((l: any) => l.id === id).rating)).toEqual([5, 1, 4]);
 });

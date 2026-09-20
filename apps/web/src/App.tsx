@@ -1,4 +1,5 @@
 import { PropertyDetails } from './PropertyDetails';
+import { ViewingWidget } from './ViewingWidget';
 import { Viewings } from './Viewings';
 import { matchesDatabaseSearch } from './local-search';
 import { AccountButton, useAuth } from './Auth';
@@ -165,7 +166,8 @@ export default function App() {
   const [databaseSearch, setDatabaseSearch] = useState<CianSearch | null>(null);
   const [collections, setCollections] = useState<ApartmentCollection[]>([]);
   const [collectionId, setCollectionId] = useState<string | null>(null);
-  const [viewingListing, setViewingListing] = useState<string | null>(null);
+  const [viewingEditor, setViewingEditor] = useState<string | null>(null);
+  const [reviewIds, setReviewIds] = useState<string[] | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [collectionPicker, setCollectionPicker] = useState<string[] | null>(null);
   const detailPhoto = useRef(0);
@@ -291,8 +293,10 @@ export default function App() {
       );
       if (rating === 1) setNotice('Объявление в архиве');
       else if (l.rating === 1) setNotice('Объявление возвращено в подборку');
+      return true;
     } catch (e) {
       setNotice((e as Error).message);
+      return false;
     } finally {
       ratingRevision.current++;
       ratingRequests.current.delete(l.id);
@@ -603,9 +607,11 @@ export default function App() {
           {view === 'viewings' ? (
             <Viewings
               listings={listings}
-              initialListing={viewingListing}
-              onInitialConsumed={() => setViewingListing(null)}
-              onOpen={(id) => setDetail(id)}
+              onBrowse={() => setView('all')}
+              onOpen={(id, viewingId) => {
+                setViewingEditor(viewingId || null);
+                setDetail(id);
+              }}
             />
           ) : view === 'imports' ? (
             <>
@@ -720,7 +726,12 @@ export default function App() {
                   {currentCollection && (
                     <button
                       className="button secondary"
-                      disabled={pdfBusy || !currentCollection.listingIds.length}
+                      disabled={
+                        pdfBusy ||
+                        !listings.some(
+                          (l) => currentCollection.listingIds.includes(l.id) && l.rating !== 1,
+                        )
+                      }
                       onClick={async () => {
                         setPdfBusy(true);
                         try {
@@ -746,6 +757,34 @@ export default function App() {
                     >
                       <ArrowDownToLine size={17} />
                       {pdfBusy ? 'Готовим PDF…' : 'Экспорт PDF'}
+                    </button>
+                  )}
+                  {currentCollection && (
+                    <button
+                      className="button primary"
+                      aria-label="Оценить объявления подборки"
+                      disabled={
+                        !listings.some(
+                          (l) => currentCollection.listingIds.includes(l.id) && l.rating == null,
+                        )
+                      }
+                      onClick={() => {
+                        const ids = currentCollection.listingIds.filter((id) =>
+                          listings.some((l) => l.id === id && l.rating == null),
+                        );
+                        if (!ids.length) return;
+                        setReviewIds(ids);
+                        detailPhoto.current = 0;
+                        setDetail(ids[0]);
+                      }}
+                    >
+                      <SlidersHorizontal size={16} />
+                      Оценить ·{' '}
+                      {
+                        listings.filter(
+                          (l) => currentCollection.listingIds.includes(l.id) && l.rating == null,
+                        ).length
+                      }
                     </button>
                   )}
 
@@ -1163,17 +1202,40 @@ export default function App() {
           position={visible.findIndex((l) => l.id === current.id) + 1}
           total={visible.length}
           previous={
-            visible.findIndex((l) => l.id === current.id) > 0
+            !reviewIds && visible.findIndex((l) => l.id === current.id) > 0
               ? () => setDetail(visible[visible.findIndex((l) => l.id === current.id) - 1].id)
               : undefined
           }
           next={
+            !reviewIds &&
             visible.findIndex((l) => l.id === current.id) >= 0 &&
             visible.findIndex((l) => l.id === current.id) < visible.length - 1
               ? () => setDetail(visible[visible.findIndex((l) => l.id === current.id) + 1].id)
               : undefined
           }
-          onRate={(value) => (user ? void rateListing(current, value) : openLogin())}
+          onRate={async (value) => {
+            if (!user) {
+              openLogin();
+              return;
+            }
+            const saved = await rateListing(current, value);
+            if (saved && reviewIds && value !== null) {
+              const next = reviewIds.find(
+                (id) => id !== current.id && listings.some((l) => l.id === id && l.rating == null),
+              );
+              if (next) setDetail(next);
+              else {
+                setNotice('Подборка оценена. Все оценки сохранены.');
+                return true;
+              }
+            }
+          }}
+          reviewLabel={
+            reviewIds
+              ? `Оценка подборки · ${Math.min(reviewIds.length, reviewIds.filter((id) => listings.some((l) => l.id === id && l.rating != null)).length + 1)} из ${reviewIds.length}`
+              : undefined
+          }
+          viewingEditor={viewingEditor}
           ratingBusy={ratingPending.includes(current.id)}
           memberships={collections.filter((group) => group.listingIds.includes(current.id))}
           onCollections={() => (user ? setCollectionPicker([current.id]) : openLogin())}
@@ -1190,15 +1252,10 @@ export default function App() {
           }
           months={months}
           setMonths={setMonths}
-          onClose={() => setDetail(null)}
-          onPlan={() => {
-            if (!user) {
-              openLogin();
-              return;
-            }
-            setViewingListing(current.id);
+          onClose={() => {
             setDetail(null);
-            setView('viewings');
+            setReviewIds(null);
+            setViewingEditor(null);
           }}
           onEdit={() => {
             setDetail(null);
@@ -1803,7 +1860,8 @@ function Detail({
   months,
   setMonths,
   onClose,
-  onPlan,
+  reviewLabel,
+  viewingEditor,
   onEdit,
   onFavorite,
   onDelete,
@@ -1815,7 +1873,7 @@ function Detail({
   total: number;
   previous?: () => void;
   next?: () => void;
-  onRate: (value: number | null) => void;
+  onRate: (value: number | null) => Promise<boolean | void>;
   ratingBusy: boolean;
   memberships: ApartmentCollection[];
   onCollections: () => void;
@@ -1825,7 +1883,8 @@ function Detail({
   months: number;
   setMonths: (v: number) => void;
   onClose: () => void;
-  onPlan: () => void;
+  reviewLabel?: string;
+  viewingEditor: string | null;
   onEdit: () => void;
   onFavorite: () => void;
   onDelete: () => void;
@@ -1844,32 +1903,19 @@ function Detail({
   const close = () => {
     if (closing.current || saving) return;
     closing.current = true;
+    dialog.current!.dataset.closing = 'true';
     transitionCleanup.current?.();
     const el = panel.current!;
-    const media = el.querySelector<HTMLElement>('.detail-media')!;
-    const image = media.querySelector<HTMLImageElement>(':scope > img');
-    const target = document.querySelector<HTMLElement>(`[data-listing-id="${l.id}"] .card-image`);
-    const targetRect = target?.getBoundingClientRect();
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const morph =
-      targetRect && targetRect.bottom > 0 && targetRect.top < innerHeight
-        ? animateDetailPhoto(
-            dialog.current!,
-            image,
-            media.getBoundingClientRect(),
-            targetRect,
-            false,
-          )
-        : null;
-    const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], {
-      duration: reduced ? 0 : 180,
-      fill: 'forwards',
-    });
-    transitionCleanup.current = () => {
-      morph?.cancel();
-      fade.cancel();
-    };
-    void (morph?.finished || fade.finished).then(onClose).catch(() => {});
+    const fade = el.animate(
+      [
+        { opacity: 1, transform: 'translateY(0) scale(1)' },
+        { opacity: 0, transform: 'translateY(10px) scale(.985)' },
+      ],
+      { duration: reduced ? 0 : 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' },
+    );
+    transitionCleanup.current = () => fade.cancel();
+    void fade.finished.then(onClose).catch(() => {});
   };
   useLayoutEffect(() => {
     const d = dialog.current!;
@@ -2034,7 +2080,9 @@ function Detail({
         </section>
         <section className="detail-info">
           <div className="detail-topline">
-            <span>{position > 0 ? `${position} из ${total} вариантов` : 'Квартира'}</span>
+            <span>
+              {reviewLabel || (position > 0 ? `${position} из ${total} вариантов` : 'Квартира')}
+            </span>
             <IconButton label="Закрыть" onClick={close}>
               <X size={18} />
             </IconButton>
@@ -2056,11 +2104,14 @@ function Detail({
             <strong>{rub(l.rent)}</strong>
             <span>/ месяц</span>
           </div>
-          <div className="detail-personal-actions">
+          <div className={cx('detail-personal-actions', reviewLabel && 'reviewing')}>
             <Rating
               key={l.id}
               value={l.rating ?? null}
-              onChange={onRate}
+              alwaysOpen={!!reviewLabel}
+              onChange={async (value) => {
+                if (await onRate(value)) close();
+              }}
               disabled={ratingBusy}
               title={l.title}
             />
@@ -2084,6 +2135,11 @@ function Detail({
               ))}
             </div>
           )}
+          <ViewingWidget
+            key={'viewing-' + l.id}
+            listingId={l.id}
+            initialViewingId={viewingEditor}
+          />
           <div className="detail-finances">
             <div className="detail-entry">
               <span>На въезд{c.incomplete ? ' · от' : ''}</span>
@@ -2118,10 +2174,6 @@ function Detail({
             </p>
           </div>
           <PropertyDetails listing={l} />
-          <button className="button secondary detail-plan" onClick={onPlan}>
-            <CalendarDays size={17} />
-            Запланировать просмотр
-          </button>
           <DescriptionPreview key={l.id} text={l.description || 'Описание пока не добавлено.'} />
           {l.demo && (
             <p className="detail-disclaimer">Демонстрационный пример с вымышленными условиями.</p>

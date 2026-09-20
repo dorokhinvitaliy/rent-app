@@ -1,6 +1,8 @@
 import { chromium } from 'playwright';
 import { costs, type Listing } from '@rent/shared';
 import { BadRequestException } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 const escape = (s: unknown) =>
   String(s ?? '').replace(
     /[&<>"']/g,
@@ -8,6 +10,14 @@ const escape = (s: unknown) =>
   );
 const rub = (n: number) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
+const fontCss = [400, 700]
+  .map(
+    (weight) =>
+      `@font-face{font-family:Golos;font-weight:${weight};src:url(data:font/ttf;base64,${readFileSync(resolve(__dirname, `../assets/golos-${weight}.ttf`)).toString('base64')})}`,
+  )
+  .join('');
+const house =
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10 12 3l9 7v10H3zM9 20v-7h6v7"/></svg>';
 let busy = false;
 export async function collectionPdf(name: string, listings: Listing[]) {
   if (busy) throw new BadRequestException('PDF уже формируется. Повторите через минуту.');
@@ -23,36 +33,65 @@ export async function collectionPdf(name: string, listings: Listing[]) {
       const u = new URL(route.request().url());
       const allowed =
         u.protocol === 'https:' &&
-        /^(images\.)?cdn-cian\.ru$|^images\.cdn-cian\.ru$|^avatars\.mds\.yandex\.net$|^images\.unsplash\.com$/.test(
+        /^(images\.)?cdn-cian\.ru$|^avatars\.mds\.yandex\.net$|^images\.unsplash\.com$/.test(
           u.hostname,
         );
       return allowed && route.request().resourceType() === 'image'
         ? route.continue()
         : route.abort();
     });
-    const date = new Date().toLocaleDateString('ru-RU');
+    const date = new Date().toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const pages = Array.from({ length: Math.ceil(listings.length / 2) }, (_, i) =>
+      listings.slice(i * 2, i * 2 + 2),
+    );
     await page.setContent(
-      `<!doctype html><html lang="ru"><meta charset="utf-8"><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#22252b;margin:0;font-size:12px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}.brand{font-size:26px;font-weight:700;display:flex;align-items:center;gap:9px}h1{font-size:24px;line-height:1.2;margin:0 0 8px;overflow-wrap:anywhere}.intro{color:#777;margin-bottom:24px}.card{display:flex;gap:22px;border-bottom:1px solid #e5e5e5;padding:0 0 20px;margin-bottom:20px;break-inside:avoid;height:230px}.photo{width:260px;height:208px;border-radius:18px;background:#f1f1f1;object-fit:cover;flex:none}.info{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start}h2{font-size:15px;line-height:1.4;margin:3px 0 9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.price{font-size:24px;font-weight:700;margin-bottom:8px}.price small{font-size:11px;color:#777;font-weight:400}.facts{color:#555;font-size:11px;margin:0 0 8px}.address{color:#6e7279;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.metro{color:#666;font-size:11px;margin-top:6px}.cost{background:#f4f4f4;border-radius:10px;padding:8px 10px;margin-top:auto;width:100%;display:flex;justify-content:space-between;gap:10px}.source{display:flex;justify-content:space-between;width:100%;font-size:10px;color:#777;margin-top:8px}a{color:#333}footer{font-size:10px;color:#888;line-height:1.5;margin-top:10px}.placeholder{display:flex;align-items:center;justify-content:center;color:#aaa}
-      </style><header><div class="brand"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22252b" stroke-width="1.7"><path d="M3 10 12 3l9 7v10H3zM9 20v-7h6v7"/></svg>место.</div><span>${escape(date)} · place.athing.pro</span></header><h1>${escape(name)}</h1><div class="intro">${listings.length} квартир · Ваша подборка</div>${listings
-        .map((l) => {
-          const c = costs(l);
-          return `<article class="card">${l.photos[0] ? `<img class="photo" src="${escape(l.photos[0])}" onerror="this.style.visibility='hidden'">` : '<div class="photo placeholder">Нет фотографии</div>'}<div class="info"><h2>${escape(l.title)}</h2><div class="price">${escape(rub(l.rent))} <small>/ месяц</small></div><div class="facts">${escape([l.area != null ? l.area + ' м²' : '', l.floor != null ? l.floor + ' этаж' : ''].filter(Boolean).join(' · '))}</div><div class="address">${escape(l.address)}</div>${l.metro ? `<div class="metro">● ${escape(l.metro)}${l.metroMinutes != null ? ' · ' + l.metroMinutes + ' мин. пешком' : ''}</div>` : ''}<div class="cost"><span>На въезд${c.incomplete ? ' · от' : ''}</span><b>${escape(rub(c.moveIn))}</b></div><div class="source"><span>${l.demo ? 'Демо · вымышленные цены' : 'Аренда, залог и комиссия'}</span>${l.url ? `<a href="${escape(l.url)}">Объявление ↗</a>` : ''}</div></div></article>`;
-        })
-        .join(
-          '',
-        )}<footer>Цены и доступность уточняйте у владельца объявления. Неизвестные расходы не включены в расчёт. Залог может возвращаться по условиям договора.</footer></html>`,
+      `<!doctype html><html lang="ru"><meta charset="utf-8"><style>${fontCss}
+ *{box-sizing:border-box}body{font-family:Golos,Arial,sans-serif;color:#23262b;margin:0;font-size:12px;-webkit-print-color-adjust:exact}.sheet{break-after:page}.sheet:last-child{break-after:auto}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}.brand{display:flex;gap:9px;align-items:center;font-size:27px;font-weight:700;letter-spacing:-1.4px}.brand-icon{display:grid;place-items:center;width:34px;height:34px;background:#f0f0ed;border-radius:11px}.edition{font-size:8px;color:#8b8e8b;letter-spacing:1.8px;text-transform:uppercase}h1{font-size:28px;line-height:1.17;letter-spacing:-.9px;margin:0;max-width:95%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.intro{display:flex;justify-content:space-between;gap:12px;color:#8b8e91;font-size:10px;margin:12px 0 26px}.card{height:320px;display:grid;grid-template-columns:47% 1fr;background:#f5f5f2;border-radius:21px;overflow:hidden;margin-bottom:20px;break-inside:avoid}.visual{position:relative;background:#eaeae6;height:320px;overflow:hidden}.photo{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}.placeholder{position:absolute;inset:0;display:flex;gap:10px;align-items:center;justify-content:center;flex-direction:column;color:#a0a19a;font-size:11px}.badge{position:absolute;z-index:2;left:16px;top:16px;border-radius:15px;background:#fffffff0;padding:7px 11px;color:#343630;font-size:9px}.number{position:absolute;z-index:2;left:16px;bottom:15px;color:white;background:#2229;padding:5px 9px;border-radius:10px;font-size:10px}.info{padding:24px;display:flex;flex-direction:column;min-width:0}.overline{font-size:8px;color:#90918c;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}.price{font-size:29px;line-height:1.2;font-weight:700;letter-spacing:-1px;white-space:nowrap}.price small{font-size:10px;font-weight:400;color:#8b8d88;letter-spacing:0}h2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-shrink:0;font-size:15px;font-weight:700;line-height:1.4;margin:17px 0 5px;letter-spacing:-.2px}.facts{font-size:11px;color:#73766f;margin-bottom:12px}.address{font-size:11px;color:#72756f;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.metro{font-size:10px;line-height:1.5;margin-top:7px;color:#50574e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#777e72;margin-right:5px;vertical-align:middle}.bottom{margin-top:auto;border-top:1px solid #dedfd8;padding-top:13px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.entry small{display:block;font-size:9px;color:#8c8f85;margin-bottom:3px}.entry b{font-size:19px;letter-spacing:-.6px;white-space:nowrap}.link{font-size:10px;color:#353b32;text-decoration:none;border-bottom:1px solid #aaa;white-space:nowrap;padding-bottom:2px}.note{font-size:9px;color:#969992;line-height:1.5;margin-top:15px}
+ </style>${pages
+   .map(
+     (batch, pi) =>
+       `<section class="sheet"><header><div class="brand"><span class="brand-icon">${house}</span>место.</div><span class="edition">Подборка квартир</span></header><h1>${escape(name)}</h1><div class="intro"><span>${listings.length} вариантов · ${escape(date)}</span><span>${pi * 2 + 1}–${Math.min(pi * 2 + 2, listings.length)} / ${listings.length}</span></div>${batch
+         .map((l, i) => {
+           const c = costs(l);
+           const title =
+             l.rooms === 0 ? 'Студия' : l.rooms != null ? `${l.rooms}-комнатная квартира` : l.title;
+           const facts = [
+             l.area != null ? l.area + ' м²' : '',
+             l.floor != null ? l.floor + ' этаж' : '',
+             l.commission === 0 ? 'Без комиссии' : '',
+           ]
+             .filter(Boolean)
+             .join(' · ');
+           return `<article class="card"><div class="visual"><div class="placeholder">${house}<span>Фотография недоступна</span></div>${l.photos[0] ? `<img class="photo" src="${escape(l.photos[0])}" onerror="this.remove()">` : ''}<span class="badge">${l.source === 'cian' ? 'Циан' : l.source === 'yandex' ? 'Яндекс' : 'Квартира'}</span><span class="number">${String(pi * 2 + i + 1).padStart(2, '0')}</span></div><div class="info"><div class="overline">Аренда в месяц</div><div class="price">${escape(rub(l.rent))}</div><h2>${escape(title)}</h2><div class="facts">${escape(facts)}</div><div class="address">${escape(l.address)}</div>${l.metro ? `<div class="metro"><i class="dot"></i>${escape(l.metro)}${l.metroMinutes != null ? ' · ' + l.metroMinutes + ' мин. пешком' : ''}</div>` : ''}<div class="bottom"><div class="entry"><small>На въезд${c.incomplete ? ' · от' : ''}</small><b>${escape(rub(c.moveIn))}</b></div>${l.url ? `<a class="link" href="${escape(l.url)}">Открыть ↗</a>` : ''}</div></div></article>`;
+         })
+         .join(
+           '',
+         )}<p class="note">${batch.some((l) => l.demo) ? 'Демонстрационные квартиры: цены вымышлены. ' : ''}Цены и условия уточняйте у владельца объявления. Неизвестные расходы не включены в сумму на въезд.</p></section>`,
+   )
+   .join('')}</html>`,
       { waitUntil: 'domcontentloaded' },
     );
     await page.evaluate(async () => {
+      await document.fonts.ready;
       await Promise.race([
         Promise.all(
           [...document.images].map((img) =>
             img.complete
               ? Promise.resolve()
-              : new Promise<void>((resolve) => {
-                  img.onload = () => resolve();
-                  img.onerror = () => resolve();
+              : new Promise<void>((r) => {
+                  img.addEventListener('load', () => r(), { once: true });
+                  img.addEventListener(
+                    'error',
+                    () => {
+                      img.remove();
+                      r();
+                    },
+                    { once: true },
+                  );
                 }),
           ),
         ),
@@ -62,11 +101,11 @@ export async function collectionPdf(name: string, listings: Listing[]) {
     return await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '16mm', right: '15mm', bottom: '18mm', left: '15mm' },
+      margin: { top: '15mm', right: '15mm', bottom: '16mm', left: '15mm' },
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
       footerTemplate:
-        '<div style="font:9px Arial;color:#999;width:100%;padding:0 15mm;display:flex;justify-content:space-between"><span>место. · Подборка квартир</span><span class="pageNumber"></span></div>',
+        '<div style="font:9px Arial;color:#999;width:100%;padding:0 15mm;display:flex;justify-content:space-between"><span>place.athing.pro</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>',
     });
   } finally {
     try {

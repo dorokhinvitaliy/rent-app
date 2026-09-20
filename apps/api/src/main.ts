@@ -119,7 +119,7 @@ class AppController {
     if (!group) throw new NotFoundException('Подборка не найдена');
     const bytes = await collectionPdf(
       group.name,
-      group.listingIds.map((key) => this.store.get(key)),
+      group.listingIds.map((key) => this.store.get(key)).filter((l) => l.rating !== 1),
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="mesto-collection.pdf"');
