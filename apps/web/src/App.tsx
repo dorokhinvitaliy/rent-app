@@ -12,6 +12,8 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  FolderPlus,
+  FolderHeart,
   Trophy,
   Archive,
   ArchiveRestore,
@@ -146,7 +148,11 @@ function Modal({
     </dialog>
   );
 }
+type ApartmentCollection = { id: string; name: string; listingIds: string[]; createdAt: string };
 export default function App() {
+  const [collections, setCollections] = useState<ApartmentCollection[]>([]);
+  const [collectionId, setCollectionId] = useState<string | null>(null);
+  const [collectionPicker, setCollectionPicker] = useState<string[] | null>(null);
   const detailOrigin = useRef<DOMRect | null>(null);
   const detailPhoto = useRef(0);
   const noteRequests = useRef(new Set<string>());
@@ -181,7 +187,12 @@ export default function App() {
   const refresh = useCallback(async () => {
     const revision = ratingRevision.current;
     try {
-      const [ls, js] = await Promise.all([api<Listing[]>('/listings'), api<Job[]>('/imports')]);
+      const [ls, js, cs] = await Promise.all([
+        api<Listing[]>('/listings'),
+        api<Job[]>('/imports'),
+        api<ApartmentCollection[]>('/collections'),
+      ]);
+      setCollections(cs);
       if (revision === ratingRevision.current)
         setListings((previous) => {
           const byId = new Map(previous.map((l) => [l.id, l]));
@@ -238,7 +249,15 @@ export default function App() {
   const archived = listings.filter((l) => l.rating === 1);
   const rated = active.filter((l) => (l.rating ?? 0) >= 2);
   const rankFor = (rating: number) => rated.filter((l) => l.rating! > rating).length + 1;
-  const collection = view === 'archive' ? archived : view === 'ranking' ? rated : active;
+  const currentCollection = collections.find((c) => c.id === collectionId) || collections[0];
+  const collection =
+    view === 'archive'
+      ? archived
+      : view === 'ranking'
+        ? rated
+        : view === 'collections'
+          ? active.filter((l) => currentCollection?.listingIds.includes(l.id))
+          : active;
   const rateListing = useCallback(async (l: Listing, rating: number | null) => {
     if (ratingRequests.current.has(l.id)) return;
     ratingRequests.current.add(l.id);
@@ -293,9 +312,9 @@ export default function App() {
     setSelected((ids) =>
       ids.includes(id)
         ? ids.filter((x) => x !== id)
-        : ids.length < 4
+        : ids.length < 1000
           ? [...ids, id]
-          : (setNotice('Можно сравнить до 4 квартир'), ids),
+          : (setNotice('Можно выбрать до 1000 квартир'), ids),
     );
   }, []);
   const refreshListing = useCallback(
@@ -316,6 +335,7 @@ export default function App() {
       (l) =>
         (view === 'archive' ? l.rating === 1 : l.rating !== 1 || archiving.includes(l.id)) &&
         (view !== 'ranking' || (l.rating ?? 0) >= 2 || archiving.includes(l.id)) &&
+        (view !== 'collections' || !!currentCollection?.listingIds.includes(l.id)) &&
         (view !== 'favorites' || l.favorite) &&
         (view !== 'all' ||
           !resultsOnly ||
@@ -391,6 +411,7 @@ export default function App() {
             ['all', 'Все квартиры', LayoutGrid, active.length],
             ['favorites', 'Избранное', Heart, favorites.length],
             ['ranking', 'Рейтинг', Trophy, rated.length],
+            ['collections', 'Подборки', FolderHeart, collections.length],
             ['archive', 'Архив', Archive, archived.length],
             ['imports', 'Источники и импорт', Layers3, null],
           ].map(([key, label, Icon, count]) => {
@@ -456,7 +477,9 @@ export default function App() {
                     ? 'Архив'
                     : view === 'ranking'
                       ? 'Рейтинг'
-                      : 'Все квартиры'}
+                      : view === 'collections'
+                        ? 'Подборки'
+                        : 'Все квартиры'}
             </span>
           </div>
           <span className="privacy">
@@ -476,7 +499,9 @@ export default function App() {
                       ? 'Можно передумать.'
                       : view === 'ranking'
                         ? 'Лучшие — по вашим оценкам.'
-                        : 'Найдите свое место.'}
+                        : view === 'collections'
+                          ? 'Ваши подборки квартир.'
+                          : 'Найдите свое место.'}
               </h1>
               <p>
                 {view === 'imports'
@@ -485,7 +510,9 @@ export default function App() {
                     ? 'Варианты с оценкой 1. Верните объявление или измените оценку, если передумаете.'
                     : view === 'ranking'
                       ? 'Выше оценка — выше место. При равных оценках место общее, сначала показываем меньшую аренду.'
-                      : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
+                      : view === 'collections'
+                        ? 'Для просмотра, обсуждения или переезда. Соберите варианты, которые хочется держать вместе.'
+                        : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -646,6 +673,39 @@ export default function App() {
             </>
           ) : (
             <>
+              {view === 'collections' && (
+                <section className="collections-strip" aria-label="Подборки квартир">
+                  {collections.map((group) => (
+                    <button
+                      key={group.id}
+                      className={cx(
+                        'collection-folder',
+                        currentCollection?.id === group.id && 'active',
+                      )}
+                      onClick={() => {
+                        setCollectionId(group.id);
+                        reset();
+                      }}
+                    >
+                      <FolderHeart size={22} />
+                      <span>
+                        <b>{group.name}</b>
+                        <small>
+                          {group.listingIds.filter((id) => active.some((l) => l.id === id)).length}{' '}
+                          квартир
+                        </small>
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    className="collection-folder collection-create"
+                    onClick={() => setCollectionPicker([])}
+                  >
+                    <FolderPlus size={22} />
+                    <span>Новая подборка</span>
+                  </button>
+                </section>
+              )}
               <section className="stats">
                 <div className="stat">
                   <span className="stat-icon">
@@ -705,7 +765,9 @@ export default function App() {
                           ? 'Архив'
                           : view === 'ranking'
                             ? 'Ваш рейтинг квартир'
-                            : 'Сохраненные квартиры'}
+                            : view === 'collections'
+                              ? currentCollection?.name || 'Подборки'
+                              : 'Сохраненные квартиры'}
                   </h2>
                   <span className="count-badge">{visible.length}</span>
                 </div>
@@ -862,28 +924,33 @@ export default function App() {
                     <House size={42} />
                   </span>
                   <h2>
-                    {view === 'ranking' && !rated.length
-                      ? 'Пока нет оценённых квартир'
-                      : view === 'archive' && !archived.length
-                        ? 'Архив пуст'
-                        : listings.length
-                          ? 'Здесь пока нет подходящих квартир'
-                          : 'У хорошего поиска есть свое место'}
+                    {view === 'collections' && !collection.length
+                      ? 'В подборке пока нет квартир'
+                      : view === 'ranking' && !rated.length
+                        ? 'Пока нет оценённых квартир'
+                        : view === 'archive' && !archived.length
+                          ? 'Архив пуст'
+                          : listings.length
+                            ? 'Здесь пока нет подходящих квартир'
+                            : 'У хорошего поиска есть свое место'}
                   </h2>
                   <p>
-                    {view === 'ranking' && !rated.length
-                      ? 'Оцените квартиры в подборке. Варианты с оценками от 2 до 5 появятся здесь, с оценкой 1 — в архиве.'
-                      : view === 'archive' && !archived.length
-                        ? 'Сюда попадут объявления, которым вы поставите 1.'
-                        : listings.length
-                          ? 'Измените фильтры или добавьте варианты в избранное.'
-                          : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
+                    {view === 'collections' && !collection.length
+                      ? 'Отметьте квартиры чекбоксами и нажмите «В подборку». Архивные варианты здесь скрыты.'
+                      : view === 'ranking' && !rated.length
+                        ? 'Оцените квартиры в подборке. Варианты с оценками от 2 до 5 появятся здесь, с оценкой 1 — в архиве.'
+                        : view === 'archive' && !archived.length
+                          ? 'Сюда попадут объявления, которым вы поставите 1.'
+                          : listings.length
+                            ? 'Измените фильтры или добавьте варианты в избранное.'
+                            : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
                   </p>
                   <div>
                     <button
                       className="button primary"
                       onClick={() =>
-                        view === 'ranking' && !rated.length
+                        (view === 'ranking' && !rated.length) ||
+                        (view === 'collections' && !collection.length)
                           ? (setView('all'), reset())
                           : listings.length && !(searchJobId && resultsOnly)
                             ? reset()
@@ -892,11 +959,13 @@ export default function App() {
                                 ?.scrollIntoView({ behavior: 'smooth' })
                       }
                     >
-                      {view === 'ranking' && !rated.length
-                        ? 'Оценить квартиры'
-                        : listings.length && !(searchJobId && resultsOnly)
-                          ? 'Сбросить фильтры'
-                          : 'Настроить поиск'}
+                      {view === 'collections' && !collection.length
+                        ? 'Выбрать квартиры'
+                        : view === 'ranking' && !rated.length
+                          ? 'Оценить квартиры'
+                          : listings.length && !(searchJobId && resultsOnly)
+                            ? 'Сбросить фильтры'
+                            : 'Настроить поиск'}
                       <ArrowRight size={17} />
                     </button>
                     {!listings.length && (
@@ -950,13 +1019,58 @@ export default function App() {
             <Layers3 size={19} />
             Выбрано: {selected.filter((id) => listings.some((l) => l.id === id)).length}
           </span>
-          <button onClick={() => setCompare(true)}>
+          <button
+            className="collection-save-button"
+            onClick={() =>
+              setCollectionPicker(selected.filter((id) => listings.some((l) => l.id === id)))
+            }
+          >
+            <FolderPlus size={17} />В подборку
+          </button>
+          {view === 'collections' && currentCollection && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void action(async () => {
+                  await api('/collections/' + currentCollection.id + '/listings', 'DELETE', {
+                    listingIds: selected,
+                  });
+                  setSelected([]);
+                }, 'Квартиры убраны из подборки')
+              }
+            >
+              Убрать из подборки
+            </button>
+          )}
+          <button
+            disabled={selected.length > 4}
+            title={
+              selected.length > 4
+                ? 'Для сравнения выберите не больше 4 квартир'
+                : 'Сравнить расходы'
+            }
+            onClick={() => setCompare(true)}
+          >
             Сравнить расходы <ArrowRight size={16} />
           </button>
           <IconButton label="Снять выбор" onClick={() => setSelected([])}>
             <X size={17} />
           </IconButton>
         </div>
+      )}
+      {collectionPicker !== null && (
+        <CollectionPicker
+          groups={collections}
+          ids={collectionPicker}
+          onClose={() => setCollectionPicker(null)}
+          onSaved={async (group) => {
+            setCollections((old) => [group, ...old.filter((c) => c.id !== group.id)]);
+            setCollectionId(group.id);
+            setSelected([]);
+            setCollectionPicker(null);
+            setNotice('Подборка сохранена');
+          }}
+        />
       )}
       {notice && (
         <div className="toast" role="status">
@@ -1293,12 +1407,13 @@ const Card = memo(function Card({
         <div className="card-price">
           <b>{rub(l.rent)}</b>
           <span>/ месяц</span>
-          <label title="Добавить к сравнению" className="compare-checkbox">
+          <label title="Выбрать для подборки или сравнения" className="compare-checkbox">
             <input
               type="checkbox"
               checked={selected}
               onChange={() => select(l.id)}
               aria-label={'Сравнить ' + l.title}
+              aria-description="Выбрать квартиру для добавления в подборку или сравнения"
             />
           </label>
         </div>
@@ -1389,6 +1504,118 @@ function Term({ months, setMonths }: { months: number; setMonths: (v: number) =>
         ))}
       </Select>
     </label>
+  );
+}
+function CollectionPicker({
+  groups,
+  ids,
+  onClose,
+  onSaved,
+}: {
+  groups: ApartmentCollection[];
+  ids: string[];
+  onClose: () => void;
+  onSaved: (group: ApartmentCollection) => Promise<void>;
+}) {
+  const [target, setTarget] = useState(ids.length && groups.length ? groups[0].id : 'new');
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <Modal
+      title="Сохранить в подборку"
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+    >
+      <form
+        className="collection-picker"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (saving) return;
+          setSaving(true);
+          setError('');
+          try {
+            const group = await api<ApartmentCollection>(
+              target === 'new' ? '/collections' : '/collections/' + target + '/listings',
+              'POST',
+              target === 'new' ? { name: name.trim(), listingIds: ids } : { listingIds: ids },
+            );
+            await onSaved(group);
+          } catch (e) {
+            setError((e as Error).message);
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        <p>
+          {ids.length
+            ? `Выбрано квартир: ${ids.length}. Уже добавленные не дублируются.`
+            : 'Создайте подборку, а затем добавьте квартиры через чекбоксы.'}
+        </p>
+        {!!ids.length &&
+          groups.map((group) => (
+            <label
+              key={group.id}
+              className={cx('collection-choice', target === group.id && 'active')}
+            >
+              <input
+                type="radio"
+                name="collection"
+                value={group.id}
+                checked={target === group.id}
+                onChange={() => setTarget(group.id)}
+                disabled={saving}
+              />
+              <FolderHeart size={20} />
+              <span>
+                {group.name}
+                <small>{group.listingIds.length} квартир</small>
+              </span>
+            </label>
+          ))}
+        <label className={cx('collection-choice', target === 'new' && 'active')}>
+          <input
+            type="radio"
+            name="collection"
+            checked={target === 'new'}
+            onChange={() => setTarget('new')}
+            disabled={saving}
+          />
+          <FolderPlus size={20} />
+          <span>Новая подборка</span>
+        </label>
+        {target === 'new' && (
+          <input
+            className="collection-name"
+            aria-label="Название подборки"
+            placeholder="Например, посмотреть в выходные"
+            maxLength={80}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={saving}
+            autoFocus
+          />
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="form-actions">
+          <button type="button" className="button secondary" disabled={saving} onClick={onClose}>
+            Отмена
+          </button>
+          <button
+            className="button primary"
+            disabled={saving || (target === 'new' && !name.trim())}
+          >
+            {saving ? 'Сохраняем…' : target === 'new' ? 'Создать подборку' : 'Добавить в подборку'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 function DescriptionPreview({ text }: { text: string }) {

@@ -41,6 +41,41 @@ class AppController {
   @Get('health') health() {
     return { ok: true };
   }
+  @Get('collections') collections() {
+    return this.store.collections();
+  }
+  @Post('collections') createCollection(@Body() body: unknown) {
+    const value = parse(
+      z
+        .object({
+          name: z.string().trim().min(1).max(80),
+          listingIds: z.array(z.string().uuid()).max(1000).default([]),
+        })
+        .strict(),
+      body,
+    );
+    return this.store.createCollection(value.name, value.listingIds);
+  }
+  @Post('collections/:id/listings') addToCollection(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const value = parse(
+      z.object({ listingIds: z.array(z.string().uuid()).min(1).max(1000) }).strict(),
+      body,
+    );
+    return this.store.addToCollection(id, value.listingIds);
+  }
+  @Delete('collections/:id/listings') removeFromCollection(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const value = parse(
+      z.object({ listingIds: z.array(z.string().uuid()).min(1).max(1000) }).strict(),
+      body,
+    );
+    return this.store.removeFromCollection(id, value.listingIds);
+  }
   @Get('listings') all() {
     return this.store.all();
   }

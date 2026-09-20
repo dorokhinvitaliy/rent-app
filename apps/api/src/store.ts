@@ -12,14 +12,80 @@ export class Store implements OnModuleDestroy {
     const path = process.env.DATABASE_PATH || resolve(dataDir, 'rent.sqlite');
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+    this.db.exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS listings(id TEXT PRIMARY KEY, url TEXT UNIQUE, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS imports(id TEXT PRIMARY KEY, data TEXT NOT NULL);
-      PRAGMA user_version=1;`);
+      CREATE TABLE IF NOT EXISTS collections(id TEXT PRIMARY KEY, name TEXT NOT NULL, createdAt TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS collection_listings(collectionId TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE, listingId TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE, PRIMARY KEY(collectionId, listingId));
+      PRAGMA user_version=2;`);
     const jobs = this.jobs();
     for (const job of jobs)
       if (['running', 'waiting'].includes(job.status))
         this.saveJob({ ...job, status: 'failed', message: 'Сбор прерван перезапуском приложения' });
+  }
+  collections() {
+    return this.db
+      .prepare('SELECT * FROM collections ORDER BY createdAt DESC, rowid DESC')
+      .all()
+      .map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        createdAt: String(row.createdAt),
+        listingIds: this.db
+          .prepare('SELECT listingId FROM collection_listings WHERE collectionId=? ORDER BY rowid')
+          .all(row.id as string)
+          .map((member) => member.listingId as string),
+      }));
+  }
+  private requireCollection(id: string) {
+    if (!this.db.prepare('SELECT id FROM collections WHERE id=?').get(id))
+      throw new NotFoundException('Подборка не найдена');
+  }
+  createCollection(name: string, ids: string[]) {
+    const id = randomUUID();
+    this.db.exec('BEGIN');
+    try {
+      ids.forEach((listingId) => this.get(listingId));
+      this.db
+        .prepare('INSERT INTO collections(id,name,createdAt) VALUES(?,?,?)')
+        .run(id, name, new Date().toISOString());
+      const insert = this.db.prepare('INSERT OR IGNORE INTO collection_listings VALUES(?,?)');
+      ids.forEach((listingId) => insert.run(id, listingId));
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+    return this.collections().find((c) => c.id === id)!;
+  }
+  addToCollection(id: string, ids: string[]) {
+    this.requireCollection(id);
+    ids.forEach((listingId) => this.get(listingId));
+    this.db.exec('BEGIN');
+    try {
+      const insert = this.db.prepare('INSERT OR IGNORE INTO collection_listings VALUES(?,?)');
+      ids.forEach((listingId) => insert.run(id, listingId));
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+    return this.collections().find((c) => c.id === id)!;
+  }
+  removeFromCollection(id: string, ids: string[]) {
+    this.requireCollection(id);
+    const remove = this.db.prepare(
+      'DELETE FROM collection_listings WHERE collectionId=? AND listingId=?',
+    );
+    this.db.exec('BEGIN');
+    try {
+      ids.forEach((listingId) => remove.run(id, listingId));
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+    return this.collections().find((c) => c.id === id)!;
   }
   all(): Listing[] {
     return this.db

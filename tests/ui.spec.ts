@@ -593,3 +593,63 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 });
+
+test('Checkbox selection saves new and existing collections and removes only membership', async ({
+  page,
+  request,
+}) => {
+  const ids: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const l = await (
+      await request.post('/api/listings', { data: { title: 'Подборки тест ' + i, rent: 60000 } })
+    ).json();
+    ids.push(l.id);
+  }
+  await page.goto('/');
+  await page.getByRole('textbox', { name: 'Поиск по адресу или метро' }).fill('Подборки тест');
+  const cards = page.locator('.apartment-card');
+  await expect(cards).toHaveCount(5);
+  for (let i = 0; i < 5; i++) await cards.nth(i).getByRole('checkbox').check();
+  await expect(cards.first()).toHaveCSS('outline-style', 'solid');
+  await expect(page.getByRole('button', { name: 'Сравнить расходы', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'В подборку', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await modal.getByLabel('Новая подборка', { exact: true }).check();
+  await modal.getByRole('textbox', { name: 'Название подборки' }).fill('Посмотреть в выходные');
+  await modal.getByRole('button', { name: 'Создать подборку', exact: true }).click();
+  await expect(modal).toHaveCount(0);
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await expect(cards).toHaveCount(5);
+  await page.reload();
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await expect(cards).toHaveCount(5);
+  await cards.first().getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Убрать из подборки', exact: true }).click();
+  await expect(cards).toHaveCount(4);
+  expect(
+    (await (await request.get('/api/listings')).json()).filter((l: any) => ids.includes(l.id)),
+  ).toHaveLength(5);
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Все квартиры/ })
+    .click();
+  await page.getByRole('textbox', { name: 'Поиск по адресу или метро' }).fill('Подборки тест');
+  for (let i = 0; i < 5; i++) await cards.nth(i).getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'В подборку', exact: true }).click();
+  await modal.getByRole('radio', { name: /Посмотреть в выходные/ }).check();
+  await modal.getByRole('button', { name: 'Добавить в подборку', exact: true }).click();
+  await expect(modal).toHaveCount(0);
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await expect(cards).toHaveCount(5);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/collections-mobile.png', fullPage: true });
+});

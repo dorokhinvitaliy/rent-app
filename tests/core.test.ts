@@ -570,3 +570,32 @@ test('Single listing refresh waits for hydrated price and preserves personal met
     delete process.env.DATABASE_PATH;
   }
 });
+
+test('Collections persist, deduplicate membership and never delete apartments when removing members', () => {
+  const { Store } = require('../apps/api/dist/store.js');
+  const dir = mkdtempSync(join(tmpdir(), 'rent-collections-'));
+  process.env.DATABASE_PATH = join(dir, 'test.sqlite');
+  let store = new Store();
+  try {
+    const a = store.save(input),
+      b = store.save({ ...input, title: 'Вторая' });
+    const group = store.createCollection('Посмотреть', [a.id, a.id]);
+    assert.deepEqual(group.listingIds, [a.id]);
+    store.addToCollection(group.id, [a.id, b.id]);
+    assert.equal(store.collections()[0].listingIds.length, 2);
+    assert.throws(() => store.createCollection('Ошибка', [a.id, 'missing']));
+    assert.equal(store.collections().length, 1);
+    store.onModuleDestroy();
+    store = new Store();
+    assert.equal(store.collections()[0].name, 'Посмотреть');
+    assert.equal(store.collections()[0].listingIds.length, 2);
+    store.removeFromCollection(group.id, [a.id]);
+    assert.equal(store.all().length, 2);
+    store.remove(b.id);
+    assert.equal(store.collections()[0].listingIds.length, 0);
+  } finally {
+    store.onModuleDestroy();
+    delete process.env.DATABASE_PATH;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
