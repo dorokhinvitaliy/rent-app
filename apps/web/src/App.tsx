@@ -1,6 +1,14 @@
 import { Rating } from './Rating';
 import { Select } from './Select';
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import {
   Archive,
   ArchiveRestore,
@@ -136,6 +144,9 @@ function Modal({
   );
 }
 export default function App() {
+  const ratingRequests = useRef(new Set<string>());
+  const ratingRevision = useRef(0);
+  const [ratingPending, setRatingPending] = useState<string[]>([]);
   const [archiving, setArchiving] = useState<string[]>([]);
   const [resultsOnly, setResultsOnly] = useState(false);
   const [searchJobId, setSearchJobId] = useState<string | null>(null);
@@ -161,18 +172,35 @@ export default function App() {
     [selected, setSelected] = useState<string[]>([]),
     [compare, setCompare] = useState(false),
     [confirmDelete, setConfirmDelete] = useState<Listing | null>(null);
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
+    const revision = ratingRevision.current;
     try {
       const [ls, js] = await Promise.all([api<Listing[]>('/listings'), api<Job[]>('/imports')]);
-      setListings(ls);
-      setJobs(js);
+      if (revision === ratingRevision.current)
+        setListings((previous) => {
+          const byId = new Map(previous.map((l) => [l.id, l]));
+          return ls.map((l) => {
+            const old = byId.get(l.id);
+            return old &&
+              (ratingRequests.current.has(l.id) || JSON.stringify(old) === JSON.stringify(l))
+              ? old
+              : l;
+          });
+        });
+      setJobs((previous) => {
+        const byId = new Map(previous.map((j) => [j.id, j]));
+        return js.map((j) => {
+          const old = byId.get(j.id);
+          return old && JSON.stringify(old) === JSON.stringify(j) ? old : j;
+        });
+      });
       setLoadError('');
     } catch (e) {
       setLoadError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
   useEffect(() => {
     void refresh();
     const t = setInterval(() => void refresh(), 4000);
@@ -183,43 +211,66 @@ export default function App() {
     const t = setTimeout(() => setNotice(''), 6500);
     return () => clearTimeout(t);
   }, [notice]);
-  const action = async (fn: () => Promise<unknown>, message?: string) => {
-    setBusy(true);
-    try {
-      await fn();
-      await refresh();
-      if (message) setNotice(message);
-    } catch (e) {
-      setNotice((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const action = useCallback(
+    async (fn: () => Promise<unknown>, message?: string) => {
+      setBusy(true);
+      try {
+        await fn();
+        await refresh();
+        if (message) setNotice(message);
+      } catch (e) {
+        setNotice((e as Error).message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
   const active = listings.filter((l) => l.rating !== 1);
   const archived = listings.filter((l) => l.rating === 1);
   const collection = view === 'archive' ? archived : active;
-  const rateListing = (l: Listing, rating: number | null) =>
-    action(
-      async () => {
-        const leaving = rating === 1 && view !== 'archive';
-        if (leaving) setArchiving((ids) => [...ids, l.id]);
-        try {
-          await api('/listings/' + l.id, 'PATCH', { rating });
-          if (leaving) {
-            await new Promise((resolve) => setTimeout(resolve, 320));
-            setSelected((ids) => ids.filter((id) => id !== l.id));
-          }
-          await refresh();
-        } finally {
-          setArchiving((ids) => ids.filter((id) => id !== l.id));
-        }
-      },
-      rating === 1
-        ? 'Объявление в архиве'
-        : l.rating === 1
-          ? 'Объявление возвращено в подборку'
-          : undefined,
+  const rateListing = useCallback(async (l: Listing, rating: number | null) => {
+    if (ratingRequests.current.has(l.id)) return;
+    ratingRequests.current.add(l.id);
+    ratingRevision.current++;
+    setRatingPending((ids) => [...ids, l.id]);
+    try {
+      const updated = await api<Listing>('/listings/' + l.id, 'PATCH', { rating });
+      if (rating === 1 && l.rating !== 1) {
+        setArchiving((ids) => [...ids, l.id]);
+        await new Promise((resolve) => setTimeout(resolve, 320));
+        setSelected((ids) => ids.filter((id) => id !== l.id));
+      }
+      setListings((rows) => rows.map((row) => (row.id === l.id ? updated : row)));
+      if (rating === 1) setNotice('Объявление в архиве');
+      else if (l.rating === 1) setNotice('Объявление возвращено в подборку');
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      ratingRevision.current++;
+      ratingRequests.current.delete(l.id);
+      setRatingPending((ids) => ids.filter((id) => id !== l.id));
+      setArchiving((ids) => ids.filter((id) => id !== l.id));
+    }
+  }, []);
+  const selectListing = useCallback((id: string) => {
+    setSelected((ids) =>
+      ids.includes(id)
+        ? ids.filter((x) => x !== id)
+        : ids.length < 4
+          ? [...ids, id]
+          : (setNotice('Можно сравнить до 4 квартир'), ids),
     );
+  }, []);
+  const refreshListing = useCallback(
+    (l: Listing) => {
+      void action(
+        () => api('/listings/' + l.id + '/refresh', 'POST', {}),
+        'Актуализация запущена в фоне',
+      );
+    },
+    [action],
+  );
   const favorites = active.filter((l) => l.favorite),
     demo = listings.some((l) => l.demo);
   const searchJob = jobs.find((j) => j.id === searchJobId);
@@ -250,8 +301,10 @@ export default function App() {
             : b.createdAt.localeCompare(a.createdAt),
     );
   const current = listings.find((l) => l.id === detail);
-  const toggle = (l: Listing) =>
-    action(() => api('/listings/' + l.id, 'PATCH', { favorite: !l.favorite }));
+  const toggle = useCallback(
+    (l: Listing) => action(() => api('/listings/' + l.id, 'PATCH', { favorite: !l.favorite })),
+    [action],
+  );
   const reset = () => {
     setSource('all');
     setRooms('all');
@@ -798,29 +851,15 @@ export default function App() {
                       key={l.id}
                       listing={l}
                       archiving={archiving.includes(l.id)}
-                      restore={() => void rateListing(l, null)}
-                      rate={(rating) => void rateListing(l, rating)}
-                      ratingBusy={busy}
-                      refreshDisabled={busy || running}
+                      rate={rateListing}
+                      ratingBusy={busy || ratingPending.includes(l.id)}
+                      refreshDisabled={busy || running || ratingPending.includes(l.id)}
                       refreshJob={jobs.find((j) => j.url === l.url)}
-                      refreshListing={() =>
-                        void action(
-                          () => api('/listings/' + l.id + '/refresh', 'POST', {}),
-                          'Актуализация запущена в фоне',
-                        )
-                      }
-                      open={() => setDetail(l.id)}
-                      favorite={() => void toggle(l)}
+                      refreshListing={refreshListing}
+                      open={setDetail}
+                      favorite={toggle}
                       selected={selected.includes(l.id)}
-                      select={() =>
-                        setSelected((s) =>
-                          s.includes(l.id)
-                            ? s.filter((x) => x !== l.id)
-                            : s.length < 4
-                              ? [...s, l.id]
-                              : (setNotice('Можно сравнить до 4 квартир'), s),
-                        )
-                      }
+                      select={selectListing}
                     />
                   ))}
                 </div>
@@ -1005,9 +1044,8 @@ export default function App() {
     </div>
   );
 }
-function Card({
+const Card = memo(function Card({
   archiving,
-  restore,
   listing: l,
   rate,
   ratingBusy,
@@ -1021,15 +1059,14 @@ function Card({
 }: {
   listing: Listing;
   archiving: boolean;
-  restore: () => void;
-  rate: (rating: number | null) => void;
+  rate: (listing: Listing, rating: number | null) => void;
   ratingBusy: boolean;
   refreshDisabled: boolean;
   refreshJob?: Job;
-  refreshListing: () => void;
-  open: () => void;
-  favorite: () => void;
-  select: () => void;
+  refreshListing: (listing: Listing) => void;
+  open: (id: string) => void;
+  favorite: (listing: Listing) => void;
+  select: (id: string) => void;
   selected: boolean;
 }) {
   const c = costs(l);
@@ -1067,7 +1104,7 @@ function Card({
               swiped.current = false;
               return;
             }
-            open();
+            open(l.id);
           }}
           onDragStart={(e) => e.preventDefault()}
           onTouchStart={(e) => {
@@ -1111,7 +1148,7 @@ function Card({
         <button
           className={cx('heart-button', l.favorite && 'hearted')}
           aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
-          onClick={favorite}
+          onClick={() => favorite(l)}
         >
           <Heart size={18} fill={l.favorite ? 'currentColor' : 'none'} />
         </button>
@@ -1143,7 +1180,7 @@ function Card({
         )}
       </div>
       <div className="card-content">
-        <button className="card-title" onClick={open}>
+        <button className="card-title" onClick={() => open(l.id)}>
           {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms}-комн. квартира` : l.title}
           {l.area ? ` · ${l.area} м²` : ''}
           {l.floor ? ` · ${l.floor} этаж` : ''}
@@ -1155,7 +1192,7 @@ function Card({
             <input
               type="checkbox"
               checked={selected}
-              onChange={select}
+              onChange={() => select(l.id)}
               aria-label={'Сравнить ' + l.title}
             />
           </label>
@@ -1176,13 +1213,18 @@ function Card({
           <b>{rub(c.moveIn)}</b>
         </div>
         <div className="card-action-row">
-          <Rating value={l.rating ?? null} onChange={rate} disabled={ratingBusy} title={l.title} />
+          <Rating
+            value={l.rating ?? null}
+            onChange={(rating) => rate(l, rating)}
+            disabled={ratingBusy}
+            title={l.title}
+          />
           {l.rating === 1 && (
             <button
               className="card-restore"
               title="Вернуть в подборку"
               aria-label="Вернуть в подборку"
-              onClick={restore}
+              onClick={() => rate(l, null)}
               disabled={ratingBusy}
             >
               <ArchiveRestore size={16} />
@@ -1190,7 +1232,7 @@ function Card({
           )}
           <button
             className="card-detail"
-            onClick={open}
+            onClick={() => open(l.id)}
             aria-label="Подробнее и расчет"
             title="Подробнее и расчет"
           >
@@ -1204,7 +1246,7 @@ function Card({
                 ? 'Получить свежие условия по исходной ссылке'
                 : 'Нужна ссылка на реальное объявление площадки'
             }
-            onClick={refreshListing}
+            onClick={() => refreshListing(l)}
             aria-label={'Актуализировать ' + l.title}
           >
             <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
@@ -1225,7 +1267,7 @@ function Card({
       </div>
     </article>
   );
-}
+});
 function Term({ months, setMonths }: { months: number; setMonths: (v: number) => void }) {
   return (
     <label className="term">

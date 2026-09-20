@@ -338,3 +338,59 @@ test('Rating one archives without deleting, survives reimport and can be restore
   await page.reload();
   await expect(card).toHaveCount(1);
 });
+
+test('Rating updates only its card without refetching or disabling other cards', async ({
+  page,
+  request,
+}) => {
+  const first = await (
+    await request.post('/api/listings', {
+      data: { title: 'Проверка точечной оценки', rent: 60000 },
+    })
+  ).json();
+  const second = await (
+    await request.post('/api/listings', {
+      data: { title: 'Соседняя карточка без изменений', rent: 65000 },
+    })
+  ).json();
+  await page.goto('/');
+  const card = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: first.title, exact: true }) });
+  const neighbor = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: second.title, exact: true }) });
+  await expect(neighbor).toBeVisible();
+  // Block the scheduled poll so only rating-triggered fetches are counted.
+  await page.evaluate(() => {
+    for (let id = 1; id < 1000; id++) window.clearInterval(id);
+  });
+  let listFetches = 0;
+  page.on('request', (r) => {
+    if (r.method() === 'GET' && /\/api\/(listings|imports)$/.test(r.url())) listFetches++;
+  });
+  await neighbor.evaluate((el) => {
+    (window as any).neighborMutations = 0;
+    new MutationObserver((records) => {
+      (window as any).neighborMutations += records.length;
+    }).observe(el, { attributes: true, childList: true, subtree: true, characterData: true });
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/listings/' + first.id, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await card.locator('.rating-summary').hover();
+  await card.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(card.getByRole('button', { name: '4 из 5 — Нравится', exact: true })).toBeDisabled();
+  await expect(neighbor.getByRole('checkbox')).toBeEnabled();
+  await expect(neighbor.locator('.rating-clear')).toBeDisabled();
+  expect(await neighbor.locator('.rating-thermometer button:disabled').count()).toBe(0);
+  release();
+  await expect(card.locator('.rating-summary')).toHaveAttribute('title', '4/5 · Нравится');
+  expect(listFetches).toBe(0);
+  expect(await page.evaluate(() => (window as any).neighborMutations)).toBe(0);
+});
