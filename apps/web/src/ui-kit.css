@@ -1272,8 +1272,11 @@ input[type='checkbox']:checked {
   }
 }
 
-.note-editor textarea:focus-visible {
+.card-note .note-editor textarea,
+.card-note .note-editor textarea:focus,
+.card-note .note-editor textarea:focus-visible {
   outline: none;
-  background: #ffffff08;
-  border-radius: 6px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
 }
