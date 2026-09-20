@@ -20,5 +20,9 @@ export type Job = {
   message: string;
   count: number;
   warnings: string[];
+  listingIds?: string[];
+  search?: import('@rent/shared').CianSearch;
+  scanned?: number;
+  skipped?: number;
   createdAt: string;
 };

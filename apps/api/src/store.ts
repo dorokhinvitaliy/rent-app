@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { type Listing, type ListingInput } from '@rent/shared';
+import { type Listing, type ListingInput, type CianSearch } from '@rent/shared';
 export const dataDir = process.env.DATA_DIR || resolve(__dirname, '../../../..', 'data');
 @Injectable()
 export class Store implements OnModuleDestroy {
@@ -110,5 +110,9 @@ export type ImportJob = {
   message: string;
   count: number;
   warnings: string[];
+  search?: CianSearch;
+  listingIds?: string[];
+  scanned?: number;
+  skipped?: number;
   createdAt: string;
 };

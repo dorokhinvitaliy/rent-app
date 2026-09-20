@@ -183,3 +183,128 @@ test('Detail parser excludes recommended cards and their unrelated prices and co
   assert.equal(result.listings[0].commission, 50);
   assert.equal(result.listings[0].rent, 85000);
 });
+
+test('Search URL maps user criteria to Cian catalog and rejects inverted ranges', async () => {
+  const { cianSearchSchema, buildCianSearchUrl } = await import('@rent/shared');
+  const s = cianSearchSchema.parse({
+    region: '2',
+    rooms: [0, 2],
+    minRent: 50000,
+    maxRent: 90000,
+    minArea: 40,
+    maxArea: 70,
+    metroMinutes: 10,
+    minFloor: 3,
+  });
+  const p = new URL(buildCianSearchUrl(s)).searchParams;
+  for (const [k, v] of Object.entries({
+    region: '2',
+    room9: '1',
+    room2: '1',
+    minprice: '50000',
+    maxprice: '90000',
+    mintarea: '40',
+    maxtarea: '70',
+    only_foot: '2',
+    foot_min: '10',
+    minfloor: '3',
+    type: '4',
+    deal_type: 'rent',
+  }))
+    assert.equal(p.get(k), v);
+  assert.equal(cianSearchSchema.safeParse({ minArea: 70, maxArea: 30 }).success, false);
+  assert.equal(cianSearchSchema.safeParse({ minRent: 90000, maxRent: 50000 }).success, false);
+  assert.equal(cianSearchSchema.safeParse({ region: 'unknown' }).success, false);
+});
+
+test('Search matching never treats missing area, walking time or commission as a match', async () => {
+  const { cianSearchSchema, searchMismatch } = await import('@rent/shared');
+  const criteria = cianSearchSchema.parse({
+    minArea: 40,
+    maxArea: 60,
+    rooms: [2],
+    metroMinutes: 10,
+    noCommission: true,
+  });
+  const good = { ...input, rooms: 2, area: 54, metroMinutes: 8, commission: 0 };
+  assert.equal(searchMismatch(good, criteria), null);
+  for (const patch of [
+    { area: null },
+    { area: 70 },
+    { metroMinutes: null },
+    { metroMinutes: 11 },
+    { commission: null },
+    { commission: 50 },
+    { rooms: 1 },
+  ])
+    assert.ok(searchMismatch({ ...good, ...patch }, criteria));
+});
+
+test('Metro parser selects nearest explicitly walkable station and ignores driving time', () => {
+  const html = fixture.replace(
+    '</body>',
+    '<div data-name="UndergroundItem"><a>Дальняя</a> 3 мин. на машине</div><div data-name="UndergroundItem"><a>Парк</a> 8 мин. пешком</div><div data-name="UndergroundItem"><a>Центр</a> 12 мин. пешком</div></body>',
+  );
+  const l = parseHtml(html, url).listings[0];
+  assert.equal(l.metro, 'Парк');
+  assert.equal(l.metroMinutes, 8);
+  const unknown = parseHtml(
+    fixture.replace(
+      '</body>',
+      '<div data-name="UndergroundItem"><a>Дальняя</a> 3 мин. на машине</div></body>',
+    ),
+    url,
+  ).listings[0];
+  assert.equal(unknown.metroMinutes, null);
+});
+
+test('Search worker saves only matching offers and returns their IDs (stubbed browser)', async () => {
+  const { chromium } = await import('playwright');
+  const { cianSearchSchema, buildCianSearchUrl } = await import('@rent/shared');
+  const { Importer } = require('../apps/api/dist/importer.js');
+  const { Store } = require('../apps/api/dist/store.js');
+  const original = chromium.launchPersistentContext;
+  let pageUrl = '';
+  const second = 'https://www.cian.ru/rent/flat/987654321/';
+  const criteria = cianSearchSchema.parse({ minRent: 90000, limit: 1, pages: 1 });
+  const fakePage = {
+    setDefaultNavigationTimeout() {},
+    async goto(u: string) {
+      pageUrl = u;
+      return { status: () => 200 };
+    },
+    async waitForTimeout() {},
+    async waitForFunction() {},
+    async content() {
+      return pageUrl.includes('cat.php')
+        ? `<a href="${url}">One</a><a href="${second}">Two</a>`
+        : pageUrl === second
+          ? fixture.replace('85 000 ₽/мес.', '100 000 ₽/мес.')
+          : fixture;
+    },
+  };
+  chromium.launchPersistentContext = async () =>
+    ({ route: async () => {}, pages: () => [fakePage], close: async () => {} }) as any;
+  process.env.DATABASE_PATH = ':memory:';
+  const store = new Store();
+  try {
+    const importer = new Importer(store);
+    const job = importer.start(buildCianSearchUrl(criteria), 1, 1, criteria);
+    for (let i = 0; i < 100; i++) {
+      if (!['running', 'waiting'].includes(store.jobs()[0].status)) break;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    const done = store.jobs()[0];
+    assert.equal(done.id, job.id);
+    assert.equal(done.count, 1);
+    assert.equal(done.scanned, 2);
+    assert.equal(done.skipped, 1);
+    assert.equal(store.all().length, 1);
+    assert.equal(store.all()[0].rent, 100000);
+    assert.deepEqual(done.listingIds, [store.all()[0].id]);
+  } finally {
+    chromium.launchPersistentContext = original;
+    store.onModuleDestroy();
+    delete process.env.DATABASE_PATH;
+  }
+});

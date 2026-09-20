@@ -12,7 +12,7 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   for (const l of existing) await request.delete('/api/listings/' + l.id, { data: {} });
   await page.reload();
   await expect(page.getByText('У хорошего поиска есть свое место')).toBeVisible();
-  await page.getByRole('button', { name: 'Посмотреть на примере' }).click();
+  await page.getByRole('button', { name: 'Открыть демо · вымышленные цены' }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(6);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(1200);
@@ -67,4 +67,60 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await expect(page.locator('.calculator')).toBeVisible();
   await page.getByRole('dialog').screenshot({ path: 'test-results/mobile-detail.png' });
   expect(errors).toEqual([]);
+});
+
+test('Parameter search submits criteria, shows progress and isolates results from previous listings', async ({
+  page,
+}) => {
+  let submitted: any;
+  let job: any;
+  await page.route('**/api/search/cian', async (route) => {
+    submitted = route.request().postDataJSON();
+    job = {
+      id: 'search-e2e',
+      url: 'https://www.cian.ru/cat.php?deal_type=rent&type=4',
+      status: 'waiting',
+      message: 'Пройдите проверку в открывшемся браузере',
+      count: 0,
+      scanned: 0,
+      skipped: 0,
+      warnings: [],
+      listingIds: [],
+      search: submitted,
+      createdAt: new Date().toISOString(),
+    };
+    await route.fulfill({ json: job });
+  });
+  await page.route('**/api/imports', (route) => route.fulfill({ json: job ? [job] : [] }));
+  await page.goto('/');
+  const panel = page.getByRole('region', { name: 'Поиск квартир на Циане' });
+  await panel.getByRole('combobox', { name: 'Город', exact: true }).selectOption('2');
+  await panel.getByLabel('Аренда в месяц, ₽ до').fill('90000');
+  await panel.getByLabel('Площадь, м² от').fill('40');
+  await panel.getByLabel('Площадь, м² до').fill('70');
+  await panel.getByRole('combobox', { name: 'Пешком до метро' }).selectOption('10');
+  await panel.getByRole('button', { name: '2', exact: true }).click();
+  const preview = await panel
+    .getByRole('link', { name: 'Посмотреть поиск на Циане' })
+    .getAttribute('href');
+  expect(new URL(preview!).searchParams.get('mintarea')).toBe('40');
+  await panel.getByRole('button', { name: 'Найти квартиры' }).click();
+  expect(submitted).toMatchObject({
+    region: '2',
+    rooms: [2],
+    maxRent: 90000,
+    minArea: 40,
+    maxArea: 70,
+    metroMinutes: 10,
+  });
+  await expect(
+    panel.getByText('Пройдите проверку в открывшемся браузере', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.apartment-card')).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Поиск выполняется' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Показать всю сохраненную подборку' }).click();
+  await expect(page.locator('.apartment-card')).toHaveCount(8);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/search-mobile.png' });
 });

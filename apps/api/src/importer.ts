@@ -2,13 +2,14 @@ import { Injectable, BadRequestException, OnModuleDestroy } from '@nestjs/common
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { searchMismatch, type CianSearch } from '@rent/shared';
 import { Store, dataDir, type ImportJob } from './store';
 import { sourceUrl, isChallenge, extractLinks, parseHtml } from './parser';
 @Injectable()
 export class Importer implements OnModuleDestroy {
   private active?: { job: ImportJob; context?: BrowserContext; cancelled: boolean };
   constructor(private readonly store: Store) {}
-  start(url: string, limit: number, pages: number) {
+  start(url: string, limit: number, pages: number, search?: CianSearch) {
     const checked = sourceUrl(url);
     if (this.active)
       throw new BadRequestException(
@@ -21,6 +22,10 @@ export class Importer implements OnModuleDestroy {
       message: 'Открываем браузер…',
       count: 0,
       warnings: [],
+      search,
+      listingIds: [],
+      scanned: 0,
+      skipped: 0,
       createdAt: new Date().toISOString(),
     };
     this.active = { job, cancelled: false };
@@ -64,6 +69,7 @@ export class Importer implements OnModuleDestroy {
   private async run(state: NonNullable<Importer['active']>, limit: number, pages: number) {
     const { job } = state;
     const imported = new Set<string>();
+    const visited = new Set<string>();
     try {
       state.context = await chromium.launchPersistentContext(resolve(dataDir, 'browser-profile'), {
         headless: false,
@@ -103,7 +109,7 @@ export class Importer implements OnModuleDestroy {
           throw new Error(`Площадка вернула HTTP ${response.status()}`);
         const links = isDetail
           ? [job.url]
-          : extractLinks(html, job.url).filter((x) => !imported.has(x));
+          : extractLinks(html, job.url).filter((x) => !visited.has(x));
         if (!links.length)
           throw new Error(
             'На странице нет ссылок на квартиры. Возможно, изменилась разметка или включена проверка.',
@@ -111,6 +117,8 @@ export class Importer implements OnModuleDestroy {
         for (const link of links) {
           if (imported.size >= limit) break;
           if (state.cancelled) throw new Error('Сбор отменен');
+          visited.add(link);
+          job.scanned = visited.size;
           job.message = `Собираем квартиру ${imported.size + 1} из ${limit}…`;
           this.store.saveJob(job);
           try {
@@ -121,7 +129,14 @@ export class Importer implements OnModuleDestroy {
             }
             const parsed = parseHtml(html, link);
             parsed.listings.forEach((l) => {
-              this.store.save(l);
+              const mismatch = job.search ? searchMismatch(l, job.search) : null;
+              if (mismatch) {
+                job.skipped = (job.skipped || 0) + 1;
+                job.warnings.push(`${l.url}: ${mismatch}`);
+                return;
+              }
+              const saved = this.store.save(l);
+              job.listingIds!.push(saved.id);
               imported.add(l.url!);
             });
             job.count = imported.size;
@@ -133,10 +148,18 @@ export class Importer implements OnModuleDestroy {
           }
         }
       }
-      job.status = job.count ? (job.warnings.length ? 'partial' : 'done') : 'failed';
+      job.status = job.count
+        ? job.warnings.length
+          ? 'partial'
+          : 'done'
+        : job.search && job.skipped
+          ? 'done'
+          : 'failed';
       job.message = job.count
         ? `Сохранено квартир: ${job.count}`
-        : 'Не удалось получить ни одной квартиры';
+        : job.search && job.skipped
+          ? 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
+          : 'Не удалось получить ни одной квартиры';
     } catch (e) {
       job.status = state.cancelled ? 'cancelled' : job.count ? 'partial' : 'failed';
       job.message = state.cancelled

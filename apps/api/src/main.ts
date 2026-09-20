@@ -18,7 +18,7 @@ import type { Response } from 'express';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
-import { listingSchema, patchSchema } from '@rent/shared';
+import { listingSchema, patchSchema, cianSearchSchema, buildCianSearchUrl } from '@rent/shared';
 import { Store } from './store';
 import { Importer } from './importer';
 import { parseHtml, sourceUrl } from './parser';
@@ -78,6 +78,15 @@ class AppController {
   }
   @Get('imports') imports() {
     return this.store.jobs();
+  }
+  @Post('search/cian') searchCian(@Body() body: unknown) {
+    const criteria = parse(cianSearchSchema, body);
+    return this.importer.start(
+      buildCianSearchUrl(criteria),
+      criteria.limit,
+      criteria.pages,
+      criteria,
+    );
   }
   @Post('imports/browser') browser(@Body() body: unknown) {
     const p = parse(

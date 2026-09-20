@@ -40,6 +40,7 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
       (await request('/demo', 'POST', {}, { Origin: 'https://evil.example' })).status,
       403,
     );
+    assert.equal((await request('/search/cian', 'POST', { minArea: 90, maxArea: 20 })).status, 400);
     const created = await (
       await request('/listings', 'POST', { title: 'Тест API', rent: 65000 })
     ).json();

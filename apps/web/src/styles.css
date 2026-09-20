@@ -2165,3 +2165,351 @@ input[type='checkbox'] {
     transition: none !important;
   }
 }
+
+.search-panel {
+  background: #fff;
+  border: 1px solid #dce4d8;
+  border-radius: 14px;
+  padding: 27px;
+  margin-bottom: 25px;
+  scroll-margin-top: 20px;
+}
+.search-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+  gap: 16px;
+}
+.search-overline {
+  font-size: 9px;
+  font-weight: 550;
+  letter-spacing: 1.2px;
+  color: #7c8d72;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.search-overline i {
+  height: 6px;
+  width: 6px;
+  background: #91ab75;
+  border-radius: 50%;
+}
+.search-panel h2 {
+  font-size: 23px;
+  font-weight: 550;
+  letter-spacing: -0.7px;
+  margin: 10px 0;
+}
+.search-panel-heading p {
+  font-size: 12px;
+  color: #8d9885;
+}
+.search-platform {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #f0f5fd;
+  color: #5082ca;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 11px 15px;
+}
+.search-main-fields {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1.1fr 1fr;
+  gap: 15px;
+}
+.search-main-fields .field {
+  font-size: 11px;
+  gap: 9px;
+}
+.search-main-fields select {
+  height: 43px;
+}
+.search-range {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.search-range legend {
+  font-size: 11px;
+  color: #75806f;
+  margin-bottom: 9px;
+  padding: 0;
+  font-weight: 500;
+}
+.search-range > div {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0e5da;
+  border-radius: 7px;
+  height: 43px;
+  padding: 0 8px;
+}
+.search-range input {
+  min-width: 0;
+  width: 50%;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: #36482f;
+}
+.search-range span {
+  color: #b1b9a9;
+  padding: 0 5px;
+}
+.search-rooms {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #7f8d72;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.search-rooms > div {
+  display: flex;
+  gap: 6px;
+}
+.search-rooms > div button {
+  height: 33px;
+  min-width: 35px;
+  border: 1px solid #e3e9dc;
+  border-radius: 6px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+.search-rooms > div button[aria-pressed='true'] {
+  background: #e9f0de;
+  border-color: #9eb48e;
+  color: #405d30;
+}
+.search-rooms small {
+  font-size: 10px;
+  color: #9ca690;
+}
+.search-more {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-left: auto;
+  font-size: 11px;
+  color: #738364;
+}
+.search-extra {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.1fr;
+  gap: 16px;
+  background: #f8faf5;
+  padding: 17px;
+  border-radius: 9px;
+  margin-bottom: 20px;
+}
+.search-extra .check-label {
+  font-size: 11px;
+  align-self: center;
+}
+.search-footer {
+  border-top: 1px solid #e9ede3;
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+}
+.search-footer > p {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #6c8059;
+}
+.search-footer > p span {
+  font-size: 10px;
+  color: #9aa68e;
+}
+.search-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.search-footer a {
+  font-size: 10px;
+  color: #839574;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.search-footer .primary {
+  padding: 13px 22px;
+}
+.search-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f0f5e9;
+  border: 1px solid #e1e9d5;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 20px;
+  color: #6e845a;
+}
+.search-progress > b,
+.search-progress b {
+  font-size: 12px;
+  font-weight: 500;
+}
+.search-progress p {
+  font-size: 10px;
+  line-height: 1.8;
+  margin-top: 6px;
+  color: #8f9c80;
+}
+.search-progress > div {
+  flex: 1;
+  min-width: 0;
+}
+.search-progress > svg {
+  flex-shrink: 0;
+}
+.search-progress > button {
+  font-size: 11px;
+  text-decoration: underline;
+}
+.search-progress details {
+  font-size: 11px;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.search-progress.failed {
+  background: #fcf2ed;
+  color: #a66e58;
+  border-color: #f0e3d9;
+}
+.search-results-context {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: #748766;
+  padding: 0 2px 22px;
+}
+.search-results-context button {
+  text-decoration: underline;
+  font-size: 11px;
+}
+@media (max-width: 1200px) {
+  .search-main-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .search-footer > div {
+    flex-direction: column;
+    gap: 9px;
+    align-items: flex-end;
+  }
+  .search-extra {
+    grid-template-columns: 1fr 1fr;
+  }
+  .search-rooms small {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .search-panel {
+    padding: 19px 15px;
+    border-radius: 12px;
+  }
+  .search-panel h2 {
+    font-size: 21px;
+    line-height: 1.3;
+  }
+  .search-panel-heading p {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .search-platform {
+    display: none;
+  }
+  .search-main-fields {
+    gap: 16px 10px;
+  }
+  .search-main-fields .field,
+  .search-range legend {
+    font-size: 10px;
+  }
+  .search-main-fields select {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .search-rooms {
+    gap: 10px;
+  }
+  .search-rooms > div {
+    gap: 4px;
+  }
+  .search-rooms > div button {
+    font-size: 11px;
+    padding: 0 9px;
+    min-width: 30px;
+  }
+  .search-more {
+    margin-left: 0;
+    margin-top: 5px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .search-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-footer > p {
+    font-size: 10px;
+  }
+  .search-footer > p span {
+    font-size: 9px;
+  }
+  .search-footer > div {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 13px;
+  }
+  .search-footer .primary {
+    width: 100%;
+    font-size: 12px;
+  }
+  .search-footer a {
+    justify-content: center;
+  }
+  .search-extra {
+    padding: 12px;
+    gap: 14px 9px;
+  }
+  .search-extra .check-label {
+    white-space: normal;
+    font-size: 10px;
+  }
+  .search-results-context {
+    font-size: 10px;
+    flex-direction: column;
+  }
+  .search-results-context button {
+    font-size: 10px;
+    text-align: left;
+    padding: 0;
+  }
+  .search-progress {
+    padding: 12px;
+    gap: 8px;
+  }
+  .search-progress b {
+    font-size: 11px;
+  }
+  .search-progress p {
+    font-size: 9px;
+  }
+  .search-progress > button {
+    font-size: 10px;
+  }
+}

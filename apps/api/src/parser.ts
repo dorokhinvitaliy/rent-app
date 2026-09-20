@@ -148,6 +148,28 @@ export function parseHtml(
       if (src && /cdn-cian|images\.cdn-cian|avatars\.mds\.yandex|realty.*yandex/i.test(src))
         addPhoto(src);
     });
+    // Only explicit walking time is accepted; driving/public transit must not pass a walking filter.
+    const metroItems = b(
+      '[data-name="UndergroundItem"], [data-name="Underground"], .OfferMetro',
+    ).toArray();
+    const metroOptions = metroItems.map((el) => {
+      const item = b(el);
+      const value = item.text().replace(/\s+/g, ' ').trim();
+      const walking =
+        value.match(/(\d+)\s*мин\.?\s*(?:пешком|пеш)/i) ||
+        value.match(/пешком\s*[:—-]?\s*(\d+)\s*мин/i);
+      const iconWalk =
+        item.find('[data-name="Walk"], [data-name="Walking"], [aria-label*="пешком"]').length > 0;
+      const minutes = numeric(
+        walking?.[1] || (iconWalk ? value.match(/(\d+)\s*мин/i)?.[1] : undefined),
+      );
+      const name =
+        item.find('a').first().text().trim() || value.replace(/\d+\s*мин[\s\S]*$/, '').trim();
+      return { name: name.slice(0, 100), minutes };
+    });
+    const nearest =
+      metroOptions.filter((m) => m.minutes !== null).sort((a, b) => a.minutes! - b.minutes!)[0] ||
+      metroOptions[0];
     const areaMatch = title.match(/([\d.,]+)\s*м[²2]/i);
     const roomsMatch = title.match(/(\d+)\s*[-–]?[кk]|(\d+)\s*комн/i);
     const parsed = listingSchema.safeParse({
@@ -156,6 +178,8 @@ export function parseHtml(
       title: title.slice(0, 200),
       address: address || '',
       rent,
+      metro: nearest?.name || '',
+      metroMinutes: nearest?.minutes ?? null,
       rooms: /студи/i.test(title) ? 0 : numeric(roomsMatch?.[1] || roomsMatch?.[2]),
       area: numeric(areaMatch?.[1]),
       floor: numeric(title.match(/(\d+)\s*\/\s*\d+\s*эт/i)?.[1]),

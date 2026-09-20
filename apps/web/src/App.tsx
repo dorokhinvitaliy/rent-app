@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { costs, sourceNames, listingSchema, type Listing, type ListingInput } from '@rent/shared';
 import { api, type Job } from './api';
+import { SearchPanel } from './SearchPanel';
 const rub = (n: number) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
 const cx = (...v: (string | false | undefined)[]) => v.filter(Boolean).join(' ');
@@ -127,6 +128,7 @@ function Modal({
   );
 }
 export default function App() {
+  const [searchJobId, setSearchJobId] = useState<string | null>(null);
   const [listings, setListings] = useState<Listing[]>([]),
     [jobs, setJobs] = useState<Job[]>([]),
     [view, setView] = useState('all'),
@@ -185,10 +187,13 @@ export default function App() {
   };
   const favorites = listings.filter((l) => l.favorite),
     demo = listings.some((l) => l.demo);
+  const searchJob = jobs.find((j) => j.id === searchJobId);
+  const running = jobs.some((j) => ['running', 'waiting'].includes(j.status));
   const visible = listings
     .filter(
       (l) =>
         (view !== 'favorites' || l.favorite) &&
+        (view !== 'all' || !searchJobId || (searchJob?.listingIds || []).includes(l.id)) &&
         (source === 'all' || l.source === source) &&
         (rooms === 'all' || (rooms === '3+' ? (l.rooms ?? -1) >= 3 : l.rooms === Number(rooms))) &&
         (!maxPrice || l.rent <= Number(maxPrice)) &&
@@ -331,7 +336,7 @@ export default function App() {
               <p>
                 {view === 'imports'
                   ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
-                  : 'Все квартиры в одном месте. Все расходы — перед глазами.'}
+                  : 'Найдите реальные объявления по вашим параметрам. Сравните полную стоимость.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -355,6 +360,26 @@ export default function App() {
             <div className="error-banner" role="alert">
               Сервер недоступен: {loadError}.{' '}
               <button onClick={() => void refresh()}>Повторить</button>
+            </div>
+          )}
+          {view === 'all' && (
+            <SearchPanel
+              job={searchJob || jobs.find((j) => ['running', 'waiting'].includes(j.status))}
+              running={running}
+              onStarted={(job) => {
+                setJobs((js) => [job, ...js]);
+                setSearchJobId(job.id);
+                reset();
+              }}
+              onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
+            />
+          )}
+          {view === 'all' && searchJobId && (
+            <div className="search-results-context">
+              <span>Показаны результаты выбранного поиска · {visible.length} квартир</span>
+              <button onClick={() => setSearchJobId(null)}>
+                Показать всю сохраненную подборку
+              </button>
             </div>
           )}
           {view === 'imports' ? (
@@ -489,7 +514,13 @@ export default function App() {
               </section>
               <div className="collection-heading">
                 <div>
-                  <h2>{view === 'favorites' ? 'Избранные квартиры' : 'Подборка квартир'}</h2>
+                  <h2>
+                    {view === 'favorites'
+                      ? 'Избранные квартиры'
+                      : searchJobId
+                        ? 'Результаты поиска'
+                        : 'Сохраненные квартиры'}
+                  </h2>
                   <span className="count-badge">{visible.length}</span>
                 </div>
                 <span className="collection-sub">Хорошие варианты заслуживают внимания</span>
@@ -641,14 +672,20 @@ export default function App() {
                   <p>
                     {listings.length
                       ? 'Измените фильтры или добавьте варианты в избранное.'
-                      : 'Добавьте ссылку на квартиру — фотографии, условия и полный расчет будут рядом.'}
+                      : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
                   </p>
                   <div>
                     <button
                       className="button primary"
-                      onClick={() => (listings.length ? reset() : setImportOpen(true))}
+                      onClick={() =>
+                        listings.length && !searchJobId
+                          ? reset()
+                          : document
+                              .getElementById('cian-search')
+                              ?.scrollIntoView({ behavior: 'smooth' })
+                      }
                     >
-                      {listings.length ? 'Сбросить фильтры' : 'Добавить первую квартиру'}
+                      {listings.length && !searchJobId ? 'Сбросить фильтры' : 'Настроить поиск'}
                       <ArrowRight size={17} />
                     </button>
                     {!listings.length && (
@@ -659,7 +696,7 @@ export default function App() {
                           void action(() => api('/demo', 'POST', {}), 'Демо-подборка добавлена')
                         }
                       >
-                        Посмотреть на примере
+                        Открыть демо · вымышленные цены
                       </button>
                     )}
                   </div>
