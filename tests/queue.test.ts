@@ -98,6 +98,7 @@ test('Bulk enrichment covers every real Cian listing in isolated batches without
     const page = {
       goto: async (value: string) => {
         url = value;
+        if (url.includes('123456781')) throw new Error('page.goto: Timeout 45000ms exceeded');
         return { status: () => 200 };
       },
       waitForTimeout: async () => {},
@@ -142,11 +143,23 @@ test('Bulk enrichment covers every real Cian listing in isolated batches without
       await tick();
     assert.equal(
       jobs.reduce((n: number, j: any) => n + j.updated, 0),
+      4,
+    );
+    assert.equal(store.all().filter((l: any) => l.details.checkedAt).length, 4);
+    assert.equal(store.all().length, 6);
+    assert.equal(
+      jobs.reduce((n: number, j: any) => n + j.scanned, 0),
       5,
     );
-    assert.equal(store.all().filter((l: any) => l.details.checkedAt).length, 5);
-    assert.equal(store.all().length, 6);
-    assert.deepEqual(importer.refreshAll(true), []);
+    const remaining = importer.refreshAll(true);
+    assert.equal(remaining.length, 1);
+    assert.equal(remaining[0].urls.length, 1);
+    for (
+      let i = 0;
+      i < 100 && remaining.some((j: any) => ['running', 'queued'].includes(j.status));
+      i++
+    )
+      await tick();
   } finally {
     await importer.onModuleDestroy();
     store.onModuleDestroy();

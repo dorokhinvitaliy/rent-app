@@ -297,8 +297,25 @@ export class Importer implements OnModuleDestroy {
           job.nextPage = Number(catalog.searchParams.get(pageKey)) || 1;
           job.message = `Загружаем страницу ${p}…`;
           this.store.saveJob(job);
-          const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
-          state.httpStatus = response?.status();
+          try {
+            const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
+            state.httpStatus = response?.status();
+          } catch (error) {
+            // A slow or removed offer must not discard the rest of a maintenance batch.
+            // Never continue past an access restriction or verification challenge.
+            if (
+              !job.urls ||
+              state.cancelled ||
+              state.httpStatus === 403 ||
+              isChallenge(await page.content().catch(() => ''))
+            )
+              throw error;
+            visited.add(targetUrl);
+            job.scanned = visited.size;
+            job.warnings.push(`${targetUrl}: Не удалось загрузить страницу. Объявление пропущено.`);
+            this.store.saveJob(job);
+            continue;
+          }
           let html = await this.waitForPage(page, state);
           page = state.page!;
           if (
