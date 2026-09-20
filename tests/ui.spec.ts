@@ -241,3 +241,38 @@ test('Metro multi-selection supports search, removal, city reset and persisted s
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('.metro-picker').screenshot({ path: 'test-results/metro-picker-mobile.png' });
 });
+
+test('Personal ratings persist, sort listings and refresh an individual source listing', async ({
+  page,
+  request,
+}) => {
+  const rows = await (await request.get('/api/listings')).json();
+  const sourced = rows.find((l: any) => l.url && !l.demo && l.source === 'cian');
+  await page.goto('/');
+  const card = page.locator('.apartment-card').filter({
+    has: page.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }),
+  });
+  await card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
+  await expect(
+    card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(
+    card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
+  await page.getByRole('option', { name: 'По моей оценке', exact: true }).click();
+  await expect(page.locator('.apartment-card').first()).toContainText('5/5 · Отличный вариант');
+  let refreshed = false;
+  await page.route('**/api/listings/' + sourced.id + '/refresh', (route) => {
+    refreshed = true;
+    return route.fulfill({
+      json: { id: 'refresh-test', url: sourced.url, status: 'running', count: 0, warnings: [] },
+    });
+  });
+  await card.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }).click();
+  await expect.poll(() => refreshed).toBe(true);
+  await card.screenshot({ path: 'test-results/rating-card.png' });
+  await card.getByRole('button', { name: 'Сбросить оценку', exact: true }).click();
+  await expect(card).toContainText('Пока без оценки');
+});

@@ -61,6 +61,7 @@ export class Store implements OnModuleDestroy {
       id: old?.id || randomUUID(),
       favorite: old?.favorite || false,
       notes: old?.notes || '',
+      rating: old?.rating ?? null,
       demo: old?.demo ?? demo,
       createdAt: old?.createdAt || now,
       updatedAt: now,

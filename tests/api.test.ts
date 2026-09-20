@@ -45,6 +45,17 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
       await request('/listings', 'POST', { title: 'Тест API', rent: 65000 })
     ).json();
     assert.ok(created.id);
+    assert.equal((await request('/listings/' + created.id + '/refresh', 'POST', {})).status, 400);
+    assert.equal((await request('/listings/' + created.id, 'PATCH', { rating: 6 })).status, 400);
+    assert.equal((await request('/listings/' + created.id, 'PATCH', { rating: 2.5 })).status, 400);
+    assert.equal(
+      (await (await request('/listings/' + created.id, 'PATCH', { rating: 5 })).json()).rating,
+      5,
+    );
+    assert.equal(
+      (await (await request('/listings/' + created.id, 'PATCH', { rating: null })).json()).rating,
+      null,
+    );
     assert.equal(created.utilities, null);
     const patched = await (
       await request('/listings/' + created.id, 'PATCH', {

@@ -1,6 +1,8 @@
+import { Rating } from './Rating';
 import { Select } from './Select';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
+  RefreshCw,
   ArrowDownToLine,
   ArrowRight,
   ArrowUpRight,
@@ -210,11 +212,13 @@ export default function App() {
         `${l.title} ${l.address} ${l.metro}`.toLowerCase().includes(query.toLowerCase()),
     )
     .sort((a, b) =>
-      sort === 'rent'
-        ? a.rent - b.rent
-        : sort === 'entry'
-          ? costs(a).moveIn - costs(b).moveIn
-          : b.createdAt.localeCompare(a.createdAt),
+      sort === 'rating'
+        ? (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt.localeCompare(a.createdAt)
+        : sort === 'rent'
+          ? a.rent - b.rent
+          : sort === 'entry'
+            ? costs(a).moveIn - costs(b).moveIn
+            : b.createdAt.localeCompare(a.createdAt),
     );
   const current = listings.find((l) => l.id === detail);
   const toggle = (l: Listing) =>
@@ -668,6 +672,7 @@ export default function App() {
                     onChange={(e) => setSort(e.target.value)}
                   >
                     <option value="new">Сначала новые</option>
+                    <option value="rating">По моей оценке</option>
                     <option value="rent">Дешевле в месяц</option>
                     <option value="entry">Меньше на въезд</option>
                   </Select>
@@ -747,6 +752,18 @@ export default function App() {
                     <Card
                       key={l.id}
                       listing={l}
+                      rate={(rating) =>
+                        void action(() => api('/listings/' + l.id, 'PATCH', { rating }))
+                      }
+                      ratingBusy={busy}
+                      refreshDisabled={busy || running}
+                      refreshJob={jobs.find((j) => j.url === l.url)}
+                      refreshListing={() =>
+                        void action(
+                          () => api('/listings/' + l.id + '/refresh', 'POST', {}),
+                          'Актуализация запущена в фоне',
+                        )
+                      }
                       open={() => setDetail(l.id)}
                       favorite={() => void toggle(l)}
                       selected={selected.includes(l.id)}
@@ -945,18 +962,30 @@ export default function App() {
 }
 function Card({
   listing: l,
+  rate,
+  ratingBusy,
+  refreshDisabled,
+  refreshJob,
+  refreshListing,
   open,
   favorite,
   select,
   selected,
 }: {
   listing: Listing;
+  rate: (rating: number | null) => void;
+  ratingBusy: boolean;
+  refreshDisabled: boolean;
+  refreshJob?: Job;
+  refreshListing: () => void;
   open: () => void;
   favorite: () => void;
   select: () => void;
   selected: boolean;
 }) {
   const c = costs(l);
+  const refreshing = refreshJob && ['running', 'waiting'].includes(refreshJob.status);
+  const refreshable = !!l.url && l.source !== 'manual' && !l.demo;
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
@@ -1093,9 +1122,38 @@ function Card({
           <span>На въезд{c.incomplete ? ' · от' : ''}</span>
           <b>{rub(c.moveIn)}</b>
         </div>
-        <button className="card-detail" onClick={open}>
-          Подробнее и расчет <ArrowRight size={15} />
-        </button>
+        <Rating value={l.rating ?? null} onChange={rate} disabled={ratingBusy} title={l.title} />
+        <div className="card-action-row">
+          <button className="card-detail" onClick={open}>
+            Подробнее и расчет <ArrowRight size={15} />
+          </button>
+          <button
+            className="card-refresh"
+            disabled={!refreshable || refreshDisabled}
+            title={
+              refreshable
+                ? 'Получить свежие условия по исходной ссылке'
+                : 'Нужна ссылка на реальное объявление площадки'
+            }
+            onClick={refreshListing}
+            aria-label={'Актуализировать ' + l.title}
+          >
+            <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
+            {refreshing ? 'Обновляем' : 'Актуализировать'}
+          </button>
+        </div>
+        {refreshJob && (
+          <p className="card-refresh-status" role="status">
+            {refreshing
+              ? refreshJob.status === 'waiting'
+                ? 'Нужна проверка — откройте окно в блоке поиска'
+                : 'Проверяем данные на площадке…'
+              : refreshJob.status === 'done' ||
+                  (refreshJob.status === 'partial' && refreshJob.count > 0)
+                ? 'Данные актуализированы'
+                : `Не обновлено: ${refreshJob.message}`}
+          </p>
+        )}
       </div>
     </article>
   );

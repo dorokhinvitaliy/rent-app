@@ -88,6 +88,14 @@ class AppController {
       criteria,
     );
   }
+  @Post('listings/:id/refresh') refreshListing(@Param('id') id: string) {
+    const listing = this.store.get(id);
+    if (!listing.url || listing.source === 'manual' || listing.demo)
+      throw new BadRequestException(
+        'Для актуализации нужна ссылка на реальное объявление Циана или Яндекс Недвижимости',
+      );
+    return this.importer.start(listing.url, 1, 1);
+  }
   @Post('imports/browser') browser(@Body() body: unknown) {
     const p = parse(
       z.object({

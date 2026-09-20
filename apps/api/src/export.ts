@@ -27,6 +27,7 @@ export async function exportWorkbook(listings: Listing[], months: number) {
     ['Заметка', 45],
     ['Фото (ссылка)', 50],
     ['Данные', 22],
+    ['Моя оценка / 5', 20],
   ].map(([header, width]) => ({ header: String(header), width: Number(width) }));
   listings.forEach((l, i) => {
     const r = i + 2,
@@ -53,6 +54,7 @@ export async function exportWorkbook(listings: Listing[], months: number) {
       l.notes,
       l.photos[0] || '',
       l.demo ? 'ДЕМО, вымышленные' : 'Добавлено пользователем',
+      l.rating ?? null,
     ]);
     if (l.url) sheet.getCell(r, 4).value = { text: l.url, hyperlink: l.url };
     if (l.photos[0]) sheet.getCell(r, 20).value = { text: 'Открыть фото', hyperlink: l.photos[0] };
@@ -74,13 +76,17 @@ export async function exportWorkbook(listings: Listing[], months: number) {
     c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     c.alignment = { vertical: 'middle', wrapText: true };
   });
-  sheet.autoFilter = { from: 'A1', to: `U${listings.length + 1}` };
+  sheet.autoFilter = { from: 'A1', to: `V${listings.length + 1}` };
   const guide = book.addWorksheet('Как считать');
   guide.columns = [{ width: 35 }, { width: 105 }];
   guide.addRows([
     [
       'Место · расчет аренды',
       'Все суммы в рублях. Дата экспорта: ' + new Date().toLocaleDateString('ru-RU'),
+    ],
+    [
+      'Моя оценка',
+      'Личная оценка: 5 — отличный вариант (зеленый), 1 — не подходит (красный). Пусто — еще не оценено.',
     ],
     ['На въезд', 'Первый месяц аренды + ЖКУ + залог + комиссия + прочие разовые расходы.'],
     [

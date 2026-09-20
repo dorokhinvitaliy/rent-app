@@ -771,3 +771,99 @@ input[type='checkbox']:checked {
 .card-image .image-open {
   touch-action: pan-y pinch-zoom;
 }
+
+.personal-rating {
+  border-top: 1px solid #e4e5e8;
+  padding: 13px 0;
+  margin-top: 0;
+}
+.rating-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: #82858c;
+  margin-bottom: 9px;
+}
+.rating-caption b {
+  font-weight: 400;
+  color: #666b73;
+}
+.rating-scale {
+  display: flex;
+  gap: 5px;
+}
+.rating-scale button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  height: 28px;
+  border: 1px solid #e6e7e9;
+  border-radius: 8px;
+  background: white;
+  color: #787c84;
+  font-size: 10px;
+}
+.rating-scale button i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rating-color);
+}
+.rating-scale button:hover:not(:disabled) {
+  border-color: var(--rating-color);
+}
+.rating-scale button[aria-pressed='true'] {
+  background: var(--rating-color);
+  border-color: var(--rating-color);
+  color: #fff;
+}
+.rating-scale button[aria-pressed='true'] i {
+  display: none;
+}
+.rating-scale .rating-clear {
+  flex: 0 0 28px;
+  background: transparent;
+  border-color: transparent;
+}
+.rating-clear:disabled {
+  opacity: 0.25;
+}
+.card-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 7px;
+}
+.card-action-row .card-detail {
+  width: auto;
+  padding: 4px 0;
+  gap: 6px;
+  font-size: 11px;
+}
+.card-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 0;
+  font-size: 10px;
+  color: #717780;
+}
+.card-refresh:hover:not(:disabled) {
+  color: #20242c;
+}
+.card-refresh:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.card-refresh-status {
+  font-size: 10px;
+  color: #747983;
+  line-height: 1.5;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}

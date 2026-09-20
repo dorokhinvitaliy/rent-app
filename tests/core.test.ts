@@ -155,6 +155,7 @@ test('XLSX contains numeric data, calculated formulas, cached totals and no form
     ...input,
     id: '1',
     title: '=HYPERLINK("bad")',
+    rating: 5,
     notes: '=SUM(1,2)',
     favorite: false,
     demo: false,
@@ -169,6 +170,7 @@ test('XLSX contains numeric data, calculated formulas, cached totals and no form
   assert.equal(sheet.getCell('A2').value, listing.title);
   assert.equal(sheet.getCell('S2').value, listing.notes);
   assert.equal(sheet.getCell('E2').value, 85000);
+  assert.equal(sheet.getCell('V2').value, 5);
   assert.deepEqual(sheet.getCell('M2').value, { formula: 'L2+G2+K2+J2', result: 218500 });
   assert.equal(book.worksheets.length, 2);
 });
@@ -268,6 +270,7 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
   const second = 'https://www.cian.ru/rent/flat/987654321/';
   const third = 'https://www.cian.ru/rent/flat/987654322/';
   let extra = false;
+  let freshRent = 100000;
   const criteria = cianSearchSchema.parse({ minRent: 90000, limit: 1, pages: 1 });
   const fakePage = {
     setDefaultNavigationTimeout() {},
@@ -281,7 +284,7 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
       return pageUrl.includes('cat.php')
         ? `<a href="${url}">One</a><a href="${second}">Two</a>${extra ? `<a href="${third}">Three</a>` : ''}`
         : pageUrl === second || pageUrl === third
-          ? fixture.replace('85 000 ₽/мес.', '100 000 ₽/мес.')
+          ? fixture.replace('85 000 ₽/мес.', `${freshRent} ₽/мес.`)
           : fixture;
     },
   };
@@ -307,7 +310,7 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
     assert.equal(done.added, 1);
     assert.equal(done.updated, 0);
     const firstId = store.all()[0].id;
-    store.patch(firstId, { favorite: true, notes: 'Сохранить заметку' });
+    store.patch(firstId, { favorite: true, notes: 'Сохранить заметку', rating: 5 });
     extra = true;
     const again = async (onlyNew: boolean) => {
       const next = { ...criteria, onlyNew };
@@ -322,12 +325,15 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
     assert.equal(secondRun.added, 1);
     assert.equal(secondRun.alreadySaved, 1);
     assert.equal(store.all().length, 2);
+    freshRent = 110000;
     const refreshRun = await again(false);
     assert.equal(refreshRun.added, 0);
     assert.equal(refreshRun.updated, 1);
     assert.equal(store.all().length, 2);
     assert.equal(store.get(firstId).favorite, true);
     assert.equal(store.get(firstId).notes, 'Сохранить заметку');
+    assert.equal(store.get(firstId).rating, 5);
+    assert.equal(store.get(firstId).rent, 110000);
     const exhausted = await again(true);
     assert.equal(exhausted.added, 0);
     assert.equal(exhausted.alreadySaved, 2);

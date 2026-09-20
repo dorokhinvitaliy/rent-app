@@ -45,12 +45,17 @@ export const listingSchema = z.object({
 });
 export const patchSchema = listingSchema
   .partial()
-  .extend({ favorite: z.boolean().optional(), notes: z.string().max(5000).optional() })
+  .extend({
+    rating: z.number().int().min(1).max(5).nullable().optional(),
+    favorite: z.boolean().optional(),
+    notes: z.string().max(5000).optional(),
+  })
   .strict();
 export type ListingInput = z.infer<typeof listingSchema>;
 export type Listing = ListingInput & {
   id: string;
   favorite: boolean;
+  rating?: number | null;
   notes: string;
   demo: boolean;
   createdAt: string;
