@@ -35,12 +35,24 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page
-    .getByPlaceholder('Что понравилось? Что уточнить у владельца?')
-    .fill('Уточнить счетчики');
-  await page.getByRole('button', { name: 'Сохранить заметку' }).click();
-  await expect(page.getByRole('button', { name: 'Сохранить заметку' })).toBeDisabled();
+  const detailNote = page.getByRole('dialog');
+  await detailNote
+    .getByRole('button', { name: /Добавить комментарий|Редактировать комментарий/ })
+    .click();
+  await detailNote.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Уточнить счетчики');
+  await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
+  await expect(detailNote.locator('.card-note-preview')).toHaveText('Уточнить счетчики');
+  await detailNote.getByRole('button', { name: 'Редактировать комментарий', exact: true }).click();
+  await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
+    'Уточнить счетчики',
+  );
+  await detailNote
+    .getByRole('textbox', { name: 'Быстрый комментарий' })
+    .fill('Уточнить счетчики и залог');
+  await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
+  await expect(detailNote.locator('.card-note-preview')).toHaveText('Уточнить счетчики и залог');
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByLabel('Поиск по адресу или метро').fill('');
   await page.getByLabel('Сравнить Светлая квартира у парка').check();
   await page.getByLabel('Сравнить Тихое место в центре').check();
@@ -99,7 +111,7 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.screenshot({ path: 'test-results/mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Подробнее и расчет' }).first().click();
-  await expect(page.locator('.calculator')).toBeVisible();
+  await expect(page.locator('.detail-finances')).toBeVisible();
   await page.getByRole('dialog').screenshot({ path: 'test-results/mobile-detail.png' });
   await page.getByRole('dialog').getByRole('combobox', { name: 'Планирую снимать' }).click();
   await expect(page.getByRole('listbox')).toBeVisible();
@@ -526,4 +538,58 @@ test('Quick comment saves inline, retains failed drafts and persists after reloa
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
   await expect(card.locator('.card-note-preview')).toHaveText('Уточнить про кота и залог');
+});
+
+test('Detail modal navigates apartments and photos independently and preserves note drafts', async ({
+  page,
+  request,
+}) => {
+  for (const name of ['Первый', 'Второй'])
+    await request.post('/api/listings', {
+      data: {
+        title: 'Навигация модалки ' + name,
+        description: 'Светлая квартира, удобная планировка и тихие соседи. '.repeat(25),
+        rent: 70000,
+        photos: ['https://photos.test/1.jpg', 'https://photos.test/2.jpg'],
+      },
+    });
+  await page.route('https://photos.test/**', (r) =>
+    r.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="#c7b9a4"/></svg>',
+    }),
+  );
+  await page.goto('/');
+  await page.getByRole('textbox', { name: 'Поиск по адресу или метро' }).fill('Навигация модалки');
+  const cards = page.locator('.apartment-card');
+  const firstTitle = await cards.first().locator('.card-title').innerText();
+  await cards.first().getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { level: 2 })).toHaveText(firstTitle);
+  await dialog.getByRole('button', { name: 'Ещё…', exact: true }).click();
+  await expect(dialog.locator('.detail-description p')).toHaveClass('expanded');
+  await dialog.getByRole('button', { name: 'Свернуть', exact: true }).click();
+  await expect(
+    dialog.getByRole('button', { name: 'Предыдущее объявление', exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Следующее фото', exact: true }).click();
+  await expect(dialog.locator('.detail-photo-count')).toHaveText('2 / 2');
+  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
+  await notes.fill('Черновик для первой квартиры');
+  await dialog.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
+  await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(firstTitle);
+  await expect(dialog.locator('.detail-photo-count')).toHaveText('1 / 2');
+  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  await expect(notes).toHaveValue('');
+  await dialog.getByRole('button', { name: 'Предыдущее объявление', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  await expect(notes).toHaveValue('Черновик для первой квартиры');
+  await notes.fill('');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    dialog.getByRole('button', { name: 'Следующее объявление', exact: true }),
+  ).toBeInViewport();
+  await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 });

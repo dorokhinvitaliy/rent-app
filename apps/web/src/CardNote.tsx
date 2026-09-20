@@ -1,4 +1,4 @@
-import { Check, Plus, X, LoaderCircle } from 'lucide-react';
+import { Check, Plus, X, LoaderCircle, Pencil } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
 function SavedNote({ notes }: { notes: string }) {
@@ -110,15 +110,59 @@ function SavedNote({ notes }: { notes: string }) {
 export function CardNote({
   notes,
   onSave,
+  editable = false,
+  initialDraft,
+  onDraft,
 }: {
   notes: string;
   onSave: (notes: string) => Promise<void>;
+  editable?: boolean;
+  initialDraft?: string;
+  onDraft?: (notes: string) => void;
 }) {
-  return notes ? <SavedNote notes={notes} /> : <NoteComposer onSave={onSave} />;
-}
-function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
+  return notes && !editing ? (
+    <>
+      <SavedNote notes={notes} />
+      {editable && (
+        <button
+          className="detail-comment-edit"
+          title="Редактировать комментарий"
+          aria-label="Редактировать комментарий"
+          onClick={() => setEditing(true)}
+        >
+          <Pencil size={16} />
+        </button>
+      )}
+    </>
+  ) : (
+    <NoteComposer
+      initialDraft={initialDraft ?? notes}
+      onDraft={onDraft}
+      initiallyOpen={editing}
+      onCancel={() => setEditing(false)}
+      onSave={async (value) => {
+        await onSave(value);
+        setEditing(false);
+      }}
+    />
+  );
+}
+function NoteComposer({
+  onSave,
+  initialDraft = '',
+  onDraft,
+  initiallyOpen = false,
+  onCancel,
+}: {
+  onSave: (notes: string) => Promise<void>;
+  initialDraft?: string;
+  onDraft?: (notes: string) => void;
+  initiallyOpen?: boolean;
+  onCancel?: () => void;
+}) {
+  const [editing, setEditing] = useState(initiallyOpen);
+  const [draft, setDraft] = useState(initialDraft);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const trigger = useRef<HTMLButtonElement>(null);
@@ -129,6 +173,7 @@ function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) 
   const close = () => {
     if (saving) return;
     setEditing(false);
+    onCancel?.();
     setError('');
     requestAnimationFrame(() => trigger.current?.focus());
   };
@@ -141,11 +186,13 @@ function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) 
     return () => document.removeEventListener('keydown', escape);
   }, [editing, saving]);
   const submit = async () => {
-    if (saving || !draft.trim()) return;
+    if (saving || (!draft.trim() && !initiallyOpen)) return;
     setSaving(true);
     setError('');
     try {
       await onSave(draft.trim());
+      setEditing(false);
+      setDraft('');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -159,6 +206,7 @@ function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) 
       onPointerMove={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
+          e.preventDefault();
           e.stopPropagation();
           close();
         }
@@ -194,7 +242,10 @@ function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) 
             maxLength={5000}
             value={draft}
             disabled={saving}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              onDraft?.(e.target.value);
+            }}
           />
           {error && <p role="alert">{error}</p>}
           <div className="note-editor-actions">
@@ -212,7 +263,7 @@ function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) 
               type="submit"
               title="Сохранить · Ctrl/⌘ + Enter"
               aria-label="Сохранить комментарий"
-              disabled={saving || !draft.trim()}
+              disabled={saving || (!draft.trim() && !initiallyOpen)}
             >
               {saving ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />}
             </button>

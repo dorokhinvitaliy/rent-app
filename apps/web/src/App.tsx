@@ -5,6 +5,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
@@ -146,6 +147,8 @@ function Modal({
   );
 }
 export default function App() {
+  const detailOrigin = useRef<DOMRect | null>(null);
+  const detailPhoto = useRef(0);
   const noteRequests = useRef(new Set<string>());
   const ratingRequests = useRef(new Set<string>());
   const ratingRevision = useRef(0);
@@ -279,6 +282,12 @@ export default function App() {
       noteRequests.current.delete(id);
       ratingRevision.current++;
     }
+  }, []);
+  const openListing = useCallback((id: string, photo = 0) => {
+    detailOrigin.current =
+      document.querySelector(`[data-listing-id="${id}"]`)?.getBoundingClientRect() || null;
+    detailPhoto.current = photo;
+    setDetail(id);
   }, []);
   const selectListing = useCallback((id: string) => {
     setSelected((ids) =>
@@ -917,7 +926,7 @@ export default function App() {
                       refreshDisabled={busy || running || ratingPending.includes(l.id)}
                       refreshJob={jobs.find((j) => j.url === l.url)}
                       refreshListing={refreshListing}
-                      open={setDetail}
+                      open={openListing}
                       favorite={toggle}
                       selected={selected.includes(l.id)}
                       select={selectListing}
@@ -991,6 +1000,26 @@ export default function App() {
       {current && (
         <Detail
           listing={current}
+          origin={detailOrigin.current}
+          initialPhoto={detailPhoto.current}
+          position={visible.findIndex((l) => l.id === current.id) + 1}
+          total={visible.length}
+          previous={
+            visible.findIndex((l) => l.id === current.id) > 0
+              ? () => setDetail(visible[visible.findIndex((l) => l.id === current.id) - 1].id)
+              : undefined
+          }
+          next={
+            visible.findIndex((l) => l.id === current.id) >= 0 &&
+            visible.findIndex((l) => l.id === current.id) < visible.length - 1
+              ? () => setDetail(visible[visible.findIndex((l) => l.id === current.id) + 1].id)
+              : undefined
+          }
+          onRefresh={() => refreshListing(current)}
+          refreshJob={jobs.find((j) => j.url === current.url)}
+          refreshDisabled={
+            busy || running || !current.url || current.source === 'manual' || current.demo
+          }
           months={months}
           setMonths={setMonths}
           onClose={() => setDetail(null)}
@@ -1128,7 +1157,7 @@ const Card = memo(function Card({
   refreshDisabled: boolean;
   refreshJob?: Job;
   refreshListing: (listing: Listing) => void;
-  open: (id: string) => void;
+  open: (id: string, photo?: number) => void;
   favorite: (listing: Listing) => void;
   select: (id: string) => void;
   selected: boolean;
@@ -1142,6 +1171,7 @@ const Card = memo(function Card({
   const photo = Math.min(photoIndex, Math.max(0, l.photos.length - 1));
   return (
     <article
+      data-listing-id={l.id}
       className={cx('apartment-card', selected && 'card-selected', archiving && 'card-archiving')}
       onPointerOutCapture={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhotoIndex(0);
@@ -1171,7 +1201,7 @@ const Card = memo(function Card({
               swiped.current = false;
               return;
             }
-            open(l.id);
+            open(l.id, photo);
           }}
           onDragStart={(e) => e.preventDefault()}
           onTouchStart={(e) => {
@@ -1255,7 +1285,7 @@ const Card = memo(function Card({
         )}
       </div>
       <div className="card-content">
-        <button className="card-title" onClick={() => open(l.id)}>
+        <button className="card-title" onClick={() => open(l.id, photo)}>
           {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms}-комн. квартира` : l.title}
           {l.area ? ` · ${l.area} м²` : ''}
           {l.floor ? ` · ${l.floor} этаж` : ''}
@@ -1307,7 +1337,7 @@ const Card = memo(function Card({
           )}
           <button
             className="card-detail"
-            onClick={() => open(l.id)}
+            onClick={() => open(l.id, photo)}
             aria-label="Подробнее и расчет"
             title="Подробнее и расчет"
           >
@@ -1361,8 +1391,45 @@ function Term({ months, setMonths }: { months: number; setMonths: (v: number) =>
     </label>
   );
 }
+function DescriptionPreview({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [long, setLong] = useState(false);
+  const paragraph = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const el = paragraph.current!;
+    const measure = () => {
+      if (!expanded) setLong(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text, expanded]);
+  return (
+    <section className="detail-description">
+      <h3>О квартире</h3>
+      <p ref={paragraph} className={expanded ? 'expanded' : ''}>
+        {text}
+      </p>
+      {(long || expanded) && (
+        <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Свернуть' : 'Ещё…'}
+        </button>
+      )}
+    </section>
+  );
+}
 function Detail({
   listing: l,
+  origin,
+  initialPhoto,
+  position,
+  total,
+  previous,
+  next,
+  onRefresh,
+  refreshJob,
+  refreshDisabled,
   months,
   setMonths,
   onClose,
@@ -1372,6 +1439,15 @@ function Detail({
   onSaveNotes,
 }: {
   listing: Listing;
+  origin: DOMRect | null;
+  initialPhoto: number;
+  position: number;
+  total: number;
+  previous?: () => void;
+  next?: () => void;
+  onRefresh: () => void;
+  refreshJob?: Job;
+  refreshDisabled: boolean;
   months: number;
   setMonths: (v: number) => void;
   onClose: () => void;
@@ -1380,180 +1456,278 @@ function Detail({
   onDelete: () => void;
   onSaveNotes: (notes: string) => Promise<void>;
 }) {
-  const [photo, setPhoto] = useState(0),
-    [notes, setNotes] = useState(l.notes),
-    [saving, setSaving] = useState(false),
-    [error, setError] = useState('');
+  const dialog = useRef<HTMLDialogElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const drafts = useRef(new Map<string, string>());
+  const closing = useRef(false);
+  const [photo, setPhoto] = useState(initialPhoto);
+  const [saving, setSaving] = useState(false);
   const c = costs(l, months);
+  const safePhoto = Math.min(photo, Math.max(0, l.photos.length - 1));
+  const close = () => {
+    if (closing.current || saving) return;
+    closing.current = true;
+    const el = panel.current!;
+    const target = document.querySelector(`[data-listing-id="${l.id}"]`)?.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const canMorph = target && target.bottom > 0 && target.top < innerHeight;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.animate(
+      [
+        { transform: 'none', opacity: 1 },
+        {
+          transform: canMorph
+            ? `translate(${target.x - r.x}px, ${target.y - r.y}px) scale(${target.width / r.width}, ${target.height / r.height})`
+            : 'scale(.96)',
+          opacity: 0,
+        },
+      ],
+      { duration: reduced ? 0 : 240, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' },
+    )
+      .finished.then(onClose)
+      .catch(onClose);
+  };
+  useLayoutEffect(() => {
+    const d = dialog.current!;
+    d.showModal();
+    const el = panel.current!;
+    const r = el.getBoundingClientRect();
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.animate(
+      [
+        {
+          transform: origin
+            ? `translate(${origin.x - r.x}px, ${origin.y - r.y}px) scale(${origin.width / r.width}, ${origin.height / r.height})`
+            : 'scale(.96)',
+          opacity: 0.15,
+          borderRadius: '22px',
+        },
+        { transform: 'none', opacity: 1, borderRadius: '28px' },
+      ],
+      { duration: reduced ? 0 : 380, easing: 'cubic-bezier(.22,1,.36,1)' },
+    );
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      d.close();
+      document.body.style.overflow = overflow;
+    };
+  }, []);
+  const lastId = useRef(l.id);
+  useLayoutEffect(() => {
+    if (lastId.current !== l.id) {
+      setPhoto(0);
+      lastId.current = l.id;
+      panel.current?.querySelector('.detail-info')?.scrollTo(0, 0);
+    }
+  }, [l.id, l.notes]);
+  const changePhoto = (delta: number) => {
+    if (l.photos.length) setPhoto((safePhoto + delta + l.photos.length) % l.photos.length);
+  };
   return (
-    <Modal title={l.title} wide onClose={onClose}>
-      <div className="detail-layout">
-        <section>
-          <div className="gallery">
-            <Photo src={l.photos[photo]} alt={l.title} />
-            {l.photos.length > 1 && (
-              <div className="gallery-controls">
-                <IconButton
-                  label="Предыдущее фото"
-                  onClick={() => setPhoto((photo + l.photos.length - 1) % l.photos.length)}
+    <dialog
+      ref={dialog}
+      className="listing-dialog"
+      aria-label={l.title}
+      onCancel={(e) => {
+        e.preventDefault();
+        close();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+      onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('input,textarea,[role="combobox"],[role="listbox"]'))
+          return;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          if (e.altKey) {
+            if (!saving) (e.key === 'ArrowLeft' ? previous : next)?.();
+          } else changePhoto(e.key === 'ArrowLeft' ? -1 : 1);
+        }
+      }}
+    >
+      <button
+        className="listing-nav listing-prev"
+        aria-label="Предыдущее объявление"
+        title="Предыдущее объявление · Alt + ←"
+        disabled={!previous || saving}
+        onClick={previous}
+      >
+        <ChevronLeft size={24} />
+      </button>
+      <div ref={panel} className="listing-panel">
+        <section className="detail-media" aria-label="Фотографии квартиры">
+          <Photo src={l.photos[safePhoto]} alt={l.title} />
+          <span className="detail-source">
+            {sourceNames[l.source]}
+            {l.demo ? ' · демо' : ''}
+          </span>
+          <button
+            className="detail-favorite"
+            onClick={onFavorite}
+            aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
+          >
+            <Heart size={19} fill={l.favorite ? 'currentColor' : 'none'} />
+          </button>
+          {l.photos.length > 1 && (
+            <>
+              <button
+                className="detail-photo-arrow photo-prev"
+                aria-label="Предыдущее фото"
+                onClick={() => changePhoto(-1)}
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <button
+                className="detail-photo-arrow photo-next"
+                aria-label="Следующее фото"
+                onClick={() => changePhoto(1)}
+              >
+                <ChevronRight size={22} />
+              </button>
+            </>
+          )}
+          <span className="detail-photo-count">
+            {l.photos.length ? `${safePhoto + 1} / ${l.photos.length}` : 'Нет фотографий'}
+          </span>
+          {l.photos.length > 1 && (
+            <div className="detail-thumbs">
+              {l.photos.map((src, i) => (
+                <button
+                  key={i}
+                  className={cx(i === safePhoto && 'selected')}
+                  aria-label={`Фото ${i + 1}`}
+                  aria-pressed={i === safePhoto}
+                  onClick={() => setPhoto(i)}
                 >
-                  <ChevronLeft />
-                </IconButton>
-                <span>
-                  {photo + 1} / {l.photos.length}
-                </span>
-                <IconButton
-                  label="Следующее фото"
-                  onClick={() => setPhoto((photo + 1) % l.photos.length)}
-                >
-                  <ChevronRight />
-                </IconButton>
-              </div>
-            )}
-          </div>
-          <p className="detail-address">
-            <MapPin size={17} />
-            {l.address || 'Адрес не указан'}
-          </p>
-          <div className="detail-facts">
-            <span>{l.area ? `${l.area} м²` : 'Площадь не указана'}</span>
-            <span>
-              {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms} комн.` : 'Комнаты не указаны'}
-            </span>
-            <span>{l.floor ? `${l.floor} этаж` : 'Этаж не указан'}</span>
-          </div>
-          {l.demo && (
-            <div className="notice-box">
-              Демонстрационный пример. Фото и адрес не относятся к реальному объявлению.
+                  <Photo src={src} alt="" />
+                </button>
+              ))}
             </div>
           )}
-          <p className="description">{l.description || 'Описание пока не добавлено.'}</p>
-          <div className="detail-buttons">
-            {l.url && (
-              <a className="button secondary" href={l.url} target="_blank" rel="noreferrer">
-                На {sourceNames[l.source]} <SquareArrowOutUpRight size={15} />
-              </a>
-            )}
-            <button className="button secondary" onClick={onFavorite}>
-              <Heart size={16} fill={l.favorite ? 'currentColor' : 'none'} />
-              {l.favorite ? 'В избранном' : 'Сохранить'}
-            </button>
-            <button className="text-button" onClick={onEdit}>
-              Редактировать
-            </button>
-          </div>
-          <label className="notes-label">
-            Мои заметки
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={5000}
-              placeholder="Что понравилось? Что уточнить у владельца?"
-              rows={3}
-            />
-          </label>
-          {error && <p className="form-error">{error}</p>}
-          <button
-            className="text-button"
-            disabled={saving || notes === l.notes}
-            onClick={async () => {
+          <CardNote
+            key={l.id}
+            notes={l.notes.trim()}
+            editable
+            initialDraft={drafts.current.get(l.id)}
+            onDraft={(value) => drafts.current.set(l.id, value)}
+            onSave={async (value) => {
               setSaving(true);
               try {
-                await onSaveNotes(notes);
-              } catch (e) {
-                setError((e as Error).message);
+                await onSaveNotes(value);
+                drafts.current.delete(l.id);
               } finally {
                 setSaving(false);
               }
             }}
-          >
-            Сохранить заметку
-          </button>
-          <div className="detail-bottom">
-            <small>Обновлено {new Date(l.updatedAt).toLocaleDateString('ru-RU')}</small>
-            <button className="text-button delete-text" onClick={onDelete}>
-              <Trash2 size={14} />
-              Удалить
-            </button>
-          </div>
+          />
         </section>
-        <section className="calculator">
-          <div className="calculator-heading">
-            <span>
-              <Calculator size={20} />
-            </span>
-            <div>
-              <h3>Без скрытых расходов</h3>
-              <p>Полная стоимость вашего решения</p>
+        <section className="detail-info">
+          <div className="detail-topline">
+            <span>{position > 0 ? `${position} из ${total} вариантов` : 'Квартира'}</span>
+            <IconButton label="Закрыть" onClick={close}>
+              <X size={18} />
+            </IconButton>
+          </div>
+          <h2>{l.title}</h2>
+          <p className="detail-address">{l.address || 'Адрес не указан'}</p>
+          <div className="detail-facts">
+            <span>{l.area ? `${l.area} м²` : '— м²'}</span>
+            <span>{l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms} комн.` : '— комн.'}</span>
+            <span>{l.floor ? `${l.floor} этаж` : '— этаж'}</span>
+          </div>
+          {l.metro && (
+            <p className="detail-metro">
+              м · {l.metro}
+              {l.metroMinutes !== null ? ` · ${l.metroMinutes} мин. пешком` : ''}
+            </p>
+          )}
+          <div className="detail-rent">
+            <strong>{rub(l.rent)}</strong>
+            <span>/ месяц</span>
+          </div>
+          <div className="detail-finances">
+            <div className="detail-entry">
+              <span>На въезд{c.incomplete ? ' · от' : ''}</span>
+              <b>{rub(c.moveIn)}</b>
             </div>
-          </div>
-          <Term months={months} setMonths={setMonths} />
-          <div className="cost-rows">
-            {[
-              ['Аренда / месяц', l.rent],
-              ['Коммунальные / месяц', l.utilities],
-              ['Возвратный залог', l.deposit],
-              [
-                'Комиссия' +
-                  (l.commissionType === 'percent' && l.commission !== null
-                    ? ` · ${l.commission}%`
-                    : ''),
-                l.commission === null ? null : c.fee,
-              ],
-              ['Прочие при въезде', l.otherCosts],
-            ].map(([name, value]) => (
-              <div key={String(name)}>
-                <span>{name}</span>
-                <b>{value === null ? 'Не указано' : rub(Number(value))}</b>
-              </div>
-            ))}
-          </div>
-          <div className="entry-total">
-            <span>Понадобится на въезд</span>
-            <strong>
-              {c.incomplete && <small>от </small>}
-              {rub(c.moveIn)}
-            </strong>
-            <p>Первый месяц + все разовые платежи</p>
-          </div>
-          <div className="cost-rows totals">
-            <div>
-              <span>В месяц с коммунальными</span>
-              <b>
-                {l.utilities === null ? 'от ' : ''}
-                {rub(c.monthly)}
-              </b>
+            <div className="detail-expenses">
+              {[
+                ['Залог', l.deposit],
+                ['Комиссия', l.commission === null ? null : c.fee],
+                ['ЖКУ / мес.', l.utilities],
+                ['Прочие', l.otherCosts],
+              ].map(([name, value]) => (
+                <div key={String(name)}>
+                  <span>{name}</span>
+                  <b>{value === null ? 'Не указано' : rub(Number(value))}</b>
+                </div>
+              ))}
             </div>
-            <div>
+            <Term months={months} setMonths={setMonths} />
+            <div className="detail-total">
               <span>За {months} мес. без залога</span>
               <b>
                 {c.incomplete ? 'от ' : ''}
                 {rub(c.total)}
               </b>
             </div>
-            <div>
-              <span>В среднем за месяц</span>
-              <b>
-                {c.incomplete ? 'от ' : ''}
-                {rub(c.average)}
-              </b>
-            </div>
+            <p className="detail-disclaimer">
+              Залог возвратный.{' '}
+              {c.incomplete
+                ? 'Неизвестные платежи не включены.'
+                : 'Учтены аренда, ЖКУ и разовые платежи.'}
+            </p>
           </div>
-          <p className="calculator-note">
-            Залог учитывается при въезде и предполагается возвратным. Комиссия и разовые расходы
-            распределены на выбранный срок.
-          </p>
-          {c.incomplete && (
-            <div className="notice-box">
-              Есть неизвестные расходы. Уточните суммы — сейчас показана нижняя оценка.
-            </div>
+          <DescriptionPreview key={l.id} text={l.description || 'Описание пока не добавлено.'} />
+          {l.demo && (
+            <p className="detail-disclaimer">Демонстрационный пример с вымышленными условиями.</p>
           )}
-          <button className="button secondary full" onClick={onEdit}>
-            Изменить условия расчета <ArrowUpRight size={16} />
-          </button>
+          {l.rating && <p className="detail-rating-label">Ваша оценка · {l.rating}/5</p>}
+          <div className="detail-actions">
+            {l.url && (
+              <a className="button primary" href={l.url} target="_blank" rel="noreferrer">
+                На {sourceNames[l.source]}
+                <ArrowUpRight size={16} />
+              </a>
+            )}
+            <button className="button secondary" onClick={onRefresh} disabled={refreshDisabled}>
+              <RefreshCw
+                size={15}
+                className={
+                  refreshJob && ['running', 'waiting'].includes(refreshJob.status) ? 'spin' : ''
+                }
+              />
+              Актуализировать
+            </button>
+            <IconButton label="Редактировать" onClick={onEdit}>
+              <SlidersHorizontal size={17} />
+            </IconButton>
+            <IconButton label="Удалить" onClick={onDelete}>
+              <Trash2 size={17} />
+            </IconButton>
+          </div>
+          {refreshJob && (
+            <p className="detail-refresh-message" role="status">
+              {refreshJob.message}
+            </p>
+          )}
+          <small className="detail-updated">
+            Обновлено {new Date(l.updatedAt).toLocaleString('ru-RU')}
+          </small>
         </section>
       </div>
-    </Modal>
+      <button
+        className="listing-nav listing-next"
+        aria-label="Следующее объявление"
+        title="Следующее объявление · Alt + →"
+        disabled={!next || saving}
+        onClick={next}
+      >
+        <ChevronRight size={24} />
+      </button>
+    </dialog>
   );
 }
 function ImportModal({
