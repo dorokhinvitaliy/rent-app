@@ -273,6 +273,7 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
   let freshRent = 100000;
   const criteria = cianSearchSchema.parse({ minRent: 90000, limit: 1, pages: 1 });
   const fakePage = {
+    on() {},
     setDefaultNavigationTimeout() {},
     async goto(u: string) {
       pageUrl = u;
@@ -423,64 +424,83 @@ test('Cian station extraction retains all walking routes and excludes driving ro
   assert.deepEqual(l.metroStops, [{ id: 116, name: 'Сокол', minutes: 13 }]);
 });
 
-test('Background import opens a visible browser only on request and resumes the same job', async () => {
-  const { chromium } = await import('playwright');
-  const { Importer } = require('../apps/api/dist/importer.js');
-  const { Store } = require('../apps/api/dist/store.js');
-  const original = chromium.launchPersistentContext;
-  const modes: boolean[] = [],
-    profiles: string[] = [];
-  let closed = 0;
-  chromium.launchPersistentContext = async (profile: string, options: any) => {
-    modes.push(options.headless);
-    profiles.push(profile);
-    let current = url;
-    const page = {
-      setDefaultNavigationTimeout() {},
-      url: () => current,
-      async goto(u: string) {
-        current = u;
-        return { status: () => (options.headless ? 403 : 200) };
-      },
-      async waitForTimeout() {
-        await new Promise((r) => setTimeout(r, 1));
-      },
-      async waitForFunction() {},
-      async content() {
-        return options.headless ? '<title>Вы не робот?</title>' : fixture;
-      },
+for (const scenario of ['plain-403', 'catalog-403', 'captcha', 'still-forbidden']) {
+  test(`Background browser recovery: ${scenario}`, async () => {
+    const { chromium } = await import('playwright');
+    const { Importer } = require('../apps/api/dist/importer.js');
+    const { Store } = require('../apps/api/dist/store.js');
+    const original = chromium.launchPersistentContext;
+    const modes: boolean[] = [],
+      profiles: string[] = [];
+    let closed = 0;
+    chromium.launchPersistentContext = async (profile: string, options: any) => {
+      modes.push(options.headless);
+      profiles.push(profile);
+      let current = url;
+      const page = {
+        on() {},
+        setDefaultNavigationTimeout() {},
+        url: () => current,
+        async goto(u: string) {
+          current = u;
+          return { status: () => (options.headless || scenario === 'still-forbidden' ? 403 : 200) };
+        },
+        async waitForTimeout() {
+          await new Promise((r) => setTimeout(r, 1));
+        },
+        async waitForFunction() {},
+        async content() {
+          return options.headless
+            ? scenario === 'captcha'
+              ? '<title>Вы не робот?</title>'
+              : '<h1>403 Forbidden</h1>'
+            : scenario === 'still-forbidden'
+              ? '<h1>403 Forbidden</h1>'
+              : current.includes('cat.php')
+                ? `<a href="${url}">Квартира</a>`
+                : fixture;
+        },
+      };
+      return {
+        route: async () => {},
+        pages: () => [page],
+        close: async () => {
+          closed++;
+        },
+      } as any;
     };
-    return {
-      route: async () => {},
-      pages: () => [page],
-      close: async () => {
-        closed++;
-      },
-    } as any;
-  };
-  process.env.DATABASE_PATH = ':memory:';
-  const store = new Store();
-  try {
-    const importer = new Importer(store);
-    const job = importer.start(url, 1, 1);
-    for (let i = 0; i < 100 && !store.jobs()[0].canOpenBrowser; i++)
-      await new Promise((r) => setTimeout(r, 5));
-    assert.deepEqual(modes, [true]);
-    assert.equal(store.jobs()[0].status, 'waiting');
-    assert.throws(() => importer.openBrowser('wrong-id'));
-    importer.openBrowser(job.id);
-    for (let i = 0; i < 100 && ['running', 'waiting'].includes(store.jobs()[0].status); i++)
-      await new Promise((r) => setTimeout(r, 5));
-    assert.deepEqual(modes, [true, false]);
-    assert.equal(profiles[0], profiles[1]);
-    assert.equal(closed, 2);
-    assert.equal(store.jobs()[0].id, job.id);
-    assert.equal(store.jobs()[0].count, 1);
-    assert.equal(store.jobs()[0].canOpenBrowser, false);
-    assert.equal(store.all().length, 1);
-  } finally {
-    chromium.launchPersistentContext = original;
-    store.onModuleDestroy();
-    delete process.env.DATABASE_PATH;
-  }
-});
+    process.env.DATABASE_PATH = ':memory:';
+    const store = new Store();
+    try {
+      const importer = new Importer(store);
+      const job = importer.start(
+        scenario === 'catalog-403' ? 'https://www.cian.ru/cat.php?deal_type=rent&type=4' : url,
+        1,
+        1,
+      );
+      for (let i = 0; i < 100 && !store.jobs()[0].canOpenBrowser; i++)
+        await new Promise((r) => setTimeout(r, 5));
+      assert.deepEqual(modes, [true]);
+      assert.equal(store.jobs()[0].status, 'waiting');
+      assert.throws(() => importer.openBrowser('wrong-id'));
+      importer.openBrowser(job.id);
+      for (let i = 0; i < 100 && ['running', 'waiting'].includes(store.jobs()[0].status); i++)
+        await new Promise((r) => setTimeout(r, 5));
+      assert.deepEqual(modes, [true, false]);
+      assert.equal(profiles[0], profiles[1]);
+      assert.equal(closed, 2);
+      assert.equal(store.jobs()[0].id, job.id);
+      assert.equal(store.jobs()[0].count, scenario === 'still-forbidden' ? 0 : 1);
+      if (scenario === 'still-forbidden') {
+        assert.equal(store.jobs()[0].status, 'failed');
+        assert.match(store.jobs()[0].message, /Сделайте паузу/);
+      }
+      assert.equal(store.jobs()[0].canOpenBrowser, false);
+      assert.equal(store.all().length, scenario === 'still-forbidden' ? 0 : 1);
+    } finally {
+      chromium.launchPersistentContext = original;
+      store.onModuleDestroy();
+      delete process.env.DATABASE_PATH;
+    }
+  });
+}

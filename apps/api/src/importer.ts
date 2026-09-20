@@ -12,6 +12,7 @@ export class Importer implements OnModuleDestroy {
     context?: BrowserContext;
     page?: Page;
     headless?: boolean;
+    httpStatus?: number;
     showRequested?: boolean;
     cancelled: boolean;
   };
@@ -77,6 +78,11 @@ export class Importer implements OnModuleDestroy {
     });
     const page = state.context.pages()[0] || (await state.context.newPage());
     page.setDefaultNavigationTimeout(45000);
+    state.httpStatus = undefined;
+    page.on('response', (response) => {
+      if (response.request().isNavigationRequest() && response.frame() === page.mainFrame())
+        state.httpStatus = response.status();
+    });
     state.page = page;
     state.headless = headless;
     return page;
@@ -84,14 +90,23 @@ export class Importer implements OnModuleDestroy {
   private async waitForPage(page: Page, state: NonNullable<Importer['active']>) {
     let deadline = Date.now() + 180000;
     await page.waitForTimeout(1200);
-    while (isChallenge(await page.content())) {
+    while (state.httpStatus === 403 || isChallenge(await page.content())) {
+      const forbidden = state.httpStatus === 403;
+      if (forbidden && !state.headless && !isChallenge(await page.content()))
+        throw new Error(
+          'Площадка закрыла доступ и в обычном браузере (HTTP 403). Сделайте паузу перед следующим запуском или импортируйте сохранённый HTML.',
+        );
       if (state.cancelled) throw new Error('Сбор отменен');
       if (Date.now() > deadline)
-        throw new Error('Время ожидания капчи истекло. Запустите импорт повторно.');
+        throw new Error(
+          'Время ожидания проверки истекло. Сбор остановлен; сохранённые объявления не затронуты.',
+        );
       state.job.status = 'waiting';
       state.job.canOpenBrowser = !!state.headless;
       state.job.message = state.headless
-        ? 'Площадка запросила проверку. Откройте окно браузера, чтобы пройти капчу.'
+        ? forbidden
+          ? 'Площадка ограничила фоновый доступ (HTTP 403). Откройте браузер для проверки и продолжения сбора.'
+          : 'Площадка запросила проверку. Откройте окно браузера, чтобы пройти капчу.'
         : 'Пройдите проверку в открывшемся браузере. Ожидание до 3 минут.';
       this.store.saveJob(state.job);
       if (state.headless && state.showRequested) {
@@ -101,7 +116,8 @@ export class Importer implements OnModuleDestroy {
         const url = page.url();
         await state.context?.close();
         page = await this.launchBrowser(state, false);
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
+        const response = await page.goto(url, { waitUntil: 'domcontentloaded' });
+        state.httpStatus = response?.status();
         deadline = Date.now() + 180000;
       }
       await page.waitForTimeout(1500);
@@ -141,15 +157,16 @@ export class Importer implements OnModuleDestroy {
         job.message = `Загружаем страницу ${p}…`;
         this.store.saveJob(job);
         const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
+        state.httpStatus = response?.status();
         let html = await this.waitForPage(page, state);
         page = state.page!;
         if (
           !isDetail &&
-          response &&
-          response.status() >= 400 &&
+          state.httpStatus &&
+          state.httpStatus >= 400 &&
           !extractLinks(html, job.url).length
         )
-          throw new Error(`Площадка вернула HTTP ${response.status()}`);
+          throw new Error(`Площадка вернула HTTP ${state.httpStatus}`);
         const catalogLinks = extractLinks(html, job.url);
         const links = isDetail ? [job.url] : catalogLinks.filter((x) => !visited.has(x));
         if (!links.length && catalogLinks.length) break;
@@ -172,7 +189,8 @@ export class Importer implements OnModuleDestroy {
           try {
             if (!isDetail) {
               await page.waitForTimeout(2000);
-              await page.goto(link, { waitUntil: 'domcontentloaded' });
+              const detailResponse = await page.goto(link, { waitUntil: 'domcontentloaded' });
+              state.httpStatus = detailResponse?.status();
               html = await this.waitForPage(page, state);
               page = state.page!;
             }
@@ -205,7 +223,12 @@ export class Importer implements OnModuleDestroy {
             job.warnings = [...new Set([...job.warnings, ...parsed.warnings])];
             this.store.saveJob(job);
           } catch (e) {
-            if (state.cancelled || isChallenge(await page.content())) throw e;
+            if (
+              state.cancelled ||
+              state.httpStatus === 403 ||
+              isChallenge(await (state.page || page).content())
+            )
+              throw e;
             job.warnings.push(`${link}: ${e instanceof Error ? e.message : 'Ошибка чтения'}`);
           }
         }
