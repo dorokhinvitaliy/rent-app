@@ -89,6 +89,7 @@ class AppController {
   }
   @Post('listings') add(@Body() body: unknown) {
     requireLogin();
+    requireAdmin();
     const l = parse(listingSchema, body);
     if (l.url && l.source !== 'manual') {
       try {

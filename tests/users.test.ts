@@ -94,6 +94,28 @@ test('Guests see shared offers; owner migration and all personal data remain iso
       201,
     );
     assert.equal((await (await member.request('/auth/me')).json()).user.role, 'member');
+    const manual = { title: 'Ручная квартира', rent: 50000, source: 'manual' };
+    assert.equal((await guest.request('/listings', 'POST', manual)).status, 401);
+    assert.equal((await member.request('/listings', 'POST', manual)).status, 403);
+    assert.equal(
+      (
+        await member.request('/listings', 'POST', {
+          ...manual,
+          source: 'cian',
+          url: 'https://www.cian.ru/rent/flat/334056198/',
+        })
+      ).status,
+      403,
+    );
+    const created = await owner.request('/listings', 'POST', manual);
+    assert.equal(created.status, 201);
+    const createdId = (await created.json()).id;
+    assert.equal(
+      (await owner.request('/listings/' + createdId, 'PATCH', { rent: 51000 })).status,
+      200,
+    );
+    await owner.request('/listings/' + createdId, 'DELETE', {});
+
     assert.equal((await (await member.request('/listings')).json())[0].notes, '');
     await member.request('/listings/' + id, 'PATCH', {
       notes: 'Заметка второго',

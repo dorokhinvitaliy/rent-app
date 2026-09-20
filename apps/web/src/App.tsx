@@ -1091,7 +1091,7 @@ export default function App() {
           }}
         />
       )}
-      {edit && (
+      {edit && user?.role === 'admin' && (
         <EditModal
           listing={edit === 'new' ? null : edit}
           onClose={() => setEdit(null)}
@@ -2077,6 +2077,7 @@ function ImportModal({
   onManual: () => void;
   onDone: (message: string, browser: boolean) => Promise<void>;
 }) {
+  const { user } = useAuth();
   const [mode, setMode] = useState('browser'),
     [url, setUrl] = useState(''),
     [html, setHtml] = useState(''),
@@ -2117,14 +2118,18 @@ function ImportModal({
         <button className={cx(mode === 'browser' && 'selected')} onClick={() => setMode('browser')}>
           <Globe size={17} />В браузере
         </button>
-        <button className={cx(mode === 'html' && 'selected')} onClick={() => setMode('html')}>
-          <FileCode2 size={17} />
-          HTML-файл
-        </button>
-        <button onClick={onManual}>
-          <Plus size={17} />
-          Вручную
-        </button>
+        {user?.role === 'admin' && (
+          <button className={cx(mode === 'html' && 'selected')} onClick={() => setMode('html')}>
+            <FileCode2 size={17} />
+            HTML-файл
+          </button>
+        )}
+        {user?.role === 'admin' && (
+          <button onClick={onManual}>
+            <Plus size={17} />
+            Вручную
+          </button>
+        )}
       </div>
       <form onSubmit={submit}>
         <label className="field">

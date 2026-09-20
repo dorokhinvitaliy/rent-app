@@ -796,3 +796,34 @@ test('Sticky search shares criteria and navigation can collapse persistently', a
   await compact.getByRole('button', { name: 'Все условия поиска' }).click();
   await expect(compact).toHaveCount(0);
 });
+
+test('Members cannot open manual creation or shared listing editing', async ({ page, request }) => {
+  const created = await (
+    await request.post('/api/listings', {
+      data: {
+        title: 'Проверка прав участника',
+        rent: 50000,
+        source: 'cian',
+        url: 'https://www.cian.ru/rent/flat/123456780/',
+      },
+    })
+  ).json();
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({
+      json: {
+        user: { id: 'member-ui', name: 'Участник', email: 'member@example.test', role: 'member' },
+      },
+    }),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Добавить квартиру', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: 'Вручную', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'HTML-файл', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'В браузере', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Открыть Проверка прав участника', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Редактировать', exact: true })).toHaveCount(0);
+  await request.delete('/api/listings/' + created.id, { data: {} });
+});
