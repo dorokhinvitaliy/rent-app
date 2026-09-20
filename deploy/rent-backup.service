@@ -1,0 +1,7 @@
+[Unit]
+Description=Consistent SQLite backup of rent-app
+Requires=docker.service
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/rent-app/deploy/backup.sh
