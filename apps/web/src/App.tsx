@@ -986,12 +986,22 @@ function Card({
   const c = costs(l);
   const refreshing = refreshJob && ['running', 'waiting'].includes(refreshJob.status);
   const refreshable = !!l.url && l.source !== 'manual' && !l.demo;
+  const [hovered, setHovered] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
   const photo = Math.min(photoIndex, Math.max(0, l.photos.length - 1));
   return (
-    <article className={cx('apartment-card', selected && 'card-selected')}>
+    <article
+      className={cx('apartment-card', selected && 'card-selected')}
+      onPointerEnter={(e) => {
+        if (e.pointerType === 'mouse') setHovered(true);
+      }}
+      onPointerLeave={() => {
+        setHovered(false);
+        setPhotoIndex(0);
+      }}
+    >
       <div
         className="card-image"
         onPointerMove={(e) => {
@@ -1122,7 +1132,13 @@ function Card({
           <span>На въезд{c.incomplete ? ' · от' : ''}</span>
           <b>{rub(c.moveIn)}</b>
         </div>
-        <Rating value={l.rating ?? null} onChange={rate} disabled={ratingBusy} title={l.title} />
+        <Rating
+          hovered={hovered}
+          value={l.rating ?? null}
+          onChange={rate}
+          disabled={ratingBusy}
+          title={l.title}
+        />
         <div className="card-action-row">
           <button className="card-detail" onClick={open}>
             Подробнее и расчет <ArrowRight size={15} />

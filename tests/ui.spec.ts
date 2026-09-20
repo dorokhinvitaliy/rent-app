@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLSX, manual create and HTML import', async ({
   page,
   request,
@@ -246,17 +247,25 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   page,
   request,
 }) => {
+  await request.post('/api/imports/html', {
+    data: {
+      url: 'https://www.cian.ru/rent/flat/123456789/',
+      html: readFileSync(resolve('tests/fixtures/cian-detail.html'), 'utf8'),
+    },
+  });
   const rows = await (await request.get('/api/listings')).json();
   const sourced = rows.find((l: any) => l.url && !l.demo && l.source === 'cian');
   await page.goto('/');
   const card = page.locator('.apartment-card').filter({
     has: page.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }),
   });
+  await card.hover();
   await card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
   await expect(
     card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
+  await card.hover();
   await expect(
     card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
@@ -273,6 +282,14 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await card.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }).click();
   await expect.poll(() => refreshed).toBe(true);
   await card.screenshot({ path: 'test-results/rating-card.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.mouse.move(0, 0);
+  await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
+  await card.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
   await card.getByRole('button', { name: 'Сбросить оценку', exact: true }).click();
-  await expect(card).toContainText('Пока без оценки');
+  await expect(
+    card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }),
+  ).toContainText('Оценить вариант');
+  await page.keyboard.press('Escape');
+  await expect(card.locator('.rating-popover')).toBeHidden();
 });
