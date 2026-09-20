@@ -1,5 +1,4 @@
 import { useId, useState } from 'react';
-import { ChevronDown, MessageSquare } from 'lucide-react';
 
 export function CardNote({ notes }: { notes: string }) {
   const [hovered, setHovered] = useState(false);
@@ -23,6 +22,12 @@ export function CardNote({ notes }: { notes: string }) {
         if (!e.currentTarget.contains(e.relatedTarget)) setOpened(false);
       }}
       onKeyDown={(e) => {
+        if (expanded && ['ArrowDown', 'ArrowUp'].includes(e.key)) {
+          e.preventDefault();
+          e.currentTarget
+            .querySelector('.card-note-text')
+            ?.scrollBy({ top: e.key === 'ArrowDown' ? 40 : -40 });
+        }
         if (e.key === 'Escape') {
           setOpened(false);
           setDismissed(true);
@@ -40,20 +45,10 @@ export function CardNote({ notes }: { notes: string }) {
           setDismissed(opened);
         }}
       >
-        <MessageSquare size={14} />
-        <span>{expanded ? 'Моя заметка' : notes}</span>
-        <ChevronDown size={13} />
+        <span className="card-note-text" id={id} role="region" aria-label="Текст заметки">
+          {notes}
+        </span>
       </button>
-      <div
-        className="card-note-text"
-        id={id}
-        hidden={!expanded}
-        tabIndex={0}
-        role="region"
-        aria-label="Текст заметки"
-      >
-        {notes}
-      </div>
     </div>
   );
 }
