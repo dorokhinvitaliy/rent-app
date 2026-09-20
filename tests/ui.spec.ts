@@ -73,6 +73,27 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.locator('input[type=file]').setInputFiles(resolve('tests/fixtures/cian-detail.html'));
   await page.getByRole('button', { name: 'Импортировать', exact: true }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(8);
+  const galleryLabel = await page
+    .locator('.apartment-card')
+    .filter({ has: page.locator('.photo-count', { hasText: '1 / 2' }) })
+    .first()
+    .locator('.image-open')
+    .getAttribute('aria-label');
+  const gallery = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: galleryLabel!, exact: true }) });
+  await gallery.locator('.card-image').scrollIntoViewIfNeeded();
+  const photoBox = await gallery.locator('.card-image').boundingBox();
+  await page.mouse.move(photoBox!.x + photoBox!.width * 0.8, photoBox!.y + photoBox!.height / 2);
+  await expect(gallery.locator('.photo-count')).toHaveText('2 / 2');
+  await page.mouse.move(photoBox!.x + photoBox!.width * 0.1, photoBox!.y + photoBox!.height / 2);
+  await expect(gallery.locator('.photo-count')).toHaveText('1 / 2');
+  await gallery.locator('.image-open').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(gallery.locator('.photo-count')).toHaveText('2 / 2');
+  await page.mouse.move(0, 0);
+  await expect(gallery.locator('.photo-count')).toHaveText('1 / 2');
+  await expect(gallery.locator('.card-photo-prev, .card-photo-next')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

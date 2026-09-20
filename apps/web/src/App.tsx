@@ -944,11 +944,66 @@ function Card({
 }) {
   const c = costs(l);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swiped = useRef(false);
   const photo = Math.min(photoIndex, Math.max(0, l.photos.length - 1));
   return (
     <article className={cx('apartment-card', selected && 'card-selected')}>
-      <div className="card-image">
-        <button className="image-open" onClick={open} aria-label={'Открыть ' + l.title}>
+      <div
+        className="card-image"
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'mouse' || l.photos.length < 2) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const fraction = (e.clientX - rect.left) / rect.width;
+          setPhotoIndex(
+            Math.max(0, Math.min(l.photos.length - 1, Math.floor(fraction * l.photos.length))),
+          );
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') setPhotoIndex(0);
+        }}
+      >
+        <button
+          className="image-open"
+          onClick={() => {
+            if (swiped.current) {
+              swiped.current = false;
+              return;
+            }
+            open();
+          }}
+          onDragStart={(e) => e.preventDefault()}
+          onTouchStart={(e) => {
+            swiped.current = false;
+            const t = e.touches[0];
+            touchStart.current = { x: t.clientX, y: t.clientY };
+          }}
+          onTouchCancel={() => {
+            touchStart.current = null;
+          }}
+          onTouchEnd={(e) => {
+            const start = touchStart.current;
+            touchStart.current = null;
+            if (!start || l.photos.length < 2) return;
+            const t = e.changedTouches[0],
+              dx = t.clientX - start.x,
+              dy = t.clientY - start.y;
+            if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+              swiped.current = true;
+              setPhotoIndex((photo + (dx < 0 ? 1 : -1) + l.photos.length) % l.photos.length);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (l.photos.length > 1 && ['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+              e.preventDefault();
+              setPhotoIndex(
+                (photo + (e.key === 'ArrowRight' ? 1 : -1) + l.photos.length) % l.photos.length,
+              );
+            }
+          }}
+          aria-label={'Открыть ' + l.title}
+          aria-description="Перемещайте курсор по фотографии или используйте стрелки клавиатуры для просмотра фото. На телефоне — свайп."
+        >
           <Photo src={l.photos[photo]} alt={l.title} />
         </button>
         <span className={'source-tag ' + l.source}>
@@ -966,20 +1021,6 @@ function Card({
         {l.commission === 0 && <span className="no-commission">Без комиссии</span>}
         {l.photos.length > 1 && (
           <>
-            <button
-              className="card-photo-prev"
-              aria-label={'Предыдущее фото ' + l.title}
-              onClick={() => setPhotoIndex((photo - 1 + l.photos.length) % l.photos.length)}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              className="card-photo-next"
-              aria-label={'Следующее фото ' + l.title}
-              onClick={() => setPhotoIndex((photo + 1) % l.photos.length)}
-            >
-              <ChevronRight size={18} />
-            </button>
             <div className="card-photo-dots" aria-hidden="true">
               {Array.from({ length: Math.min(5, l.photos.length) }, (_, i) => (
                 <i
