@@ -653,3 +653,47 @@ test('Checkbox selection saves new and existing collections and removes only mem
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/collections-mobile.png', fullPage: true });
 });
+
+test('Modal morph starts at the card bounds and restores it after closing', async ({
+  page,
+  request,
+}) => {
+  await request.post('/api/listings', { data: { title: 'Проверка morph перехода', rent: 65000 } });
+  await page.goto('/');
+  const card = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: 'Проверка morph перехода', exact: true }) });
+  await card.scrollIntoViewIfNeeded();
+  const origin = await card.boundingBox();
+  await card.getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
+  const geometry = await page.locator('.listing-panel').evaluate(async (el) => {
+    const animations = el.getAnimations();
+    if (animations.length !== 1)
+      throw new Error(`Expected one morph animation, got ${animations.length}`);
+    const animation = animations[0];
+    animation.pause();
+    animation.currentTime = 0;
+    await new Promise(requestAnimationFrame);
+    const start = el.getBoundingClientRect().toJSON();
+    animation.currentTime = 100;
+    await new Promise(requestAnimationFrame);
+    const middle = el.getBoundingClientRect().toJSON();
+    animation.finish();
+    await new Promise(requestAnimationFrame);
+    return { start, middle, end: el.getBoundingClientRect().toJSON() };
+  });
+  expect(geometry.start.x).toBeCloseTo(origin!.x, 0);
+  expect(geometry.start.y).toBeCloseTo(origin!.y, 0);
+  expect(geometry.start.width).toBeCloseTo(origin!.width, 0);
+  expect(geometry.start.height).toBeCloseTo(origin!.height, 0);
+  expect(geometry.middle.width).toBeGreaterThan(geometry.start.width);
+  expect(geometry.middle.width).toBeLessThan(geometry.end.width);
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(card).toBeVisible();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await card.getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(card).toBeVisible();
+});

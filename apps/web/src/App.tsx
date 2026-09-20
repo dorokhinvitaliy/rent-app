@@ -1687,6 +1687,7 @@ function Detail({
   const panel = useRef<HTMLDivElement>(null);
   const drafts = useRef(new Map<string, string>());
   const closing = useRef(false);
+  const openingAnimation = useRef<Animation | null>(null);
   const [photo, setPhoto] = useState(initialPhoto);
   const [saving, setSaving] = useState(false);
   const c = costs(l, months);
@@ -1695,13 +1696,15 @@ function Detail({
     if (closing.current || saving) return;
     closing.current = true;
     const el = panel.current!;
+    const fromTransform = getComputedStyle(el).transform;
+    openingAnimation.current?.cancel();
     const target = document.querySelector(`[data-listing-id="${l.id}"]`)?.getBoundingClientRect();
     const r = el.getBoundingClientRect();
     const canMorph = target && target.bottom > 0 && target.top < innerHeight;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.animate(
       [
-        { transform: 'none', opacity: 1 },
+        { transform: fromTransform, opacity: 1 },
         {
           transform: canMorph
             ? `translate(${target.x - r.x}px, ${target.y - r.y}px) scale(${target.width / r.width}, ${target.height / r.height})`
@@ -1716,26 +1719,35 @@ function Detail({
   };
   useLayoutEffect(() => {
     const d = dialog.current!;
-    d.showModal();
     const el = panel.current!;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    d.showModal();
+    // StrictMode replays effects. Always measure the final, untransformed panel.
+    openingAnimation.current?.cancel();
     const r = el.getBoundingClientRect();
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.animate(
+    const source = document.querySelector<HTMLElement>(`[data-listing-id="${l.id}"]`);
+    const visibility = source?.style.visibility || '';
+    if (source) source.style.visibility = 'hidden';
+    const animation = el.animate(
       [
         {
           transform: origin
             ? `translate(${origin.x - r.x}px, ${origin.y - r.y}px) scale(${origin.width / r.width}, ${origin.height / r.height})`
             : 'scale(.96)',
-          opacity: 0.15,
+          opacity: 1,
           borderRadius: '22px',
         },
         { transform: 'none', opacity: 1, borderRadius: '28px' },
       ],
-      { duration: reduced ? 0 : 380, easing: 'cubic-bezier(.22,1,.36,1)' },
+      { duration: reduced ? 0 : 460, easing: 'cubic-bezier(.22,1,.36,1)' },
     );
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    openingAnimation.current = animation;
     return () => {
+      animation.cancel();
+      if (openingAnimation.current === animation) openingAnimation.current = null;
+      if (source) source.style.visibility = visibility;
       d.close();
       document.body.style.overflow = overflow;
     };
