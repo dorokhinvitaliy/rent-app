@@ -61,28 +61,35 @@ export function SearchPanel({
   const range = (label: string, min: 'minRent' | 'minArea', max: 'maxRent' | 'maxArea') => (
     <fieldset className="search-range">
       <legend>{label}</legend>
-      <div>
-        <input
-          aria-label={label + ' от'}
-          type="number"
-          min="0"
-          max={min === 'minArea' ? 1000 : 10000000}
-          step={min === 'minArea' ? '0.1' : '1'}
-          value={criteria[min] ?? ''}
-          onChange={(e) => change(min, e.target.value === '' ? null : Number(e.target.value))}
-          placeholder="От"
-        />
-        <span>—</span>
-        <input
-          aria-label={label + ' до'}
-          type="number"
-          min="0"
-          max={min === 'minArea' ? 1000 : 10000000}
-          step={min === 'minArea' ? '0.1' : '1'}
-          value={criteria[max] ?? ''}
-          onChange={(e) => change(max, e.target.value === '' ? null : Number(e.target.value))}
-          placeholder="До"
-        />
+      <div className="range-control">
+        <label className="range-half">
+          <span>От</span>
+          <input
+            aria-label={label + ' от'}
+            type="number"
+            inputMode="decimal"
+            min="0"
+            max={min === 'minArea' ? 1000 : 10000000}
+            step={min === 'minArea' ? '0.1' : '1'}
+            value={criteria[min] ?? ''}
+            onChange={(e) => change(min, e.target.value === '' ? null : Number(e.target.value))}
+            placeholder="Не важно"
+          />
+        </label>
+        <label className="range-half">
+          <span>До</span>
+          <input
+            aria-label={label + ' до'}
+            type="number"
+            inputMode="decimal"
+            min="0"
+            max={min === 'minArea' ? 1000 : 10000000}
+            step={min === 'minArea' ? '0.1' : '1'}
+            value={criteria[max] ?? ''}
+            onChange={(e) => change(max, e.target.value === '' ? null : Number(e.target.value))}
+            placeholder="Не важно"
+          />
+        </label>
       </div>
     </fieldset>
   );
@@ -92,10 +99,10 @@ export function SearchPanel({
         <div>
           <span className="search-overline">
             <i />
-            ЖИВОЙ ПОИСК НА ЦИАНЕ
+            ПОИСК НА ЦИАНЕ
           </span>
-          <h2>Каким будет ваш следующий дом?</h2>
-          <p>Задайте параметры — мы соберем объявления и посчитаем расходы.</p>
+          <h2>Квартира по вашим правилам.</h2>
+          <p>Выберите главное. Подходящие объявления соберем в вашу подборку.</p>
         </div>
         <span className="search-platform">
           Циан <ArrowUpRight size={15} />
@@ -220,9 +227,9 @@ export function SearchPanel({
         )}
         <div className="search-footer">
           <p>
-            Реальные объявления и цены с площадки.
+            Объявления напрямую с Циана.
             <br />
-            <span>При капче понадобится ваше участие в открывшемся браузере.</span>
+            <span>Если появится капча, пройдите ее в открывшемся браузере.</span>
           </p>
           <div>
             {preview && (

@@ -26,7 +26,6 @@ import {
   FileCode2,
   Globe,
   Layers3,
-  PanelLeftClose,
   ImageOff,
 } from 'lucide-react';
 import { costs, sourceNames, listingSchema, type Listing, type ListingInput } from '@rent/shared';
@@ -34,6 +33,10 @@ import { api, type Job } from './api';
 import { SearchPanel } from './SearchPanel';
 const rub = (n: number) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
+const plural = (n: number, one: string, few: string, many: string) => {
+  const form = new Intl.PluralRules('ru').select(n);
+  return form === 'one' ? one : form === 'few' ? few : many;
+};
 const cx = (...v: (string | false | undefined)[]) => v.filter(Boolean).join(' ');
 const statusNames: Record<string, string> = {
   running: 'В процессе',
@@ -251,7 +254,6 @@ export default function App() {
             <b>Мой поиск</b>
             <small>Личное пространство</small>
           </div>
-          <PanelLeftClose size={16} />
         </div>
         <div className="nav-caption">ПРОСТРАНСТВО</div>
         <nav>
@@ -325,18 +327,18 @@ export default function App() {
         <div className="page">
           <div className="page-heading">
             <div className="heading-copy">
-              <div className="eyebrow">МЕНЬШЕ ПОИСКА. БОЛЬШЕ ЖИЗНИ.</div>
+              <div className="eyebrow">ВАШ ЛИЧНЫЙ ПОИСК ЖИЛЬЯ</div>
               <h1>
                 {view === 'imports'
                   ? 'Все источники. Одно место.'
                   : view === 'favorites'
                     ? 'Ближе к своему дому.'
-                    : 'Ваш следующий дом — здесь.'}
+                    : 'Найдите свое место.'}
               </h1>
               <p>
                 {view === 'imports'
                   ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
-                  : 'Найдите реальные объявления по вашим параметрам. Сравните полную стоимость.'}
+                  : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -479,7 +481,7 @@ export default function App() {
                     <p>В вашей подборке</p>
                     <b>
                       {listings.length}
-                      <span> квартир</span>
+                      <span>{plural(listings.length, 'квартира', 'квартиры', 'квартир')}</span>
                     </b>
                   </div>
                   <span className="stat-hint">Всё под рукой</span>
@@ -492,7 +494,7 @@ export default function App() {
                     <p>В избранном</p>
                     <b>
                       {favorites.length}
-                      <span> вариантов</span>
+                      <span>{plural(favorites.length, 'вариант', 'варианта', 'вариантов')}</span>
                     </b>
                   </div>
                 </div>

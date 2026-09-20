@@ -94,6 +94,13 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await page.route('**/api/imports', (route) => route.fulfill({ json: job ? [job] : [] }));
   await page.goto('/');
   const panel = page.getByRole('region', { name: 'Поиск квартир на Циане' });
+  const minPrice = panel.getByLabel('Аренда в месяц, ₽ от', { exact: true });
+  await minPrice.focus();
+  expect(await minPrice.evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('none');
+  expect(await minPrice.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
+  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(69, 97, 232)');
+  await page.keyboard.press('Tab');
+  await expect(panel.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toBeFocused();
   await panel.getByRole('combobox', { name: 'Город', exact: true }).selectOption('2');
   await panel.getByLabel('Аренда в месяц, ₽ до').fill('90000');
   await panel.getByLabel('Площадь, м² от').fill('40');
