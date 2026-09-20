@@ -266,7 +266,7 @@ export default function App() {
     (l: Listing) => {
       void action(
         () => api('/listings/' + l.id + '/refresh', 'POST', {}),
-        'Актуализация запущена в фоне',
+        'Актуализация запущена в браузере',
       );
     },
     [action],

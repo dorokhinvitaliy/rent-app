@@ -27,7 +27,7 @@ export class Importer implements OnModuleDestroy {
       id: randomUUID(),
       url: checked.url,
       status: 'running',
-      message: 'Запускаем фоновый сбор…',
+      message: 'Открываем браузер для сбора…',
       count: 0,
       added: 0,
       updated: 0,
@@ -143,7 +143,7 @@ export class Importer implements OnModuleDestroy {
     const visited = new Set<string>();
     const existing = new Set(this.store.all().map((l) => l.url));
     try {
-      let page = await this.launchBrowser(state, true);
+      let page = await this.launchBrowser(state, false);
       const isDetail = /\/(rent\/flat|offer)\/\d+/.test(job.url);
       for (let p = 1; p <= (isDetail ? 1 : pages) && imported.size < limit; p++) {
         if (state.cancelled) throw new Error('Сбор отменен');

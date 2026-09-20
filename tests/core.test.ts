@@ -424,7 +424,13 @@ test('Cian station extraction retains all walking routes and excludes driving ro
   assert.deepEqual(l.metroStops, [{ id: 116, name: 'Сокол', minutes: 13 }]);
 });
 
-for (const scenario of ['plain-403', 'catalog-403', 'captcha', 'still-forbidden']) {
+for (const scenario of [
+  'visible-start',
+  'plain-403',
+  'catalog-403',
+  'captcha',
+  'still-forbidden',
+]) {
   test(`Background browser recovery: ${scenario}`, async () => {
     const { chromium } = await import('playwright');
     const { Importer } = require('../apps/api/dist/importer.js');
@@ -473,22 +479,34 @@ for (const scenario of ['plain-403', 'catalog-403', 'captcha', 'still-forbidden'
     const store = new Store();
     try {
       const importer = new Importer(store);
+      // Exercise recovery independently from the default visible launch mode.
+      if (scenario !== 'visible-start') {
+        const launch = importer.launchBrowser.bind(importer);
+        let first = true;
+        importer.launchBrowser = (state: any, headless: boolean) => {
+          const mode = first ? true : headless;
+          first = false;
+          return launch(state, mode);
+        };
+      }
       const job = importer.start(
         scenario === 'catalog-403' ? 'https://www.cian.ru/cat.php?deal_type=rent&type=4' : url,
         1,
         1,
       );
-      for (let i = 0; i < 100 && !store.jobs()[0].canOpenBrowser; i++)
-        await new Promise((r) => setTimeout(r, 5));
-      assert.deepEqual(modes, [true]);
-      assert.equal(store.jobs()[0].status, 'waiting');
-      assert.throws(() => importer.openBrowser('wrong-id'));
-      importer.openBrowser(job.id);
+      if (scenario !== 'visible-start') {
+        for (let i = 0; i < 100 && !store.jobs()[0].canOpenBrowser; i++)
+          await new Promise((r) => setTimeout(r, 5));
+        assert.deepEqual(modes, [true]);
+        assert.equal(store.jobs()[0].status, 'waiting');
+        assert.throws(() => importer.openBrowser('wrong-id'));
+        importer.openBrowser(job.id);
+      }
       for (let i = 0; i < 100 && ['running', 'waiting'].includes(store.jobs()[0].status); i++)
         await new Promise((r) => setTimeout(r, 5));
-      assert.deepEqual(modes, [true, false]);
-      assert.equal(profiles[0], profiles[1]);
-      assert.equal(closed, 2);
+      assert.deepEqual(modes, scenario === 'visible-start' ? [false] : [true, false]);
+      if (scenario !== 'visible-start') assert.equal(profiles[0], profiles[1]);
+      assert.equal(closed, scenario === 'visible-start' ? 1 : 2);
       assert.equal(store.jobs()[0].id, job.id);
       assert.equal(store.jobs()[0].count, scenario === 'still-forbidden' ? 0 : 1);
       if (scenario === 'still-forbidden') {
