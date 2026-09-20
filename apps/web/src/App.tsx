@@ -1173,6 +1173,10 @@ export default function App() {
               ? () => setDetail(visible[visible.findIndex((l) => l.id === current.id) + 1].id)
               : undefined
           }
+          onRate={(value) => (user ? void rateListing(current, value) : openLogin())}
+          ratingBusy={ratingPending.includes(current.id)}
+          memberships={collections.filter((group) => group.listingIds.includes(current.id))}
+          onCollections={() => (user ? setCollectionPicker([current.id]) : openLogin())}
           onRefresh={() => refreshListing(current)}
           refreshJob={jobs.find((j) => j.url === current.url)}
           refreshDisabled={
@@ -1631,7 +1635,11 @@ function CollectionPicker({
               <FolderHeart size={20} />
               <span>
                 {group.name}
-                <small>{group.listingIds.length} квартир</small>
+                <small>
+                  {ids.length === 1 && group.listingIds.includes(ids[0])
+                    ? 'Уже в этой подборке'
+                    : `${group.listingIds.length} квартир`}
+                </small>
               </span>
             </label>
           ))}
@@ -1785,6 +1793,10 @@ function Detail({
   total,
   previous,
   next,
+  onRate,
+  ratingBusy,
+  memberships,
+  onCollections,
   onRefresh,
   refreshJob,
   refreshDisabled,
@@ -1803,6 +1815,10 @@ function Detail({
   total: number;
   previous?: () => void;
   next?: () => void;
+  onRate: (value: number | null) => void;
+  ratingBusy: boolean;
+  memberships: ApartmentCollection[];
+  onCollections: () => void;
   onRefresh: () => void;
   refreshJob?: Job;
   refreshDisabled: boolean;
@@ -2040,6 +2056,34 @@ function Detail({
             <strong>{rub(l.rent)}</strong>
             <span>/ месяц</span>
           </div>
+          <div className="detail-personal-actions">
+            <Rating
+              key={l.id}
+              value={l.rating ?? null}
+              onChange={onRate}
+              disabled={ratingBusy}
+              title={l.title}
+            />
+            <button
+              type="button"
+              className={cx('detail-collection-button', memberships.length > 0 && 'saved')}
+              onClick={onCollections}
+            >
+              {memberships.length ? <FolderHeart size={16} /> : <FolderPlus size={16} />}
+              {memberships.length ? `В подборках · ${memberships.length}` : 'В подборку'}
+              <Plus size={14} />
+            </button>
+          </div>
+          {!!memberships.length && (
+            <div className="detail-memberships" aria-label="Квартира сохранена в подборках">
+              {memberships.map((group) => (
+                <span key={group.id}>
+                  <Check size={12} />
+                  {group.name}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="detail-finances">
             <div className="detail-entry">
               <span>На въезд{c.incomplete ? ' · от' : ''}</span>

@@ -146,6 +146,7 @@ test('Bulk enrichment covers every real Cian listing in isolated batches without
     );
     assert.equal(store.all().filter((l: any) => l.details.checkedAt).length, 5);
     assert.equal(store.all().length, 6);
+    assert.deepEqual(importer.refreshAll(true), []);
   } finally {
     await importer.onModuleDestroy();
     store.onModuleDestroy();

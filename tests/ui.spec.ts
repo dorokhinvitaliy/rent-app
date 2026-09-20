@@ -872,6 +872,23 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
     'href',
     'tel:+79990000000',
   );
+  await expect(modal.locator('.detail-memberships')).toContainText('PDF для просмотра');
+  await modal.getByRole('button', { name: 'Оценить Квартира для просмотра', exact: true }).click();
+  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(
+    modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: 'В подборках · 1', exact: true }).click();
+  const picker = page.locator('dialog.modal');
+  await expect(picker.getByText('Уже в этой подборке')).toBeVisible();
+  await picker.getByLabel('Новая подборка', { exact: true }).check();
+  await picker.getByLabel('Название подборки').fill('Понравилось на просмотре');
+  await picker.getByRole('button', { name: 'Создать подборку', exact: true }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(modal.locator('.detail-memberships')).toContainText('Понравилось на просмотре');
+  await expect(modal.getByRole('button', { name: 'В подборках · 2', exact: true })).toBeVisible();
   await modal.locator('.property-section summary').click();
   await expect(modal.getByText('2024', { exact: true })).toBeVisible();
   await expect(modal.getByText('Холодильник', { exact: true })).toBeVisible();

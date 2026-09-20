@@ -47,6 +47,7 @@ export function Rating({
     if (!shown) return;
     const escape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      e.preventDefault();
       setOpen(false);
       setDismissed(true);
       setPreview(null);
@@ -62,6 +63,7 @@ export function Rating({
       ref={root}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
+          e.preventDefault();
           e.stopPropagation();
           setOpen(false);
           setDismissed(true);

@@ -58,14 +58,16 @@ export class Importer implements OnModuleDestroy {
       job: this.start(buildCianSearchUrl(criteria), criteria.limit, criteria.pages, criteria),
     };
   }
-  refreshAll() {
+  refreshAll(onlyMissing = false) {
     const existing = this.store
       .jobs()
       .filter((j) => j.urls?.length && ['queued', 'running', 'waiting'].includes(j.status));
     if (existing.length) return existing;
     const urls = this.store
       .all()
-      .filter((l) => l.source === 'cian' && !l.demo && l.url)
+      .filter(
+        (l) => l.source === 'cian' && !l.demo && l.url && (!onlyMissing || !l.details?.checkedAt),
+      )
       .map((l) => l.url!);
     const halves = [urls.filter((_, i) => i % 2 === 0), urls.filter((_, i) => i % 2 === 1)];
     return halves

@@ -3454,3 +3454,60 @@ html {
     flex-wrap: wrap;
   }
 }
+
+.detail-personal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+.detail-personal-actions .personal-rating {
+  flex: 0 0 62px;
+  margin: 0;
+}
+.detail-personal-actions .personal-rating[data-expanded='true'] .rating-island {
+  width: 240px;
+}
+.detail-collection-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e3e3e3;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #62656a;
+  background: #fff;
+}
+.detail-collection-button.saved {
+  background: #f0f0f0;
+  border-color: transparent;
+  color: #292b30;
+}
+.detail-collection-button:hover {
+  border-color: #252629;
+}
+.detail-memberships {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -6px 0 18px;
+}
+.detail-memberships span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #73767b;
+}
+.detail-memberships span + span::before {
+  content: '·';
+  margin: 0 3px;
+}
+.detail-memberships svg {
+  flex-shrink: 0;
+}

@@ -125,9 +125,13 @@ class AppController {
     res.setHeader('Content-Disposition', 'attachment; filename="mesto-collection.pdf"');
     res.send(bytes);
   }
-  @Post('imports/refresh-all') refreshAll() {
+  @Post('imports/refresh-all') refreshAll(@Body() body: unknown) {
     requireAdmin();
-    return this.importer.refreshAll();
+    const { onlyMissing } = parse(
+      z.object({ onlyMissing: z.boolean().default(false) }),
+      body || {},
+    );
+    return this.importer.refreshAll(onlyMissing);
   }
   @Get('listings') all() {
     return this.store.all();
