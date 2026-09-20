@@ -115,7 +115,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await minPrice.focus();
   expect(await minPrice.evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('none');
   expect(await minPrice.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
-  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(69, 97, 232)');
+  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(23, 25, 29)');
   await page.keyboard.press('Tab');
   await expect(panel.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toBeFocused();
   await panel.getByRole('combobox', { name: 'Город', exact: true }).click();

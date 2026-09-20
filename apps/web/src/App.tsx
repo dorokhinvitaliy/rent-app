@@ -600,8 +600,8 @@ export default function App() {
               </div>
               {filters && (
                 <div className="extra-filters">
-                  <label>
-                    На въезд до, ₽{' '}
+                  <label className="entry-filter">
+                    <span>Бюджет на въезд</span>
                     <input
                       type="number"
                       min="0"
@@ -618,7 +618,9 @@ export default function App() {
                     />{' '}
                     Без комиссии
                   </label>
-                  <span>Если расходы не указаны, сумма на въезд — нижняя оценка.</span>
+                  <span className="filter-note">
+                    При неизвестных расходах показана минимальная сумма на въезд.
+                  </span>
                 </div>
               )}
               <div className="results-line">
@@ -941,11 +943,13 @@ function Card({
   selected: boolean;
 }) {
   const c = costs(l);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const photo = Math.min(photoIndex, Math.max(0, l.photos.length - 1));
   return (
     <article className={cx('apartment-card', selected && 'card-selected')}>
       <div className="card-image">
         <button className="image-open" onClick={open} aria-label={'Открыть ' + l.title}>
-          <Photo src={l.photos[0]} alt={l.title} />
+          <Photo src={l.photos[photo]} alt={l.title} />
         </button>
         <span className={'source-tag ' + l.source}>
           <i />
@@ -960,12 +964,52 @@ function Card({
           <Heart size={18} fill={l.favorite ? 'currentColor' : 'none'} />
         </button>
         {l.commission === 0 && <span className="no-commission">Без комиссии</span>}
-        <span className="photo-count">
-          <LayoutGrid size={12} />
-          {l.photos.length}
-        </span>
+        {l.photos.length > 1 && (
+          <>
+            <button
+              className="card-photo-prev"
+              aria-label={'Предыдущее фото ' + l.title}
+              onClick={() => setPhotoIndex((photo - 1 + l.photos.length) % l.photos.length)}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              className="card-photo-next"
+              aria-label={'Следующее фото ' + l.title}
+              onClick={() => setPhotoIndex((photo + 1) % l.photos.length)}
+            >
+              <ChevronRight size={18} />
+            </button>
+            <div className="card-photo-dots" aria-hidden="true">
+              {Array.from({ length: Math.min(5, l.photos.length) }, (_, i) => (
+                <i
+                  key={i}
+                  className={
+                    i ===
+                    Math.min(
+                      4,
+                      Math.floor((photo * Math.min(5, l.photos.length)) / l.photos.length),
+                    )
+                      ? 'current'
+                      : ''
+                  }
+                />
+              ))}
+            </div>
+          </>
+        )}
+        {l.photos.length > 0 && (
+          <span className="photo-count">
+            {photo + 1} / {l.photos.length}
+          </span>
+        )}
       </div>
       <div className="card-content">
+        <button className="card-title" onClick={open}>
+          {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms}-комн. квартира` : l.title}
+          {l.area ? ` · ${l.area} м²` : ''}
+          {l.floor ? ` · ${l.floor} этаж` : ''}
+        </button>
         <div className="card-price">
           <b>{rub(l.rent)}</b>
           <span>/ месяц</span>
@@ -976,13 +1020,9 @@ function Card({
               onChange={select}
               aria-label={'Сравнить ' + l.title}
             />
+            <span>Сравнить</span>
           </label>
         </div>
-        <button className="card-title" onClick={open}>
-          {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms}-комн. квартира` : l.title}
-          {l.area ? ` · ${l.area} м²` : ''}
-          {l.floor ? ` · ${l.floor} этаж` : ''}
-        </button>
         <p className="card-address">{l.address || 'Адрес не указан'}</p>
         <p className="metro">
           <span className="metro-symbol">м</span>
@@ -995,14 +1035,8 @@ function Card({
           )}
         </p>
         <div className="card-cost">
-          <span>
-            На въезд{c.incomplete ? ' · от' : ''}
-            <small>Аренда, залог и комиссия</small>
-          </span>
-          <b>
-            {rub(c.moveIn)}
-            <ArrowUpRight size={16} />
-          </b>
+          <span>На въезд{c.incomplete ? ' · от' : ''}</span>
+          <b>{rub(c.moveIn)}</b>
         </div>
         <button className="card-detail" onClick={open}>
           Подробнее и расчет <ArrowRight size={15} />
