@@ -132,6 +132,7 @@ function Modal({
   );
 }
 export default function App() {
+  const [resultsOnly, setResultsOnly] = useState(false);
   const [searchJobId, setSearchJobId] = useState<string | null>(null);
   const [listings, setListings] = useState<Listing[]>([]),
     [jobs, setJobs] = useState<Job[]>([]),
@@ -197,7 +198,10 @@ export default function App() {
     .filter(
       (l) =>
         (view !== 'favorites' || l.favorite) &&
-        (view !== 'all' || !searchJobId || (searchJob?.listingIds || []).includes(l.id)) &&
+        (view !== 'all' ||
+          !resultsOnly ||
+          !searchJobId ||
+          (searchJob?.listingIds || []).includes(l.id)) &&
         (source === 'all' || l.source === source) &&
         (rooms === 'all' || (rooms === '3+' ? (l.rooms ?? -1) >= 3 : l.rooms === Number(rooms))) &&
         (!maxPrice || l.rent <= Number(maxPrice)) &&
@@ -372,6 +376,7 @@ export default function App() {
               onStarted={(job) => {
                 setJobs((js) => [job, ...js]);
                 setSearchJobId(job.id);
+                setResultsOnly(false);
                 reset();
               }}
               onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
@@ -379,9 +384,15 @@ export default function App() {
           )}
           {view === 'all' && searchJobId && (
             <div className="search-results-context">
-              <span>Показаны результаты выбранного поиска · {visible.length} квартир</span>
-              <button onClick={() => setSearchJobId(null)}>
-                Показать всю сохраненную подборку
+              <span>
+                {resultsOnly
+                  ? `Результаты этого запуска: ${visible.length}`
+                  : `Вся подборка: ${listings.length} · Найдено в этом запуске: ${searchJob?.count ?? 0}`}
+              </span>
+              <button onClick={() => setResultsOnly(!resultsOnly)}>
+                {resultsOnly
+                  ? 'Показать всю сохраненную подборку'
+                  : 'Показать только результаты запуска'}
               </button>
             </div>
           )}
@@ -440,6 +451,12 @@ export default function App() {
                       </span>
                       <div>
                         <b>{j.message}</b>
+                        {j.added !== undefined && (
+                          <p className="import-counts">
+                            Новых: {j.added} · Обновлено: {j.updated ?? 0} · Уже сохранено:{' '}
+                            {j.alreadySaved ?? 0}
+                          </p>
+                        )}
                         <a href={j.url} target="_blank" rel="noreferrer">
                           {j.url}
                         </a>
@@ -479,13 +496,13 @@ export default function App() {
                     <Building2 size={21} />
                   </span>
                   <div>
-                    <p>В вашей подборке</p>
+                    <p>Всего сохранено</p>
                     <b>
                       {listings.length}
                       <span>{plural(listings.length, 'квартира', 'квартиры', 'квартир')}</span>
                     </b>
                   </div>
-                  <span className="stat-hint">Всё под рукой</span>
+                  <span className="stat-hint">Без повторов</span>
                 </div>
                 <div className="stat">
                   <span className="stat-icon">
@@ -520,13 +537,15 @@ export default function App() {
                   <h2>
                     {view === 'favorites'
                       ? 'Избранные квартиры'
-                      : searchJobId
+                      : searchJobId && resultsOnly
                         ? 'Результаты поиска'
                         : 'Сохраненные квартиры'}
                   </h2>
                   <span className="count-badge">{visible.length}</span>
                 </div>
-                <span className="collection-sub">Хорошие варианты заслуживают внимания</span>
+                <span className="collection-sub">
+                  {visible.length} показано · {listings.length} всего сохранено
+                </span>
               </div>
               <div className="filter-bar">
                 <label className="search-field">
@@ -681,14 +700,16 @@ export default function App() {
                     <button
                       className="button primary"
                       onClick={() =>
-                        listings.length && !searchJobId
+                        listings.length && !(searchJobId && resultsOnly)
                           ? reset()
                           : document
                               .getElementById('cian-search')
                               ?.scrollIntoView({ behavior: 'smooth' })
                       }
                     >
-                      {listings.length && !searchJobId ? 'Сбросить фильтры' : 'Настроить поиск'}
+                      {listings.length && !(searchJobId && resultsOnly)
+                        ? 'Сбросить фильтры'
+                        : 'Настроить поиск'}
                       <ArrowRight size={17} />
                     </button>
                     {!listings.length && (
@@ -1229,11 +1250,15 @@ function ImportModal({
         await api('/imports/browser', 'POST', { url, limit, pages });
         await onDone('Браузер открывается. Ход сбора — в истории импорта.', true);
       } else {
-        const r = await api<{ count: number; warnings: string[] }>('/imports/html', 'POST', {
-          url,
-          html,
-        });
-        await onDone(`Добавлено: ${r.count}. ${r.warnings.join(' ')}`, false);
+        const r = await api<{ count: number; added: number; updated: number; warnings: string[] }>(
+          '/imports/html',
+          'POST',
+          {
+            url,
+            html,
+          },
+        );
+        await onDone(`Новых: ${r.added}. Обновлено: ${r.updated}. ${r.warnings.join(' ')}`, false);
       }
     } catch (e) {
       setError((e as Error).message);

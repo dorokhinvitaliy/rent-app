@@ -21,6 +21,9 @@ export class Importer implements OnModuleDestroy {
       status: 'running',
       message: 'Открываем браузер…',
       count: 0,
+      added: 0,
+      updated: 0,
+      alreadySaved: 0,
       warnings: [],
       search,
       listingIds: [],
@@ -70,6 +73,7 @@ export class Importer implements OnModuleDestroy {
     const { job } = state;
     const imported = new Set<string>();
     const visited = new Set<string>();
+    const existing = new Set(this.store.all().map((l) => l.url));
     try {
       state.context = await chromium.launchPersistentContext(resolve(dataDir, 'browser-profile'), {
         headless: false,
@@ -107,9 +111,9 @@ export class Importer implements OnModuleDestroy {
         let html = await this.waitForPage(page, state);
         if (response && response.status() >= 400 && !extractLinks(html, job.url).length)
           throw new Error(`Площадка вернула HTTP ${response.status()}`);
-        const links = isDetail
-          ? [job.url]
-          : extractLinks(html, job.url).filter((x) => !visited.has(x));
+        const catalogLinks = extractLinks(html, job.url);
+        const links = isDetail ? [job.url] : catalogLinks.filter((x) => !visited.has(x));
+        if (!links.length && catalogLinks.length) break;
         if (!links.length)
           throw new Error(
             'На странице нет ссылок на квартиры. Возможно, изменилась разметка или включена проверка.',
@@ -119,6 +123,11 @@ export class Importer implements OnModuleDestroy {
           if (state.cancelled) throw new Error('Сбор отменен');
           visited.add(link);
           job.scanned = visited.size;
+          if (job.search?.onlyNew && existing.has(link)) {
+            job.alreadySaved = (job.alreadySaved || 0) + 1;
+            this.store.saveJob(job);
+            continue;
+          }
           job.message = `Собираем квартиру ${imported.size + 1} из ${limit}…`;
           this.store.saveJob(job);
           try {
@@ -142,7 +151,13 @@ export class Importer implements OnModuleDestroy {
                   l.metroMinutes = stop.minutes;
                 }
               }
+              const wasSaved = existing.has(l.url);
               const saved = this.store.save(l);
+              if (!imported.has(l.url!)) {
+                if (wasSaved) job.updated = (job.updated || 0) + 1;
+                else job.added = (job.added || 0) + 1;
+              }
+              existing.add(l.url);
               job.listingIds!.push(saved.id);
               imported.add(l.url!);
             });
@@ -159,13 +174,15 @@ export class Importer implements OnModuleDestroy {
         ? job.warnings.length
           ? 'partial'
           : 'done'
-        : job.search && job.skipped
+        : job.search && (job.skipped || job.alreadySaved)
           ? 'done'
           : 'failed';
       job.message = job.count
-        ? `Сохранено квартир: ${job.count}`
-        : job.search && job.skipped
-          ? 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
+        ? `Добавлено новых: ${job.added}. Обновлено: ${job.updated}.`
+        : job.search && (job.skipped || job.alreadySaved)
+          ? job.alreadySaved
+            ? 'Новых совпадений на просмотренных страницах нет. Сохраненные квартиры остаются в подборке.'
+            : 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
           : 'Не удалось получить ни одной квартиры';
     } catch (e) {
       job.status = state.cancelled ? 'cancelled' : job.count ? 'partial' : 'failed';

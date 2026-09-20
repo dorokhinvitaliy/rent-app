@@ -109,6 +109,9 @@ export type ImportJob = {
   status: 'running' | 'waiting' | 'done' | 'partial' | 'failed' | 'cancelled';
   message: string;
   count: number;
+  added?: number;
+  updated?: number;
+  alreadySaved?: number;
   warnings: string[];
   search?: CianSearch;
   listingIds?: string[];

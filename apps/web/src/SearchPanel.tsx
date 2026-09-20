@@ -246,6 +246,17 @@ export function SearchPanel({
             </label>
           </div>
         )}
+        <label className="search-only-new check-label">
+          <input
+            type="checkbox"
+            checked={criteria.onlyNew}
+            onChange={(e) => change('onlyNew', e.target.checked)}
+          />
+          <span>
+            Искать только новые объявления
+            <small>Уже сохраненные пропускаем. Снимите отметку, чтобы обновить их условия.</small>
+          </span>
+        </label>
         <div className="search-footer">
           <p>
             Объявления напрямую с Циана.
@@ -288,6 +299,12 @@ export function SearchPanel({
               Просмотрено: {job.scanned ?? 0} · Подошло: {job.count} · Не подтверждено / не подошло:{' '}
               {job.skipped ?? 0}
             </p>
+            {job.added !== undefined && (
+              <p>
+                Новых: {job.added} · Обновлено: {job.updated ?? 0} · Уже в подборке, пропущено:{' '}
+                {job.alreadySaved ?? 0}
+              </p>
+            )}
             {job.warnings.length > 0 && (
               <details>
                 <summary>Подробности проверки ({job.warnings.length})</summary>

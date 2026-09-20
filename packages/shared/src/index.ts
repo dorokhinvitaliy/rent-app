@@ -102,6 +102,7 @@ export const cianSearchSchema = z
     metroMinutes: z.number().int().min(1).max(120).nullable().default(null),
     minFloor: z.number().int().min(1).max(200).nullable().default(null),
     noCommission: z.boolean().default(false),
+    onlyNew: z.boolean().default(true),
     limit: z.number().int().min(1).max(30).default(10),
     pages: z.number().int().min(1).max(3).default(3),
   })

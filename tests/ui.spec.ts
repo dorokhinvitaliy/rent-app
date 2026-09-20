@@ -151,6 +151,8 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await expect(
     panel.getByText('Пройдите проверку в открывшемся браузере', { exact: true }),
   ).toBeVisible();
+  await expect(page.locator('.apartment-card')).toHaveCount(8);
+  await page.getByRole('button', { name: 'Показать только результаты запуска' }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Поиск выполняется' })).toBeDisabled();
   await page.getByRole('button', { name: 'Показать всю сохраненную подборку' }).click();

@@ -266,6 +266,8 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
   const original = chromium.launchPersistentContext;
   let pageUrl = '';
   const second = 'https://www.cian.ru/rent/flat/987654321/';
+  const third = 'https://www.cian.ru/rent/flat/987654322/';
+  let extra = false;
   const criteria = cianSearchSchema.parse({ minRent: 90000, limit: 1, pages: 1 });
   const fakePage = {
     setDefaultNavigationTimeout() {},
@@ -277,8 +279,8 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
     async waitForFunction() {},
     async content() {
       return pageUrl.includes('cat.php')
-        ? `<a href="${url}">One</a><a href="${second}">Two</a>`
-        : pageUrl === second
+        ? `<a href="${url}">One</a><a href="${second}">Two</a>${extra ? `<a href="${third}">Three</a>` : ''}`
+        : pageUrl === second || pageUrl === third
           ? fixture.replace('85 000 ₽/мес.', '100 000 ₽/мес.')
           : fixture;
     },
@@ -302,6 +304,35 @@ test('Search worker saves only matching offers and returns their IDs (stubbed br
     assert.equal(store.all().length, 1);
     assert.equal(store.all()[0].rent, 100000);
     assert.deepEqual(done.listingIds, [store.all()[0].id]);
+    assert.equal(done.added, 1);
+    assert.equal(done.updated, 0);
+    const firstId = store.all()[0].id;
+    store.patch(firstId, { favorite: true, notes: 'Сохранить заметку' });
+    extra = true;
+    const again = async (onlyNew: boolean) => {
+      const next = { ...criteria, onlyNew };
+      importer.start(buildCianSearchUrl(next), 1, 1, next);
+      for (let i = 0; i < 100; i++) {
+        if (!['running', 'waiting'].includes(store.jobs()[0].status)) break;
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      return store.jobs()[0];
+    };
+    const secondRun = await again(true);
+    assert.equal(secondRun.added, 1);
+    assert.equal(secondRun.alreadySaved, 1);
+    assert.equal(store.all().length, 2);
+    const refreshRun = await again(false);
+    assert.equal(refreshRun.added, 0);
+    assert.equal(refreshRun.updated, 1);
+    assert.equal(store.all().length, 2);
+    assert.equal(store.get(firstId).favorite, true);
+    assert.equal(store.get(firstId).notes, 'Сохранить заметку');
+    const exhausted = await again(true);
+    assert.equal(exhausted.added, 0);
+    assert.equal(exhausted.alreadySaved, 2);
+    assert.equal(exhausted.status, 'done');
+    assert.equal(store.all().length, 2);
   } finally {
     chromium.launchPersistentContext = original;
     store.onModuleDestroy();

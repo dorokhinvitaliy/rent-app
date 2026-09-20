@@ -19,6 +19,9 @@ export type Job = {
   status: string;
   message: string;
   count: number;
+  added?: number;
+  updated?: number;
+  alreadySaved?: number;
   warnings: string[];
   listingIds?: string[];
   search?: import('@rent/shared').CianSearch;

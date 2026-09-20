@@ -113,8 +113,16 @@ class AppController {
     );
     try {
       const result = parseHtml(p.html, p.url);
-      result.listings.forEach((l) => this.store.save(l));
-      return { count: result.listings.length, warnings: result.warnings };
+      const existing = new Set(this.store.all().map((l) => l.url));
+      let added = 0,
+        updated = 0;
+      result.listings.forEach((l) => {
+        if (existing.has(l.url)) updated++;
+        else added++;
+        this.store.save(l);
+        existing.add(l.url);
+      });
+      return { count: result.listings.length, added, updated, warnings: result.warnings };
     } catch (e) {
       throw new BadRequestException((e as Error).message);
     }
