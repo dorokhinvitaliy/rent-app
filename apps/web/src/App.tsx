@@ -1212,6 +1212,8 @@ export default function App() {
               openLogin();
               return;
             }
+            const index = visible.findIndex((l) => l.id === current.id);
+            const adjacent = visible[index + 1] ?? visible[index - 1];
             const saved = await rateListing(current, value);
             if (saved && reviewIds && value !== null) {
               const next = reviewIds.find(
@@ -1220,6 +1222,13 @@ export default function App() {
               if (next) setDetail(next);
               else {
                 setNotice('Подборка оценена. Все оценки сохранены.');
+                return true;
+              }
+            }
+            if (saved && !reviewIds && value === 1 && view !== 'archive') {
+              if (adjacent) {
+                setDetail((id) => (id === current.id ? adjacent.id : id));
+              } else {
                 return true;
               }
             }

@@ -1042,3 +1042,49 @@ test('Guests export the filtered results to PDF without logging in', async ({
   expect(readFileSync('test-results/guest-filtered.pdf').subarray(0, 5).toString()).toBe('%PDF-');
   await context.close();
 });
+
+test('Archiving from the detail modal keeps listing navigation usable', async ({
+  page,
+  request,
+}) => {
+  for (let i = 0; i < 3; i++) {
+    await request.post('/api/listings', {
+      data: {
+        title: 'Навигация после архива ' + i,
+        address: 'Тест архива модалки',
+        rent: 60000 + i,
+      },
+    });
+  }
+  await page.goto('/');
+  await page.getByLabel('Поиск по адресу или метро').fill('Тест архива модалки');
+  const cards = page.locator('.apartment-card');
+  await expect(cards).toHaveCount(3);
+  const titles = await cards
+    .getByRole('button', { name: /^Открыть Навигация после архива/ })
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('aria-label')!.replace('Открыть ', '')),
+    );
+  await cards.first().getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await modal.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
+  await expect(modal).toHaveAttribute('aria-label', titles[1]);
+  const archiveCurrent = async () => {
+    await modal.getByRole('button', { name: /^Оценить Навигация после архива/ }).click();
+    await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  };
+  await archiveCurrent();
+  await expect(modal).toHaveAttribute('aria-label', titles[2]);
+  await expect(cards).toHaveCount(2);
+  await expect(
+    modal.getByRole('button', { name: 'Предыдущее объявление', exact: true }),
+  ).toBeEnabled();
+  await modal.getByRole('button', { name: 'Предыдущее объявление', exact: true }).click();
+  await expect(modal).toHaveAttribute('aria-label', titles[0]);
+  await modal.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
+  await archiveCurrent();
+  await expect(modal).toHaveAttribute('aria-label', titles[0]);
+  await archiveCurrent();
+  await expect(modal).toHaveCount(0);
+  await expect(cards).toHaveCount(0);
+});
