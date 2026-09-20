@@ -1170,3 +1170,110 @@ input[type='checkbox']:checked {
     transition: none;
   }
 }
+
+.note-composer {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    width 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 340ms ease;
+}
+.apartment-card:hover .note-composer,
+.note-composer:focus-within,
+.note-composer[data-editing='true'] {
+  opacity: 1;
+}
+.note-add {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: inherit;
+}
+.note-composer[data-editing='true'] {
+  width: 280px;
+  height: 174px;
+  border-radius: 20px 20px 0 20px;
+}
+.note-composer[data-editing='true'] .note-add {
+  display: none;
+}
+.note-editor {
+  padding: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  resize: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: white;
+  font: inherit;
+  line-height: 1.5;
+  box-shadow: none;
+}
+.note-editor textarea::placeholder {
+  color: #ffffffa6;
+}
+.note-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.note-editor-actions > span {
+  margin-right: auto;
+  color: #ffffff80;
+  font-size: 9px;
+}
+.note-editor-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff20;
+  color: white;
+}
+.note-editor-actions button[type='submit'] {
+  background: white;
+  color: #242222;
+}
+.note-editor-actions button:disabled {
+  opacity: 0.4;
+}
+.note-editor > p {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #ffd4c4;
+  max-height: 32px;
+  overflow: auto;
+}
+@media (hover: none), (pointer: coarse) {
+  .note-composer {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-composer {
+    transition: none;
+  }
+}
+
+.note-editor textarea:focus-visible {
+  outline: none;
+  background: #ffffff08;
+  border-radius: 6px;
+}

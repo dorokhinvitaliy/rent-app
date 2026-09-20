@@ -485,5 +485,45 @@ test('Card notes expand on hover and tap without opening the apartment', async (
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await request.patch('/api/listings/' + listing.id, { data: { notes: '' } });
   await page.reload();
-  await expect(card.locator('.card-note')).toHaveCount(0);
+  await expect(card.locator('.card-note:not(.note-composer)')).toHaveCount(0);
+});
+
+test('Quick comment saves inline, retains failed drafts and persists after reload', async ({
+  page,
+  request,
+}) => {
+  const listing = await (
+    await request.post('/api/listings', {
+      data: { title: 'Быстрый комментарий тест', rent: 50000 },
+    })
+  ).json();
+  await page.goto('/');
+  const card = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: listing.title, exact: true }) });
+  await card.hover();
+  await card.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  const field = card.getByRole('textbox', { name: 'Быстрый комментарий' });
+  await expect(field).toBeFocused();
+  await expect(
+    card.getByRole('button', { name: 'Сохранить комментарий', exact: true }),
+  ).toBeDisabled();
+  await field.fill('Уточнить про кота и залог');
+  await page.route('**/api/listings/' + listing.id, (route) =>
+    route.fulfill({ status: 500, json: { message: 'Не удалось сохранить' } }),
+  );
+  await card.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
+  await expect(card.getByRole('alert')).toHaveText('Не удалось сохранить');
+  await expect(field).toHaveValue('Уточнить про кота и залог');
+  await page.keyboard.press('Escape');
+  await card.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  await expect(field).toHaveValue('Уточнить про кота и залог');
+  await page.unroute('**/api/listings/' + listing.id);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await card.screenshot({ path: 'test-results/quick-note-mobile.png' });
+  await card.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
+  await expect(card.getByRole('button', { name: 'Моя заметка', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
+  await expect(card.locator('.card-note-preview')).toHaveText('Уточнить про кота и залог');
 });

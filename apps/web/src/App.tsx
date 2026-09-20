@@ -146,6 +146,7 @@ function Modal({
   );
 }
 export default function App() {
+  const noteRequests = useRef(new Set<string>());
   const ratingRequests = useRef(new Set<string>());
   const ratingRevision = useRef(0);
   const [ratingPending, setRatingPending] = useState<string[]>([]);
@@ -184,7 +185,9 @@ export default function App() {
           return ls.map((l) => {
             const old = byId.get(l.id);
             return old &&
-              (ratingRequests.current.has(l.id) || JSON.stringify(old) === JSON.stringify(l))
+              (ratingRequests.current.has(l.id) ||
+                noteRequests.current.has(l.id) ||
+                JSON.stringify(old) === JSON.stringify(l))
               ? old
               : l;
           });
@@ -245,7 +248,11 @@ export default function App() {
         await new Promise((resolve) => setTimeout(resolve, 320));
         setSelected((ids) => ids.filter((id) => id !== l.id));
       }
-      setListings((rows) => rows.map((row) => (row.id === l.id ? updated : row)));
+      setListings((rows) =>
+        rows.map((row) =>
+          row.id === l.id ? { ...row, rating: updated.rating, updatedAt: updated.updatedAt } : row,
+        ),
+      );
       if (rating === 1) setNotice('Объявление в архиве');
       else if (l.rating === 1) setNotice('Объявление возвращено в подборку');
     } catch (e) {
@@ -255,6 +262,22 @@ export default function App() {
       ratingRequests.current.delete(l.id);
       setRatingPending((ids) => ids.filter((id) => id !== l.id));
       setArchiving((ids) => ids.filter((id) => id !== l.id));
+    }
+  }, []);
+  const saveNote = useCallback(async (id: string, notes: string) => {
+    if (noteRequests.current.has(id)) throw new Error('Заметка уже сохраняется');
+    noteRequests.current.add(id);
+    ratingRevision.current++;
+    try {
+      const updated = await api<Listing>('/listings/' + id, 'PATCH', { notes });
+      setListings((rows) =>
+        rows.map((row) =>
+          row.id === id ? { ...row, notes: updated.notes, updatedAt: updated.updatedAt } : row,
+        ),
+      );
+    } finally {
+      noteRequests.current.delete(id);
+      ratingRevision.current++;
     }
   }, []);
   const selectListing = useCallback((id: string) => {
@@ -888,6 +911,7 @@ export default function App() {
                       listing={l}
                       rank={view === 'ranking' ? rankFor(l.rating!) : undefined}
                       archiving={archiving.includes(l.id)}
+                      saveNote={saveNote}
                       rate={rateListing}
                       ratingBusy={busy || ratingPending.includes(l.id)}
                       refreshDisabled={busy || running || ratingPending.includes(l.id)}
@@ -977,8 +1001,7 @@ export default function App() {
           onFavorite={() => void toggle(current)}
           onDelete={() => setConfirmDelete(current)}
           onSaveNotes={async (notes) => {
-            await api('/listings/' + current.id, 'PATCH', { notes });
-            await refresh();
+            await saveNote(current.id, notes);
             setNotice('Заметка сохранена');
           }}
         />
@@ -1082,6 +1105,7 @@ export default function App() {
   );
 }
 const Card = memo(function Card({
+  saveNote,
   rank,
   archiving,
   listing: l,
@@ -1097,6 +1121,7 @@ const Card = memo(function Card({
 }: {
   listing: Listing;
   rank?: number;
+  saveNote: (id: string, notes: string) => Promise<void>;
   archiving: boolean;
   rate: (listing: Listing, rating: number | null) => void;
   ratingBusy: boolean;
@@ -1118,6 +1143,9 @@ const Card = memo(function Card({
   return (
     <article
       className={cx('apartment-card', selected && 'card-selected', archiving && 'card-archiving')}
+      onPointerOutCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhotoIndex(0);
+      }}
       onPointerLeave={() => {
         setPhotoIndex(0);
       }}
@@ -1219,7 +1247,7 @@ const Card = memo(function Card({
             </div>
           </>
         )}
-        {l.notes.trim() && <CardNote key={l.notes} notes={l.notes.trim()} />}
+        <CardNote notes={l.notes.trim()} onSave={(notes) => saveNote(l.id, notes)} />
         {l.photos.length > 0 && (
           <span className="photo-count">
             {photo + 1} / {l.photos.length}

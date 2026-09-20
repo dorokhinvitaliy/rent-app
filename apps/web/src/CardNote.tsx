@@ -1,6 +1,7 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { Check, Plus, X, LoaderCircle } from 'lucide-react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
-export function CardNote({ notes }: { notes: string }) {
+function SavedNote({ notes }: { notes: string }) {
   const [hovered, setHovered] = useState(false);
   const [opened, setOpened] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -102,6 +103,122 @@ export function CardNote({ notes }: { notes: string }) {
       <span ref={measure} className="card-note-measure" aria-hidden="true">
         {notes}
       </span>
+    </div>
+  );
+}
+
+export function CardNote({
+  notes,
+  onSave,
+}: {
+  notes: string;
+  onSave: (notes: string) => Promise<void>;
+}) {
+  return notes ? <SavedNote notes={notes} /> : <NoteComposer onSave={onSave} />;
+}
+function NoteComposer({ onSave }: { onSave: (notes: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const trigger = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    if (editing) field.current?.focus();
+  }, [editing]);
+  const close = () => {
+    if (saving) return;
+    setEditing(false);
+    setError('');
+    requestAnimationFrame(() => trigger.current?.focus());
+  };
+  useEffect(() => {
+    if (!editing) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [editing, saving]);
+  const submit = async () => {
+    if (saving || !draft.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(draft.trim());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div
+      className="card-note note-composer"
+      data-editing={editing}
+      onPointerMove={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          close();
+        }
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          void submit();
+        }
+      }}
+    >
+      <button
+        ref={trigger}
+        type="button"
+        className="note-add"
+        aria-label="Добавить комментарий"
+        title="Добавить комментарий"
+        aria-expanded={editing}
+        onClick={() => setEditing(true)}
+      >
+        <Plus size={17} />
+      </button>
+      {editing && (
+        <form
+          className="note-editor"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <textarea
+            ref={field}
+            aria-label="Быстрый комментарий"
+            placeholder="Что думаете о квартире?"
+            maxLength={5000}
+            value={draft}
+            disabled={saving}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          {error && <p role="alert">{error}</p>}
+          <div className="note-editor-actions">
+            <span>{draft.length}/5000</span>
+            <button
+              type="button"
+              title="Закрыть"
+              aria-label="Закрыть быстрый комментарий"
+              disabled={saving}
+              onClick={close}
+            >
+              <X size={15} />
+            </button>
+            <button
+              type="submit"
+              title="Сохранить · Ctrl/⌘ + Enter"
+              aria-label="Сохранить комментарий"
+              disabled={saving || !draft.trim()}
+            >
+              {saving ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
