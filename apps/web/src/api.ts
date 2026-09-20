@@ -1,0 +1,24 @@
+export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const res = await fetch('/api' + path, {
+    method,
+    headers: method === 'GET' ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = 'Не удалось выполнить запрос';
+    try {
+      message = (await res.json()).message || message;
+    } catch {}
+    throw new Error(Array.isArray(message) ? message.join(', ') : message);
+  }
+  return res.json();
+}
+export type Job = {
+  id: string;
+  url: string;
+  status: string;
+  message: string;
+  count: number;
+  warnings: string[];
+  createdAt: string;
+};
