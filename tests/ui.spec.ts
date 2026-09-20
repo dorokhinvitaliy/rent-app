@@ -271,7 +271,10 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   ).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
   await page.getByRole('option', { name: 'По моей оценке', exact: true }).click();
-  await expect(page.locator('.apartment-card').first()).toContainText('5/5 · Отличный вариант');
+  await expect(page.locator('.apartment-card').first().locator('.rating-summary')).toHaveAttribute(
+    'title',
+    '5/5 · Отличный вариант',
+  );
   let refreshed = false;
   await page.route('**/api/listings/' + sourced.id + '/refresh', (route) => {
     refreshed = true;
@@ -289,7 +292,7 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await card.getByRole('button', { name: 'Сбросить оценку', exact: true }).click();
   await expect(
     card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }),
-  ).toContainText('Оценить вариант');
+  ).toHaveAttribute('title', 'Оценить вариант');
   await page.keyboard.press('Escape');
   await expect(card.locator('.rating-popover')).toBeHidden();
 });

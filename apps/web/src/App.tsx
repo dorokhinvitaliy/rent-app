@@ -1114,7 +1114,6 @@ function Card({
               onChange={select}
               aria-label={'Сравнить ' + l.title}
             />
-            <span>Сравнить</span>
           </label>
         </div>
         <p className="card-address">{l.address || 'Адрес не указан'}</p>
@@ -1132,16 +1131,21 @@ function Card({
           <span>На въезд{c.incomplete ? ' · от' : ''}</span>
           <b>{rub(c.moveIn)}</b>
         </div>
-        <Rating
-          hovered={hovered}
-          value={l.rating ?? null}
-          onChange={rate}
-          disabled={ratingBusy}
-          title={l.title}
-        />
         <div className="card-action-row">
-          <button className="card-detail" onClick={open}>
-            Подробнее и расчет <ArrowRight size={15} />
+          <Rating
+            hovered={hovered}
+            value={l.rating ?? null}
+            onChange={rate}
+            disabled={ratingBusy}
+            title={l.title}
+          />
+          <button
+            className="card-detail"
+            onClick={open}
+            aria-label="Подробнее и расчет"
+            title="Подробнее и расчет"
+          >
+            <ArrowUpRight size={18} />
           </button>
           <button
             className="card-refresh"
@@ -1155,7 +1159,6 @@ function Card({
             aria-label={'Актуализировать ' + l.title}
           >
             <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
-            {refreshing ? 'Обновляем' : 'Актуализировать'}
           </button>
         </div>
         {refreshJob && (

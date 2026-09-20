@@ -59,6 +59,7 @@ export function Rating({
   return (
     <div
       className="personal-rating"
+      data-expanded={shown}
       ref={root}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -76,66 +77,70 @@ export function Rating({
         }
       }}
     >
-      <button
-        ref={trigger}
-        type="button"
-        className="rating-summary"
-        aria-expanded={shown}
-        aria-controls={id}
-        onClick={() => {
-          setOpen(!open);
-          setDismissed(open);
-        }}
-        aria-label={'Оценить ' + title}
-      >
-        {selected ? <i style={{ background: selected.color }} /> : <SlidersHorizontal size={13} />}
-        <span>{selected ? `${value}/5 · ${selected.label}` : 'Оценить вариант'}</span>
-        <span className="rating-edit">{selected ? 'Изменить' : 'Моя оценка'}</span>
-      </button>
-      <div className="rating-popover" hidden={!shown} id={id} onFocus={() => setOpen(true)}>
-        <div className="rating-popover-heading">
-          <span>Ваше впечатление</span>
-          <button
-            type="button"
-            className="rating-clear"
-            aria-label="Сбросить оценку"
-            title="Сбросить оценку"
-            disabled={disabled || value === null}
-            onClick={() => onChange(null)}
-          >
-            <X size={14} />
-          </button>
-        </div>
-        <div
-          className="rating-thermometer"
-          role="group"
-          aria-label={'Оценка ' + title}
-          onMouseLeave={() => setPreview(null)}
+      <div className="rating-island">
+        <button
+          ref={trigger}
+          type="button"
+          className="rating-summary"
+          aria-expanded={shown}
+          aria-controls={id}
+          onClick={() => {
+            setOpen(!open);
+            setDismissed(open);
+          }}
+          aria-label={'Оценить ' + title}
+          title={selected ? `${value}/5 · ${selected.label}` : 'Оценить вариант'}
         >
-          {levels.map((level) => (
+          {selected ? (
+            <i style={{ background: selected.color }} />
+          ) : (
+            <SlidersHorizontal size={13} />
+          )}
+          {selected && (
+            <span>
+              {value}
+              <small>/5</small>
+            </span>
+          )}
+          <span className="rating-live-label">{active?.label || 'Моя оценка'}</span>
+        </button>
+        <div className="rating-popover" hidden={!shown} id={id} onFocus={() => setOpen(true)}>
+          <div className="rating-popover-heading">
             <button
               type="button"
-              key={level.value}
-              style={{ '--rating-color': level.color } as CSSProperties}
-              aria-label={`${level.value} из 5 — ${level.label}`}
-              aria-pressed={value === level.value}
-              disabled={disabled}
-              onMouseEnter={() => setPreview(level.value)}
-              onFocus={() => setPreview(level.value)}
-              onClick={() => onChange(level.value)}
-              data-preview={preview === level.value}
+              className="rating-clear"
+              aria-label="Сбросить оценку"
+              title="Сбросить оценку"
+              disabled={disabled || value === null}
+              onClick={() => onChange(null)}
             >
-              <i />
+              <X size={14} />
             </button>
-          ))}
+          </div>
+          <div
+            className="rating-thermometer"
+            role="group"
+            aria-label={'Оценка ' + title}
+            onMouseLeave={() => setPreview(null)}
+          >
+            {levels.map((level) => (
+              <button
+                type="button"
+                key={level.value}
+                style={{ '--rating-color': level.color } as CSSProperties}
+                aria-label={`${level.value} из 5 — ${level.label}`}
+                aria-pressed={value === level.value}
+                disabled={disabled}
+                onMouseEnter={() => setPreview(level.value)}
+                onFocus={() => setPreview(level.value)}
+                onClick={() => onChange(level.value)}
+                data-preview={preview === level.value}
+              >
+                <i />
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="rating-endpoints" aria-hidden="true">
-          <span>Отлично</span>
-          <span>Не подходит</span>
-        </div>
-        <p className="rating-hint">
-          {active ? `${active.value} из 5 · ${active.label}` : 'Нажмите на шкалу, чтобы оценить'}
-        </p>
       </div>
     </div>
   );
