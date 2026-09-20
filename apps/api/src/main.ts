@@ -243,6 +243,22 @@ class AppController {
       throw new BadRequestException((e as Error).message);
     }
   }
+  @Get('export.pdf') async exportPdf(
+    @Query('ids') ids: string | undefined,
+    @Query('name') name: string | undefined,
+    @Res() res: Response,
+    @Req() req: Request,
+  ) {
+    this.auth.throttle('pdf:' + (currentUser()?.id ?? req.ip), 4, 60_000);
+    const selected =
+      ids === undefined ? null : new Set(parse(z.string().max(100000), ids).split(','));
+    const listings = this.store.all().filter((l) => !selected || selected.has(l.id));
+    const title = parse(z.string().trim().min(1).max(100).default('Подборка квартир'), name);
+    const bytes = await collectionPdf(title, listings);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="mesto-apartments.pdf"');
+    res.send(bytes);
+  }
   @Get('export.xlsx') async export(
     @Query('ids') ids: string | undefined,
     @Query('months') months: string | undefined,

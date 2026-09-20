@@ -22,8 +22,8 @@ let busy = false;
 export async function collectionPdf(name: string, listings: Listing[]) {
   if (busy) throw new BadRequestException('PDF уже формируется. Повторите через минуту.');
   if (!listings.length) throw new BadRequestException('В подборке пока нет квартир');
-  if (listings.length > 100)
-    throw new BadRequestException('В один PDF можно включить до 100 квартир');
+  if (listings.length > 300)
+    throw new BadRequestException('В один PDF можно включить до 300 квартир');
   busy = true;
   let browser;
   try {

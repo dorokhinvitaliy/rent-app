@@ -388,21 +388,35 @@ export default function App() {
     setNoFee(false);
     setQuery('');
   };
-  const download = async (ids: string[]) => {
+  const download = async (
+    ids: string[],
+    format: 'xlsx' | 'pdf' = 'xlsx',
+    name = 'Подборка квартир',
+  ) => {
+    if (!ids.length) return;
+    if (format === 'pdf') setPdfBusy(true);
     try {
       const res = await fetch(
-        '/api/export.xlsx?' + new URLSearchParams({ ids: ids.join(','), months: String(months) }),
+        '/api/export.' +
+          format +
+          '?' +
+          new URLSearchParams({ ids: ids.join(','), months: String(months), name }),
       );
-      if (!res.ok) throw new Error('Не удалось создать XLSX');
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        throw new Error(error?.message || 'Не удалось создать файл');
+      }
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'mesto-apartments.xlsx';
+      a.download = 'mesto-apartments.' + format;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setNotice('Таблица XLSX скачана');
+      setNotice(format === 'pdf' ? 'PDF скачан' : 'Таблица XLSX скачана');
     } catch (e) {
       setNotice((e as Error).message);
+    } finally {
+      if (format === 'pdf') setPdfBusy(false);
     }
   };
   const [navCollapsed, setNavCollapsed] = useState(
@@ -558,6 +572,22 @@ export default function App() {
                   >
                     <ArrowDownToLine size={17} />
                     Экспорт XLSX
+                  </button>
+                )}
+                {view !== 'imports' && (
+                  <button
+                    className="button secondary"
+                    disabled={!visible.length || pdfBusy}
+                    onClick={() =>
+                      void download(
+                        visible.map((l) => l.id),
+                        'pdf',
+                        currentCollection?.name || 'Подборка квартир',
+                      )
+                    }
+                  >
+                    <ArrowDownToLine size={17} />
+                    {pdfBusy ? 'Готовим PDF…' : 'Экспорт PDF'}
                   </button>
                 )}
                 <button
@@ -723,42 +753,6 @@ export default function App() {
             <>
               {view === 'collections' && (
                 <section className="collections-strip" aria-label="Подборки квартир">
-                  {currentCollection && (
-                    <button
-                      className="button secondary"
-                      disabled={
-                        pdfBusy ||
-                        !listings.some(
-                          (l) => currentCollection.listingIds.includes(l.id) && l.rating !== 1,
-                        )
-                      }
-                      onClick={async () => {
-                        setPdfBusy(true);
-                        try {
-                          const response = await fetch(
-                            '/api/collections/' + currentCollection.id + '/pdf',
-                          );
-                          if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.message || 'Не удалось создать PDF');
-                          }
-                          const url = URL.createObjectURL(await response.blob());
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = 'mesto-collection.pdf';
-                          a.click();
-                          setTimeout(() => URL.revokeObjectURL(url), 1000);
-                        } catch (e) {
-                          setNotice((e as Error).message);
-                        } finally {
-                          setPdfBusy(false);
-                        }
-                      }}
-                    >
-                      <ArrowDownToLine size={17} />
-                      {pdfBusy ? 'Готовим PDF…' : 'Экспорт PDF'}
-                    </button>
-                  )}
                   {currentCollection && (
                     <button
                       className="button primary"
@@ -1357,9 +1351,17 @@ export default function App() {
             Залог предполагается возвратным. Суммы «от» не включают неизвестные платежи.
           </p>
           <div className="form-actions">
+            <button
+              className="button secondary"
+              disabled={pdfBusy || !selected.length}
+              onClick={() => void download(selected, 'pdf', 'Сравнение квартир')}
+            >
+              <ArrowDownToLine size={17} />
+              {pdfBusy ? 'Готовим PDF…' : 'Экспорт PDF'}
+            </button>
             <button className="button primary" onClick={() => void download(selected)}>
               <ArrowDownToLine size={17} />
-              Экспорт сравнения
+              Экспорт XLSX
             </button>
           </div>
         </Modal>

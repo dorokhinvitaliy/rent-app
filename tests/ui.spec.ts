@@ -64,8 +64,13 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.getByRole('button', { name: 'Сравнить расходы' }).click();
   await expect(page.locator('.comparison')).toBeVisible();
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Экспорт сравнения' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Экспорт XLSX' }).click();
   expect((await downloaded).suggestedFilename()).toBe('mesto-apartments.xlsx');
+  const pdfRequest = page.waitForRequest((req) => req.url().includes('/api/export.pdf'));
+  const comparedPdf = page.waitForEvent('download');
+  await page.getByRole('dialog').getByRole('button', { name: 'Экспорт PDF', exact: true }).click();
+  expect(new URL((await pdfRequest).url()).searchParams.get('ids')?.split(',')).toHaveLength(2);
+  expect((await comparedPdf).suggestedFilename()).toBe('mesto-apartments.pdf');
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await page.getByRole('button', { name: 'Снять выбор' }).click();
   await page
@@ -989,4 +994,31 @@ test('Collection review visits only unrated apartments and advances after persis
   ).toBeDisabled();
   const rows = await (await request.get('/api/listings')).json();
   expect(ids.map((id) => rows.find((l: any) => l.id === id).rating)).toEqual([5, 1, 4]);
+});
+
+test('Guests export the filtered results to PDF without logging in', async ({
+  browser,
+  request,
+}) => {
+  const listing = await (
+    await request.post('/api/listings', {
+      data: {
+        title: 'PDF guest scope',
+        address: 'Уникальный PDF адрес',
+        rent: 52000,
+      },
+    })
+  ).json();
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await context.newPage();
+  await page.goto('/');
+  await page.getByLabel('Поиск по адресу или метро').fill('Уникальный PDF адрес');
+  await expect(page.locator('.apartment-card')).toHaveCount(1);
+  const requestPromise = page.waitForRequest((req) => req.url().includes('/api/export.pdf'));
+  const file = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Экспорт PDF', exact: true }).click();
+  expect(new URL((await requestPromise).url()).searchParams.get('ids')).toBe(listing.id);
+  await (await file).saveAs('test-results/guest-filtered.pdf');
+  expect(readFileSync('test-results/guest-filtered.pdf').subarray(0, 5).toString()).toBe('%PDF-');
+  await context.close();
 });
