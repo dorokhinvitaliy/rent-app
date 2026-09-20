@@ -38,7 +38,6 @@ const credentials = z.object({
     .transform((s) => s.toLowerCase()),
   password: z.string().min(10).max(200),
   name: z.string().trim().min(1).max(60).optional(),
-  invite: z.string().max(200).optional(),
 });
 export function requireLogin() {
   if (!currentUser() || currentUser()?.role === 'guest')
@@ -46,7 +45,6 @@ export function requireLogin() {
 }
 @Injectable()
 export class Auth {
-  readonly invite: string;
   private readonly secret: string;
   private attempts = new Map<string, { count: number; until: number }>();
   constructor(private readonly store: Store) {
@@ -61,12 +59,6 @@ export class Auth {
         writeFileSync(path, randomBytes(32).toString('hex'), { mode: 0o600, flag: 'wx' });
       return readFileSync(path, 'utf8').trim();
     };
-    if (
-      process.env.NODE_ENV === 'production' &&
-      (!process.env.AUTH_INVITE_CODE || process.env.AUTH_INVITE_CODE.length < 24)
-    )
-      throw new Error('Set AUTH_INVITE_CODE (at least 24 characters)');
-    this.invite = process.env.AUTH_INVITE_CODE || loadSecret('invite-code');
     this.secret = loadSecret('cookie-secret');
     this.store.db.prepare('DELETE FROM sessions WHERE expiresAt<?').run(Date.now());
   }
@@ -125,10 +117,8 @@ export class Auth {
     const result = credentials.safeParse(body);
     if (!result.success)
       throw new BadRequestException('Проверьте email и пароль (от 10 до 200 символов)');
-    const { email, password, name, invite } = result.data;
+    const { email, password, name } = result.data;
     if (register) {
-      if (!invite || !equal(invite, this.invite))
-        throw new ForbiddenException('Неверный код приглашения');
       const salt = randomBytes(16).toString('hex');
       const key = (await derive(password, salt, 64)) as Buffer;
       const db = this.store.db;

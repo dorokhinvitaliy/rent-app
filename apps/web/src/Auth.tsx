@@ -129,13 +129,6 @@ function Login({ onClose, onUser }: { onClose: () => void; onUser: (user: User) 
             autoComplete={register ? 'new-password' : 'current-password'}
           />
         </label>
-        {register && (
-          <label>
-            Код приглашения
-            <input name="invite" required autoComplete="off" />
-            <small>Получите его у владельца сайта</small>
-          </label>
-        )}
         {error && (
           <p role="alert" className="form-error">
             {error}

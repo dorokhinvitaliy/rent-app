@@ -1,23 +1,23 @@
 services:
   app:
+    image: ${RENT_IMAGE:-rent-app-app:latest}
     build: .
     init: true
     restart: unless-stopped
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
     environment:
       NODE_ENV: production
       APP_ORIGIN: https://${DOMAIN:?Set DOMAIN in .env}
-      AUTH_INVITE_CODE: ${AUTH_INVITE_CODE:?Set a random invitation code in .env}
-      TRUST_PROXY: "1"
+      TRUST_PROXY: '1'
       ENABLE_VNC: ${ENABLE_VNC:-0}
     volumes:
       - rent-data:/data
     ports:
-      - "127.0.0.1:5900:5900"
+      - '127.0.0.1:5900:5900'
     shm_size: 1gb
     stop_grace_period: 30s
   proxy:
@@ -26,13 +26,13 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
     environment:
       DOMAIN: ${DOMAIN}
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

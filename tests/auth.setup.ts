@@ -4,7 +4,6 @@ export default async function setup() {
   const credentials = {
     email: 'e2e@example.test',
     password: 'e2e-password-long',
-    invite: 'e2e-invitation-secret-at-least-24',
   };
   const login = await api.post('/api/auth/login', { data: credentials });
   if (!login.ok()) {

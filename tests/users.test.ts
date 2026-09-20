@@ -33,7 +33,6 @@ test('Guests see shared offers; owner migration and all personal data remain iso
       PORT: '3098',
       DATA_DIR: dir,
       DATABASE_PATH: path,
-      AUTH_INVITE_CODE: 'test-invitation-with-enough-characters',
     },
     stdio: 'pipe',
   });
@@ -84,7 +83,6 @@ test('Guests see shared offers; owner migration and all personal data remain iso
     const register = (email: string) => ({
       email,
       password: 'long-password-123',
-      invite: 'test-invitation-with-enough-characters',
     });
     const a = await owner.request('/auth/register', 'POST', register('owner@example.test'));
     assert.equal(a.status, 201);
@@ -95,6 +93,7 @@ test('Guests see shared offers; owner migration and all personal data remain iso
       (await member.request('/auth/register', 'POST', register('member@example.test'))).status,
       201,
     );
+    assert.equal((await (await member.request('/auth/me')).json()).user.role, 'member');
     assert.equal((await (await member.request('/listings')).json())[0].notes, '');
     await member.request('/listings/' + id, 'PATCH', {
       notes: 'Заметка второго',

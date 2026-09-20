@@ -1,0 +1,37 @@
+name: Test and deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+  deploy:
+    needs: test
+    if: github.repository == 'dorokhinvitaliy/rent-app' && github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: [self-hosted, linux, x64, rent-production]
+    timeout-minutes: 20
+    steps:
+      # No checkout or PR code on the production runner. The root-owned entrypoint
+      # fetches only the current main commit from the fixed upstream repository.
+      - name: Deploy verified main commit
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: sudo /usr/local/sbin/rent-deploy "$DEPLOY_SHA"

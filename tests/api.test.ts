@@ -13,7 +13,6 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
       ...process.env,
       PORT: '3099',
       DATABASE_PATH: join(dir, 'db.sqlite'),
-      AUTH_INVITE_CODE: 'integration-invite-code-at-least-24',
     },
     stdio: 'pipe',
   });
@@ -44,7 +43,6 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
     const login = await request('/auth/register', 'POST', {
       email: 'api@example.test',
       password: 'integration-password',
-      invite: 'integration-invite-code-at-least-24',
     });
     assert.equal(login.status, 201);
     cookie = login.headers

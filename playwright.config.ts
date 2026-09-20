@@ -11,8 +11,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 1080 },
   },
   webServer: {
-    command:
-      'npm run build && PORT=3100 AUTH_INVITE_CODE=e2e-invitation-secret-at-least-24 DATA_DIR=../../test-results/e2e-data npm start',
+    command: 'npm run build && PORT=3100 DATA_DIR=../../test-results/e2e-data npm start',
     url: 'http://127.0.0.1:3100/api/health',
     reuseExistingServer: false,
     timeout: 120000,

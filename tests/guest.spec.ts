@@ -61,3 +61,17 @@ test('Guest searches the database before Cian and logs in only for personal acti
   await admin.delete('/api/listings/' + listing.id, { data: {} });
   await admin.dispose();
 });
+
+test('Registration does not ask for an invitation code', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  const dialog = page.locator('.account-dialog');
+  await dialog.getByRole('button', { name: 'Нет аккаунта? Зарегистрироваться' }).click();
+  await expect(dialog.getByLabel('Код приглашения')).toHaveCount(0);
+  await dialog.getByLabel('Как вас зовут').fill('Новый пользователь');
+  await dialog.getByLabel('Email', { exact: true }).fill(`signup-${Date.now()}@example.test`);
+  await dialog.getByLabel('Пароль', { exact: true }).fill('registration-password-long');
+  await dialog.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.account-button')).toContainText('Новый пользователь');
+});
