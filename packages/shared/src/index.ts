@@ -14,7 +14,65 @@ export const httpUrl = z
   .url()
   .max(2000)
   .refine((s) => /^https?:\/\//i.test(s), 'Нужна ссылка http(s)');
+export const detailsSchema = z
+  .object({
+    apartment: z
+      .record(z.string(), z.union([z.string().max(500), z.number().finite(), z.boolean()]))
+      .default({}),
+    building: z
+      .record(z.string(), z.union([z.string().max(500), z.number().finite(), z.boolean()]))
+      .default({}),
+    amenities: z.record(z.string(), z.boolean()).default({}),
+    sections: z
+      .array(
+        z.object({
+          title: z.string().max(100),
+          items: z
+            .array(z.object({ label: z.string().max(100), value: z.string().max(500) }))
+            .max(50),
+        }),
+      )
+      .max(6)
+      .default([]),
+    contact: z
+      .object({
+        name: z.string().max(200).default(''),
+        role: z.enum(['owner', 'agent', 'unknown']).default('unknown'),
+        phones: z
+          .array(z.string().regex(/^\+[0-9]{10,15}$/))
+          .max(5)
+          .default([]),
+        relay: z.boolean().default(false),
+      })
+      .nullable()
+      .default(null),
+    checkedAt: z.string().datetime().nullable().default(null),
+  })
+  .default({});
+export const viewingSchema = z.object({
+  listingId: z.string().uuid(),
+  startsAt: z.string().datetime({ offset: true }),
+  status: z.enum(['planned', 'visited', 'cancelled']).default('planned'),
+  feedback: z.string().trim().max(5000).default(''),
+});
+export type Viewing = z.infer<typeof viewingSchema> & { id: string; createdAt: string };
+export const amenityLabels: Record<string, string> = {
+  hasFridge: 'Холодильник',
+  hasDishwasher: 'Посудомоечная машина',
+  hasWasher: 'Стиральная машина',
+  hasFurniture: 'Мебель в комнатах',
+  hasKitchenFurniture: 'Мебель на кухне',
+  hasConditioner: 'Кондиционер',
+  hasTv: 'Телевизор',
+  hasInternet: 'Интернет',
+  hasBathtub: 'Ванна',
+  hasShower: 'Душ',
+  hasLift: 'Лифт',
+  childrenAllowed: 'Можно с детьми',
+  petsAllowed: 'Можно с животными',
+};
 export const listingSchema = z.object({
+  details: detailsSchema,
   source: z.enum(['cian', 'yandex', 'manual']).default('manual'),
   url: httpUrl.nullable().default(null),
   title: z.string().trim().min(3).max(200),

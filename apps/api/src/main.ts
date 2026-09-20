@@ -1,4 +1,5 @@
 import { Auth, AuthController, requireLogin } from './auth';
+import { collectionPdf } from './pdf-export';
 import { currentUser, userContext, requireAdmin } from './user-context';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -22,7 +23,13 @@ import type { Request, Response } from 'express';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
-import { listingSchema, patchSchema, cianSearchSchema, buildCianSearchUrl } from '@rent/shared';
+import {
+  listingSchema,
+  viewingSchema,
+  patchSchema,
+  cianSearchSchema,
+  buildCianSearchUrl,
+} from '@rent/shared';
 import { Store } from './store';
 import { Importer } from './importer';
 import { parseHtml, sourceUrl } from './parser';
@@ -83,6 +90,44 @@ class AppController {
     );
     requireLogin();
     return this.store.removeFromCollection(id, value.listingIds);
+  }
+  @Get('viewings') viewings() {
+    requireLogin();
+    return this.store.viewings();
+  }
+  @Post('viewings') createViewing(@Body() body: unknown) {
+    requireLogin();
+    return this.store.saveViewing(parse(viewingSchema, body));
+  }
+  @Patch('viewings/:id') editViewing(@Param('id') id: string, @Body() body: unknown) {
+    requireLogin();
+    return this.store.saveViewing(parse(viewingSchema, body), id);
+  }
+  @Delete('viewings/:id') deleteViewing(@Param('id') id: string) {
+    requireLogin();
+    this.store.deleteViewing(id);
+    return { ok: true };
+  }
+  @Get('collections/:id/pdf') async pdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Req() req: Request,
+  ) {
+    requireLogin();
+    this.auth.throttle('pdf:' + currentUser()!.id, 4, 60_000);
+    const group = this.store.collections().find((c) => c.id === id);
+    if (!group) throw new NotFoundException('Подборка не найдена');
+    const bytes = await collectionPdf(
+      group.name,
+      group.listingIds.map((key) => this.store.get(key)),
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="mesto-collection.pdf"');
+    res.send(bytes);
+  }
+  @Post('imports/refresh-all') refreshAll() {
+    requireAdmin();
+    return this.importer.refreshAll();
   }
   @Get('listings') all() {
     return this.store.all();

@@ -1,3 +1,5 @@
+import { PropertyDetails } from './PropertyDetails';
+import { Viewings } from './Viewings';
 import { matchesDatabaseSearch } from './local-search';
 import { AccountButton, useAuth } from './Auth';
 import { MetroDots, listingMetroStation } from './MetroDots';
@@ -15,6 +17,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  CalendarDays,
   PanelLeft,
   FolderPlus,
   FolderHeart,
@@ -162,6 +165,8 @@ export default function App() {
   const [databaseSearch, setDatabaseSearch] = useState<CianSearch | null>(null);
   const [collections, setCollections] = useState<ApartmentCollection[]>([]);
   const [collectionId, setCollectionId] = useState<string | null>(null);
+  const [viewingListing, setViewingListing] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [collectionPicker, setCollectionPicker] = useState<string[] | null>(null);
   const detailPhoto = useRef(0);
   const noteRequests = useRef(new Set<string>());
@@ -422,6 +427,7 @@ export default function App() {
             ['favorites', 'Избранное', Heart, favorites.length],
             ['ranking', 'Рейтинг', Trophy, rated.length],
             ['collections', 'Подборки', FolderHeart, collections.length],
+            ['viewings', 'Просмотры', CalendarDays, null],
             ['archive', 'Архив', Archive, archived.length],
             ['imports', 'Источники и импорт', Layers3, null],
           ].map(([key, label, Icon, count]) => {
@@ -493,69 +499,73 @@ export default function App() {
             <span>
               {view === 'imports'
                 ? 'Источники и импорт'
-                : view === 'favorites'
-                  ? 'Избранное'
-                  : view === 'archive'
-                    ? 'Архив'
-                    : view === 'ranking'
-                      ? 'Рейтинг'
-                      : view === 'collections'
-                        ? 'Подборки'
-                        : 'Все квартиры'}
+                : view === 'viewings'
+                  ? 'Просмотры'
+                  : view === 'favorites'
+                    ? 'Избранное'
+                    : view === 'archive'
+                      ? 'Архив'
+                      : view === 'ranking'
+                        ? 'Рейтинг'
+                        : view === 'collections'
+                          ? 'Подборки'
+                          : 'Все квартиры'}
             </span>
           </div>
           <div id="compact-search-slot" />
           <AccountButton />
         </header>
         <div className="page">
-          <div className="page-heading">
-            <div className="heading-copy">
-              <div className="eyebrow">ВАШ ЛИЧНЫЙ ПОИСК ЖИЛЬЯ</div>
-              <h1>
-                {view === 'imports'
-                  ? 'Все источники. Одно место.'
-                  : view === 'favorites'
-                    ? 'Ближе к своему дому.'
+          {view !== 'viewings' && (
+            <div className="page-heading">
+              <div className="heading-copy">
+                <div className="eyebrow">ВАШ ЛИЧНЫЙ ПОИСК ЖИЛЬЯ</div>
+                <h1>
+                  {view === 'imports'
+                    ? 'Все источники. Одно место.'
+                    : view === 'favorites'
+                      ? 'Ближе к своему дому.'
+                      : view === 'archive'
+                        ? 'Можно передумать.'
+                        : view === 'ranking'
+                          ? 'Лучшие — по вашим оценкам.'
+                          : view === 'collections'
+                            ? 'Ваши подборки квартир.'
+                            : 'Найдите свое место.'}
+                </h1>
+                <p>
+                  {view === 'imports'
+                    ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
                     : view === 'archive'
-                      ? 'Можно передумать.'
+                      ? 'Варианты с оценкой 1. Верните объявление или измените оценку, если передумаете.'
                       : view === 'ranking'
-                        ? 'Лучшие — по вашим оценкам.'
+                        ? 'Выше оценка — выше место. При равных оценках место общее, сначала показываем меньшую аренду.'
                         : view === 'collections'
-                          ? 'Ваши подборки квартир.'
-                          : 'Найдите свое место.'}
-              </h1>
-              <p>
-                {view === 'imports'
-                  ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
-                  : view === 'archive'
-                    ? 'Варианты с оценкой 1. Верните объявление или измените оценку, если передумаете.'
-                    : view === 'ranking'
-                      ? 'Выше оценка — выше место. При равных оценках место общее, сначала показываем меньшую аренду.'
-                      : view === 'collections'
-                        ? 'Для просмотра, обсуждения или переезда. Соберите варианты, которые хочется держать вместе.'
-                        : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
-              </p>
-            </div>
-            <div className="heading-actions">
-              {view !== 'imports' && (
+                          ? 'Для просмотра, обсуждения или переезда. Соберите варианты, которые хочется держать вместе.'
+                          : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
+                </p>
+              </div>
+              <div className="heading-actions">
+                {view !== 'imports' && (
+                  <button
+                    className="button secondary"
+                    disabled={!visible.length}
+                    onClick={() => void download(visible.map((l) => l.id))}
+                  >
+                    <ArrowDownToLine size={17} />
+                    Экспорт XLSX
+                  </button>
+                )}
                 <button
-                  className="button secondary"
-                  disabled={!visible.length}
-                  onClick={() => void download(visible.map((l) => l.id))}
+                  className="button primary"
+                  onClick={() => (user ? setImportOpen(true) : openLogin())}
                 >
-                  <ArrowDownToLine size={17} />
-                  Экспорт XLSX
+                  <Plus size={18} />
+                  Добавить квартиру
                 </button>
-              )}
-              <button
-                className="button primary"
-                onClick={() => (user ? setImportOpen(true) : openLogin())}
-              >
-                <Plus size={18} />
-                Добавить квартиру
-              </button>
+              </div>
             </div>
-          </div>
+          )}
           {loadError && (
             <div className="error-banner" role="alert">
               Сервер недоступен: {loadError}.{' '}
@@ -590,7 +600,14 @@ export default function App() {
               }}
             />
           )}
-          {view === 'imports' ? (
+          {view === 'viewings' ? (
+            <Viewings
+              listings={listings}
+              initialListing={viewingListing}
+              onInitialConsumed={() => setViewingListing(null)}
+              onOpen={(id) => setDetail(id)}
+            />
+          ) : view === 'imports' ? (
             <>
               <div className="source-grid">
                 {(['cian', 'yandex'] as const).map((s) => (
@@ -700,6 +717,38 @@ export default function App() {
             <>
               {view === 'collections' && (
                 <section className="collections-strip" aria-label="Подборки квартир">
+                  {currentCollection && (
+                    <button
+                      className="button secondary"
+                      disabled={pdfBusy || !currentCollection.listingIds.length}
+                      onClick={async () => {
+                        setPdfBusy(true);
+                        try {
+                          const response = await fetch(
+                            '/api/collections/' + currentCollection.id + '/pdf',
+                          );
+                          if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Не удалось создать PDF');
+                          }
+                          const url = URL.createObjectURL(await response.blob());
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = 'mesto-collection.pdf';
+                          a.click();
+                          setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        } catch (e) {
+                          setNotice((e as Error).message);
+                        } finally {
+                          setPdfBusy(false);
+                        }
+                      }}
+                    >
+                      <ArrowDownToLine size={17} />
+                      {pdfBusy ? 'Готовим PDF…' : 'Экспорт PDF'}
+                    </button>
+                  )}
+
                   {collections.map((group) => (
                     <button
                       key={group.id}
@@ -1138,6 +1187,15 @@ export default function App() {
           months={months}
           setMonths={setMonths}
           onClose={() => setDetail(null)}
+          onPlan={() => {
+            if (!user) {
+              openLogin();
+              return;
+            }
+            setViewingListing(current.id);
+            setDetail(null);
+            setView('viewings');
+          }}
           onEdit={() => {
             setDetail(null);
             setEdit(current);
@@ -1733,6 +1791,7 @@ function Detail({
   months,
   setMonths,
   onClose,
+  onPlan,
   onEdit,
   onFavorite,
   onDelete,
@@ -1750,6 +1809,7 @@ function Detail({
   months: number;
   setMonths: (v: number) => void;
   onClose: () => void;
+  onPlan: () => void;
   onEdit: () => void;
   onFavorite: () => void;
   onDelete: () => void;
@@ -2013,6 +2073,11 @@ function Detail({
                 : 'Учтены аренда, ЖКУ и разовые платежи.'}
             </p>
           </div>
+          <PropertyDetails listing={l} />
+          <button className="button secondary detail-plan" onClick={onPlan}>
+            <CalendarDays size={17} />
+            Запланировать просмотр
+          </button>
           <DescriptionPreview key={l.id} text={l.description || 'Описание пока не добавлено.'} />
           {l.demo && (
             <p className="detail-disclaimer">Демонстрационный пример с вымышленными условиями.</p>

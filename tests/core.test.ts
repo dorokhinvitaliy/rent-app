@@ -599,3 +599,50 @@ test('Collections persist, deduplicate membership and never delete apartments wh
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('Rich Cian data belongs to the current offer; preserves false amenities and relay contact', () => {
+  const offer = {
+    ...structuredClone(offers[0]),
+    livingArea: 29,
+    kitchenArea: 7,
+    hasFridge: true,
+    hasDishwasher: false,
+    petsAllowed: false,
+    isByHomeowner: false,
+    isEnabledCallTracking: true,
+    building: { buildYear: 1973, floorsCount: 12, parking: { type: 'ground' } },
+    phones: [
+      { countryCode: '+7', number: '9990000000' },
+      { countryCode: '+7', number: '9990000000' },
+      { number: 'hidden' },
+    ],
+  };
+  const extra = {
+    offer,
+    agent: { name: 'Тестовый агент' },
+    user: { name: 'Посетитель', phones: [{ number: '1234567890' }] },
+    bti: { houseData: { isEmergency: false, seriesName: 'II-57' } },
+    features: [
+      {
+        id: 'aboutBuilding',
+        title: 'О доме',
+        features: [{ label: 'Год постройки', value: '1973' }],
+      },
+    ],
+  };
+  const html = `<h1>Квартира</h1><script>window._cianConfig['frontend-offer-card'] = (window._cianConfig['frontend-offer-card'] || []).concat(${JSON.stringify([{ key: 'defaultState', value: { offerData: extra } }])});</script>`;
+  const d = parseHtml(html, `https://www.cian.ru/rent/flat/${offer.id}/`).listings[0].details;
+  assert.equal(d.apartment.livingArea, 29);
+  assert.equal(d.building.isEmergency, false);
+  assert.equal(d.amenities.hasDishwasher, false);
+  assert.equal(d.amenities.hasFridge, true);
+  assert.deepEqual(d.contact, {
+    name: 'Тестовый агент',
+    role: 'agent',
+    phones: ['+79990000000'],
+    relay: true,
+  });
+  assert.equal(d.sections[0].items[0].value, '1973');
+  assert.ok(d.checkedAt);
+  assert.throws(() => parseHtml(html, 'https://www.cian.ru/rent/flat/1/'), /ID/);
+});

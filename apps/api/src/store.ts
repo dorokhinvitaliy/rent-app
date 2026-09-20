@@ -4,7 +4,13 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { type Listing, type ListingInput, type CianSearch } from '@rent/shared';
+import {
+  detailsSchema,
+  type Viewing,
+  type Listing,
+  type ListingInput,
+  type CianSearch,
+} from '@rent/shared';
 export const dataDir = process.env.DATA_DIR || resolve(__dirname, '../../../..', 'data');
 @Injectable()
 export class Store implements OnModuleDestroy {
@@ -29,6 +35,9 @@ export class Store implements OnModuleDestroy {
     )
       this.db.exec('ALTER TABLE collections ADD COLUMN ownerId TEXT REFERENCES users(id)');
     this.db.exec('PRAGMA user_version=3;');
+    this.db.exec(
+      `CREATE TABLE IF NOT EXISTS viewings(id TEXT PRIMARY KEY, userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, listingId TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE, startsAt TEXT NOT NULL, status TEXT NOT NULL, feedback TEXT NOT NULL, createdAt TEXT NOT NULL); CREATE INDEX IF NOT EXISTS viewings_user ON viewings(userId, startsAt);`,
+    );
     const jobs = this.jobs();
     for (const job of jobs)
       if (['queued', 'running', 'waiting'].includes(job.status))
@@ -104,6 +113,38 @@ export class Store implements OnModuleDestroy {
     }
     return this.collections().find((c) => c.id === id)!;
   }
+  viewings(): Viewing[] {
+    return this.db
+      .prepare(
+        'SELECT id,listingId,startsAt,status,feedback,createdAt FROM viewings WHERE userId=? ORDER BY startsAt',
+      )
+      .all(currentUser()?.id || '') as unknown as Viewing[];
+  }
+  saveViewing(value: Omit<Viewing, 'id' | 'createdAt'>, id?: string) {
+    this.get(value.listingId);
+    if (id && !this.viewings().some((v) => v.id === id))
+      throw new NotFoundException('Просмотр не найден');
+    const key = id || randomUUID();
+    this.db
+      .prepare(
+        'INSERT INTO viewings(id,userId,listingId,startsAt,status,feedback,createdAt) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET listingId=excluded.listingId,startsAt=excluded.startsAt,status=excluded.status,feedback=excluded.feedback',
+      )
+      .run(
+        key,
+        currentUser()!.id,
+        value.listingId,
+        new Date(value.startsAt).toISOString(),
+        value.status,
+        value.feedback,
+        new Date().toISOString(),
+      );
+    return this.viewings().find((v) => v.id === key)!;
+  }
+  deleteViewing(id: string) {
+    if (!this.viewings().some((v) => v.id === id))
+      throw new NotFoundException('Просмотр не найден');
+    this.db.prepare('DELETE FROM viewings WHERE id=? AND userId=?').run(id, currentUser()!.id);
+  }
   all(): Listing[] {
     return this.db
       .prepare('SELECT data FROM listings ORDER BY rowid DESC')
@@ -116,6 +157,7 @@ export class Store implements OnModuleDestroy {
     return this.personalize(JSON.parse(row.data as string));
   }
   private personalize(listing: Listing): Listing {
+    listing.details = detailsSchema.parse(listing.details || {});
     const user = currentUser();
     if (!user) return listing;
     const state = this.db
@@ -147,6 +189,20 @@ export class Store implements OnModuleDestroy {
       ] as const)
         if (merged[key] === null) merged[key] = old[key];
       if (input.commission === null) merged.commissionType = old.commissionType;
+      merged.details = detailsSchema.parse({
+        ...old.details,
+        ...input.details,
+        apartment: { ...old.details?.apartment, ...input.details?.apartment },
+        building: { ...old.details?.building, ...input.details?.building },
+        amenities: { ...old.details?.amenities, ...input.details?.amenities },
+        sections: input.details?.sections?.length
+          ? input.details.sections
+          : old.details?.sections || [],
+        contact: input.details?.checkedAt
+          ? input.details.contact
+          : old.details?.contact || input.details?.contact || null,
+        checkedAt: input.details?.checkedAt || old.details?.checkedAt || null,
+      });
       merged.otherCosts = old.otherCosts;
       if (!merged.metro) merged.metro = old.metro;
       if (!merged.photos.length) merged.photos = old.photos;
@@ -230,6 +286,7 @@ export class Store implements OnModuleDestroy {
 }
 export type ImportJob = {
   userId?: string;
+  urls?: string[];
   id: string;
   url: string;
   status: 'queued' | 'running' | 'waiting' | 'done' | 'partial' | 'failed' | 'cancelled';

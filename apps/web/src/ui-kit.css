@@ -3185,3 +3185,272 @@ html {
   color: #17191d;
   font-weight: 500;
 }
+.property-details {
+  margin: 20px 0;
+}
+.property-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  background: #f6f6f6;
+  border-radius: 18px;
+  margin-bottom: 16px;
+}
+.property-contact strong,
+.property-contact small {
+  display: block;
+}
+.property-contact small {
+  font-size: 11px;
+  color: #888;
+  margin: 4px 0;
+}
+.property-contact strong {
+  font-size: 13px;
+}
+.property-contact a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 13px;
+  margin: 6px 0;
+}
+.property-section {
+  border-bottom: 1px solid #eee;
+}
+.property-section summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  font-size: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.property-section summary small {
+  margin-left: auto;
+  color: #999;
+  background: #f4f4f4;
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+.property-section dl {
+  margin: 0 0 14px;
+}
+.property-section dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 9px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.property-section dt {
+  color: #888;
+}
+.property-section dd {
+  margin: 0;
+  text-align: right;
+  max-width: 60%;
+}
+.property-amenities h3 {
+  font-size: 13px;
+  margin: 18px 0 10px;
+}
+.property-amenities > div {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.property-amenities span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  background: #f5f5f5;
+  padding: 7px 9px;
+  border-radius: 9px;
+}
+.property-updated {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 14px;
+}
+.detail-plan {
+  margin: 8px 0 20px;
+  width: 100%;
+}
+.viewings-heading,
+.viewing-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.viewings-heading h2 {
+  font-size: 27px;
+}
+.viewings-heading p {
+  font-size: 13px;
+  color: #888;
+  margin-top: 8px;
+}
+.viewings-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: #888;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.viewings-empty h3,
+.viewings-empty h2 {
+  color: #252629;
+}
+.viewing-editor {
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  padding: 24px;
+  border-radius: 22px;
+  margin: 24px 0;
+  display: grid;
+  gap: 18px;
+}
+.viewing-editor h3 {
+  font-size: 17px;
+}
+.viewing-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.viewing-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.viewings-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+.viewing-card {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e9e9e9;
+  border-radius: 22px;
+}
+.viewing-date {
+  background: #f5f5f5;
+  border-radius: 14px;
+  width: 74px;
+  padding: 14px 8px;
+  align-self: flex-start;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.viewing-date b {
+  font-size: 28px;
+  line-height: 1;
+}
+.viewing-date span {
+  font-size: 12px;
+  color: #777;
+}
+.viewing-date small {
+  margin-top: 9px;
+  font-size: 12px;
+}
+.viewing-copy {
+  flex: 1;
+  min-width: 0;
+}
+.viewing-title {
+  display: block;
+  padding: 0;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 550;
+  margin: 10px 0 6px;
+}
+.viewing-copy > p {
+  color: #888;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.viewing-status {
+  font-size: 10px;
+  background: #f4f4f4;
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: #777;
+}
+.viewing-status.visited {
+  background: #eaf4ee;
+  color: #37724f;
+}
+.viewing-status.cancelled {
+  background: #faf0ed;
+  color: #aa6f5c;
+}
+.viewing-copy blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 14px 0 0;
+  background: #f6f6f6;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.viewing-phone {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.viewing-edit {
+  align-self: flex-start;
+  padding: 8px;
+  color: #777;
+}
+@media (max-width: 600px) {
+  .property-contact {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .viewings-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .viewing-fields {
+    grid-template-columns: 1fr;
+  }
+  .viewing-card {
+    gap: 12px;
+    padding: 16px;
+  }
+  .viewing-date {
+    width: 56px;
+  }
+  .viewing-title {
+    font-size: 14px;
+  }
+  .viewing-editor {
+    padding: 18px;
+  }
+  .viewings-heading .button {
+    width: 100%;
+  }
+  .viewing-editor-actions {
+    flex-wrap: wrap;
+  }
+}

@@ -88,3 +88,67 @@ test('Database search only collects below ten matches and reuses recent searches
     delete process.env.DATABASE_PATH;
   }
 });
+
+test('Bulk enrichment covers every real Cian listing in isolated batches without duplicating listings', async () => {
+  process.env.DATABASE_PATH = ':memory:';
+  const store = new Store(),
+    importer = new Importer(store);
+  importer.launchBrowser = async (state: any) => {
+    let url = '';
+    const page = {
+      goto: async (value: string) => {
+        url = value;
+        return { status: () => 200 };
+      },
+      waitForTimeout: async () => {},
+      waitForFunction: async () => {},
+      content: async () => {
+        const offer = {
+          id: Number(url.match(/flat\/(\d+)/)![1]),
+          dealType: 'rent',
+          bargainTerms: { price: 70000, currency: 'rur', paymentPeriod: 'monthly' },
+          geo: { address: [], undergrounds: [] },
+          building: { buildYear: 2024 },
+          phones: [{ countryCode: '+7', number: '9990000000' }],
+        };
+        return `<h1>Обновлённая квартира</h1><script>window._cianConfig['frontend-offer-card'] = (window._cianConfig['frontend-offer-card'] || []).concat(${JSON.stringify([{ key: 'defaultState', value: { offerData: { offer } } }])});</script>`;
+      },
+    };
+    state.page = page;
+    state.context = { close: async () => {} };
+    return page;
+  };
+  try {
+    for (let i = 0; i < 5; i++)
+      store.save(
+        listingSchema.parse({
+          title: 'Квартира',
+          rent: 60000,
+          source: 'cian',
+          url: `https://www.cian.ru/rent/flat/${123456780 + i}/`,
+        }),
+      );
+    store.save(listingSchema.parse({ title: 'Вручную', rent: 60000 }));
+    const jobs = importer.refreshAll();
+    assert.equal(jobs.length, 2);
+    assert.deepEqual(
+      importer
+        .refreshAll()
+        .map((j: any) => j.id)
+        .sort(),
+      jobs.map((j: any) => j.id).sort(),
+    );
+    for (let i = 0; i < 100 && jobs.some((j: any) => ['running', 'queued'].includes(j.status)); i++)
+      await tick();
+    assert.equal(
+      jobs.reduce((n: number, j: any) => n + j.updated, 0),
+      5,
+    );
+    assert.equal(store.all().filter((l: any) => l.details.checkedAt).length, 5);
+    assert.equal(store.all().length, 6);
+  } finally {
+    await importer.onModuleDestroy();
+    store.onModuleDestroy();
+    delete process.env.DATABASE_PATH;
+  }
+});

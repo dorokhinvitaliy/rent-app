@@ -1,6 +1,6 @@
 import { type CheerioAPI } from 'cheerio';
 import { z } from 'zod';
-import { listingSchema, type ListingInput } from '@rent/shared';
+import { listingSchema, detailsSchema, amenityLabels, type ListingInput } from '@rent/shared';
 const amount = z.number().finite().nonnegative();
 const offerSchema = z.object({
   id: z.number().int(),
@@ -61,7 +61,8 @@ export function readCianState($: CheerioAPI, url: string): ListingInput | null {
       throw new Error('Не удалось безопасно прочитать данные объявления Циана');
     }
     if (!Array.isArray(entries)) throw new Error('Неизвестный формат данных Циана');
-    const raw = entries.find((e) => e?.key === 'defaultState')?.value?.offerData?.offer;
+    const data = entries.find((e) => e?.key === 'defaultState')?.value?.offerData;
+    const raw = data?.offer;
     if (!raw) continue;
     const result = offerSchema.safeParse(raw);
     if (!result.success)
@@ -94,6 +95,7 @@ export function readCianState($: CheerioAPI, url: string): ListingInput | null {
       $('h1').first().text().trim() ||
       `${o.roomsCount || ''}-комн. квартира, ${o.totalArea || ''} м²`;
     return listingSchema.parse({
+      details: extractDetails(raw, data),
       source: 'cian',
       url,
       title: title.slice(0, 200),
@@ -122,4 +124,91 @@ export function readCianState($: CheerioAPI, url: string): ListingInput | null {
     });
   }
   return null;
+}
+
+function extractDetails(raw: Record<string, any>, data: Record<string, any>) {
+  const pick = (source: any, keys: string[]) =>
+    Object.fromEntries(
+      keys
+        .filter((k) => ['string', 'number', 'boolean'].includes(typeof source?.[k]))
+        .map((k) => [k, source[k]]),
+    );
+  const phones = (Array.isArray(raw.phones) ? raw.phones : [])
+    .map((p: any) => {
+      const n = String(p.countryCode || '') + String(p.number || '');
+      return '+' + n.replace(/\D/g, '');
+    })
+    .filter((n: string) => /^\+\d{10,15}$/.test(n));
+  const sections = (Array.isArray(data.features) ? data.features : [])
+    .filter((g: any) => ['aboutFlat', 'aboutBuilding'].includes(g.id))
+    .map((g: any) => ({
+      title: g.title,
+      items: (g.features || [])
+        .filter((f: any) => typeof f.label === 'string' && typeof f.value === 'string')
+        .map((f: any) => ({
+          label: f.label.replace(/\s+/g, ' '),
+          value: f.value.replace(/\s+/g, ' '),
+        })),
+    }));
+  const result = detailsSchema.safeParse({
+    apartment: pick(raw, [
+      'livingArea',
+      'kitchenArea',
+      'ceilingHeight',
+      'repairType',
+      'windowsViewType',
+      'flatType',
+      'loggiasCount',
+      'balconiesCount',
+      'separateWcsCount',
+      'combinedWcsCount',
+      'isApartments',
+      'passengerLiftsCount',
+      'cargoLiftsCount',
+    ]),
+    building: {
+      ...pick(data.bti?.houseData, [
+        'yearRelease',
+        'houseMaterialType',
+        'floorMax',
+        'entrances',
+        'flatCount',
+        'isEmergency',
+        'houseHeatSupplyType',
+        'houseGasSupplyType',
+        'houseOverlapType',
+        'lifts',
+        'seriesName',
+      ]),
+      ...pick(raw.building, [
+        'floorsCount',
+        'buildYear',
+        'materialType',
+        'houseMaterialType',
+        'ceilingHeight',
+        'hasGarbageChute',
+        'passengerLiftsCount',
+        'cargoLiftsCount',
+      ]),
+      ...pick(raw.building?.parking, ['type']),
+    },
+    amenities: Object.fromEntries(
+      Object.keys(amenityLabels)
+        .filter((k) => typeof raw[k] === 'boolean')
+        .map((k) => [k, raw[k]]),
+    ),
+    sections,
+    contact: {
+      name: String(data.agent?.name || data.agent?.fullName || data.company?.name || '').slice(
+        0,
+        200,
+      ),
+      role:
+        raw.isByHomeowner === true ? 'owner' : raw.isByHomeowner === false ? 'agent' : 'unknown',
+      phones: [...new Set(phones)].slice(0, 5),
+      relay: raw.isEnabledCallTracking === true,
+    },
+    checkedAt: new Date().toISOString(),
+  });
+  return result.success ? result.data : detailsSchema.parse({});
 }

@@ -58,6 +58,20 @@ export class Importer implements OnModuleDestroy {
       job: this.start(buildCianSearchUrl(criteria), criteria.limit, criteria.pages, criteria),
     };
   }
+  refreshAll() {
+    const existing = this.store
+      .jobs()
+      .filter((j) => j.urls?.length && ['queued', 'running', 'waiting'].includes(j.status));
+    if (existing.length) return existing;
+    const urls = this.store
+      .all()
+      .filter((l) => l.source === 'cian' && !l.demo && l.url)
+      .map((l) => l.url!);
+    const halves = [urls.filter((_, i) => i % 2 === 0), urls.filter((_, i) => i % 2 === 1)];
+    return halves
+      .filter((urls) => urls.length)
+      .map((urls) => this.start(urls[0], urls.length, 1, undefined, urls));
+  }
   more(criteria: CianSearch) {
     const previous = this.store
       .jobs()
@@ -68,7 +82,7 @@ export class Importer implements OnModuleDestroy {
       url.searchParams.set('p', String(previous.nextPage));
     return this.start(url.href, criteria.limit, criteria.pages, criteria);
   }
-  start(url: string, limit: number, pages: number, search?: CianSearch) {
+  start(url: string, limit: number, pages: number, search?: CianSearch, urls?: string[]) {
     const checked = sourceUrl(url);
     if (this.stopping) throw new BadRequestException('Сервер перезапускается');
     const user = currentUser();
@@ -93,6 +107,7 @@ export class Importer implements OnModuleDestroy {
       alreadySaved: 0,
       warnings: [],
       search,
+      urls,
       listingIds: [],
       scanned: 0,
       skipped: 0,
@@ -265,99 +280,102 @@ export class Importer implements OnModuleDestroy {
     const visited = new Set<string>();
     try {
       let page = await this.launchBrowser(state, false);
-      const isDetail = /\/(rent\/flat|offer)\/\d+/.test(job.url);
-      for (let p = 1; p <= (isDetail ? 1 : pages) && imported.size < limit; p++) {
-        if (state.cancelled) throw new Error('Сбор отменен');
-        const catalog = new URL(job.url);
-        const pageKey = catalog.hostname === 'realty.yandex.ru' ? 'page' : 'p';
-        if (p > 1)
-          catalog.searchParams.set(
-            pageKey,
-            String((Number(catalog.searchParams.get(pageKey)) || 1) + p - 1),
-          );
-        job.nextPage = Number(catalog.searchParams.get(pageKey)) || 1;
-        job.message = `Загружаем страницу ${p}…`;
-        this.store.saveJob(job);
-        const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
-        state.httpStatus = response?.status();
-        let html = await this.waitForPage(page, state);
-        page = state.page!;
-        if (
-          !isDetail &&
-          state.httpStatus &&
-          state.httpStatus >= 400 &&
-          !extractLinks(html, job.url).length
-        )
-          throw new Error(`Площадка вернула HTTP ${state.httpStatus}`);
-        const catalogLinks = extractLinks(html, job.url);
-        const links = isDetail ? [job.url] : catalogLinks.filter((x) => !visited.has(x));
-        if (!links.length && catalogLinks.length) break;
-        if (!links.length)
-          throw new Error(
-            'На странице нет ссылок на квартиры. Возможно, изменилась разметка или включена проверка.',
-          );
-        for (const link of links) {
-          if (imported.size >= limit) break;
+      for (const targetUrl of job.urls || [job.url]) {
+        if (job.urls && visited.size) await page.waitForTimeout(1500);
+        const isDetail = /\/(rent\/flat|offer)\/\d+/.test(targetUrl);
+        for (let p = 1; p <= (isDetail ? 1 : pages) && imported.size < limit; p++) {
           if (state.cancelled) throw new Error('Сбор отменен');
-          visited.add(link);
-          job.scanned = visited.size;
-          if (job.search?.onlyNew && this.store.hasUrl(link)) {
-            job.alreadySaved = (job.alreadySaved || 0) + 1;
-            this.store.saveJob(job);
-            continue;
-          }
-          job.message = `Собираем квартиру ${imported.size + 1} из ${limit}…`;
+          const catalog = new URL(targetUrl);
+          const pageKey = catalog.hostname === 'realty.yandex.ru' ? 'page' : 'p';
+          if (p > 1)
+            catalog.searchParams.set(
+              pageKey,
+              String((Number(catalog.searchParams.get(pageKey)) || 1) + p - 1),
+            );
+          job.nextPage = Number(catalog.searchParams.get(pageKey)) || 1;
+          job.message = `Загружаем страницу ${p}…`;
           this.store.saveJob(job);
-          try {
-            if (!isDetail) {
-              await page.waitForTimeout(2000);
-              const detailResponse = await page.goto(link, { waitUntil: 'domcontentloaded' });
-              state.httpStatus = detailResponse?.status();
-              html = await this.waitForPage(page, state);
-              page = state.page!;
+          const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
+          state.httpStatus = response?.status();
+          let html = await this.waitForPage(page, state);
+          page = state.page!;
+          if (
+            !isDetail &&
+            state.httpStatus &&
+            state.httpStatus >= 400 &&
+            !extractLinks(html, targetUrl).length
+          )
+            throw new Error(`Площадка вернула HTTP ${state.httpStatus}`);
+          const catalogLinks = extractLinks(html, targetUrl);
+          const links = isDetail ? [targetUrl] : catalogLinks.filter((x) => !visited.has(x));
+          if (!links.length && catalogLinks.length) break;
+          if (!links.length)
+            throw new Error(
+              'На странице нет ссылок на квартиры. Возможно, изменилась разметка или включена проверка.',
+            );
+          for (const link of links) {
+            if (imported.size >= limit) break;
+            if (state.cancelled) throw new Error('Сбор отменен');
+            visited.add(link);
+            job.scanned = visited.size;
+            if (job.search?.onlyNew && this.store.hasUrl(link)) {
+              job.alreadySaved = (job.alreadySaved || 0) + 1;
+              this.store.saveJob(job);
+              continue;
             }
-            const parsed = await this.readDetail(page, state, link, html);
-            parsed.listings.forEach((l) => {
-              const mismatch = job.search ? searchMismatch(l, job.search) : null;
-              if (mismatch) {
-                job.skipped = (job.skipped || 0) + 1;
-                job.warnings.push(`${l.url}: ${mismatch}`);
-                return;
-              }
-              if (job.search?.metroStations.length) {
-                const stop = matchingMetroStops(l, job.search)[0];
-                if (stop) {
-                  l.metro = stop.name;
-                  l.metroMinutes = stop.minutes;
-                }
-              }
-              const wasSaved = this.store.hasUrl(l.url!);
-              if (job.search?.onlyNew && wasSaved) {
-                job.alreadySaved = (job.alreadySaved || 0) + 1;
-                return;
-              }
-              const saved = this.store.save(l);
-              if (!imported.has(l.url!)) {
-                if (wasSaved) job.updated = (job.updated || 0) + 1;
-                else job.added = (job.added || 0) + 1;
-              }
-              job.listingIds!.push(saved.id);
-              imported.add(l.url!);
-            });
-            job.count = imported.size;
-            job.warnings = [...new Set([...job.warnings, ...parsed.warnings])];
+            job.message = `Собираем квартиру ${imported.size + 1} из ${limit}…`;
             this.store.saveJob(job);
-          } catch (e) {
-            if (
-              state.cancelled ||
-              state.httpStatus === 403 ||
-              isChallenge(await (state.page || page).content())
-            )
-              throw e;
-            job.warnings.push(`${link}: ${e instanceof Error ? e.message : 'Ошибка чтения'}`);
+            try {
+              if (!isDetail) {
+                await page.waitForTimeout(2000);
+                const detailResponse = await page.goto(link, { waitUntil: 'domcontentloaded' });
+                state.httpStatus = detailResponse?.status();
+                html = await this.waitForPage(page, state);
+                page = state.page!;
+              }
+              const parsed = await this.readDetail(page, state, link, html);
+              parsed.listings.forEach((l) => {
+                const mismatch = job.search ? searchMismatch(l, job.search) : null;
+                if (mismatch) {
+                  job.skipped = (job.skipped || 0) + 1;
+                  job.warnings.push(`${l.url}: ${mismatch}`);
+                  return;
+                }
+                if (job.search?.metroStations.length) {
+                  const stop = matchingMetroStops(l, job.search)[0];
+                  if (stop) {
+                    l.metro = stop.name;
+                    l.metroMinutes = stop.minutes;
+                  }
+                }
+                const wasSaved = this.store.hasUrl(l.url!);
+                if (job.search?.onlyNew && wasSaved) {
+                  job.alreadySaved = (job.alreadySaved || 0) + 1;
+                  return;
+                }
+                const saved = this.store.save(l);
+                if (!imported.has(l.url!)) {
+                  if (wasSaved) job.updated = (job.updated || 0) + 1;
+                  else job.added = (job.added || 0) + 1;
+                }
+                job.listingIds!.push(saved.id);
+                imported.add(l.url!);
+              });
+              job.count = imported.size;
+              job.warnings = [...new Set([...job.warnings, ...parsed.warnings])];
+              this.store.saveJob(job);
+            } catch (e) {
+              if (
+                state.cancelled ||
+                state.httpStatus === 403 ||
+                isChallenge(await (state.page || page).content())
+              )
+                throw e;
+              job.warnings.push(`${link}: ${e instanceof Error ? e.message : 'Ошибка чтения'}`);
+            }
           }
+          if (links.every((link) => visited.has(link))) job.nextPage! += 1;
         }
-        if (links.every((link) => visited.has(link))) job.nextPage! += 1;
       }
       job.status = job.count
         ? job.warnings.length

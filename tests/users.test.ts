@@ -128,6 +128,47 @@ test('Guests see shared offers; owner migration and all personal data remain iso
       await owner.request('/collections', 'POST', { name: 'Личная подборка', listingIds: [id] })
     ).json();
     assert.deepEqual(await (await member.request('/collections')).json(), []);
+    assert.equal((await guest.request('/viewings')).status, 401);
+    const viewingData = {
+      listingId: id,
+      startsAt: '2026-10-01T15:00:00+03:00',
+      status: 'planned',
+      feedback: 'Только владельцу',
+    };
+    const viewingResponse = await owner.request('/viewings', 'POST', viewingData);
+    assert.equal(viewingResponse.status, 201);
+    const viewing = await viewingResponse.json();
+    assert.equal(
+      (await (await owner.request('/viewings')).json())[0].feedback,
+      viewingData.feedback,
+    );
+    assert.deepEqual(await (await member.request('/viewings')).json(), []);
+    assert.equal(
+      (await member.request('/viewings/' + viewing.id, 'PATCH', viewingData)).status,
+      404,
+    );
+    assert.equal((await member.request('/viewings/' + viewing.id, 'DELETE', {})).status, 404);
+    assert.equal(
+      (
+        await owner.request('/viewings/' + viewing.id, 'PATCH', {
+          ...viewingData,
+          status: 'visited',
+          feedback: 'Понравилось',
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await (await owner.request('/viewings')).json())[0].status, 'visited');
+    assert.equal(
+      (await owner.request('/viewings', 'POST', { ...viewingData, startsAt: 'invalid' })).status,
+      400,
+    );
+    assert.equal((await guest.request('/collections/' + group.id + '/pdf')).status, 401);
+    assert.equal((await member.request('/collections/' + group.id + '/pdf')).status, 404);
+    assert.equal((await member.request('/imports/refresh-all', 'POST', {})).status, 403);
+    assert.equal((await owner.request('/viewings/' + viewing.id, 'DELETE', {})).status, 200);
+    assert.deepEqual(await (await owner.request('/viewings')).json(), []);
+
     assert.equal(
       (await member.request('/collections/' + group.id + '/listings', 'POST', { listingIds: [id] }))
         .status,

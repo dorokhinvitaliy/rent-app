@@ -842,3 +842,64 @@ test('Members cannot open manual creation or shared listing editing', async ({ p
   await expect(page.getByRole('button', { name: 'Редактировать', exact: true })).toHaveCount(0);
   await request.delete('/api/listings/' + created.id, { data: {} });
 });
+
+test('Rich details, personal viewing feedback and collection PDF download', async ({
+  page,
+  request,
+}) => {
+  const listing = await (
+    await request.post('/api/listings', {
+      data: {
+        title: 'Квартира для просмотра',
+        rent: 75000,
+        address: 'Москва, улица Тестовая, 5',
+        details: {
+          sections: [{ title: 'О доме', items: [{ label: 'Год постройки', value: '2024' }] }],
+          amenities: { hasFridge: true },
+          contact: { name: 'Тестовый агент', role: 'agent', phones: ['+79990000000'], relay: true },
+          checkedAt: new Date().toISOString(),
+        },
+      },
+    })
+  ).json();
+  await request.post('/api/collections', {
+    data: { name: 'PDF для просмотра', listingIds: [listing.id] },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Открыть Квартира для просмотра', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal.getByRole('link', { name: '+7 999 000-00-00' })).toHaveAttribute(
+    'href',
+    'tel:+79990000000',
+  );
+  await modal.locator('.property-section summary').click();
+  await expect(modal.getByText('2024', { exact: true })).toBeVisible();
+  await expect(modal.getByText('Холодильник', { exact: true })).toBeVisible();
+  await modal.screenshot({ path: 'test-results/rich-details.png' });
+  await modal.getByRole('button', { name: 'Запланировать просмотр', exact: true }).click();
+  await page.getByLabel('Дата и время просмотра').fill('2026-10-01T18:30');
+  await page.getByLabel('Фидбэк о просмотре').fill('Уточнить парковку, понравился вид');
+  await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
+  await expect(page.locator('.viewing-card')).toHaveCount(1);
+  await expect(page.locator('.viewing-card')).toContainText('Уточнить парковку');
+  await page.locator('.viewing-edit').click();
+  await page.getByRole('combobox', { name: 'Статус просмотра' }).click();
+  await page.getByRole('option', { name: 'Состоялся', exact: true }).click();
+  await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
+  await expect(page.locator('.viewing-status')).toHaveText('Состоялся');
+  await page.screenshot({ path: 'test-results/viewings-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/viewings-mobile.png', fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await page.getByRole('button', { name: /PDF для просмотра/ }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Экспорт PDF', exact: true }).click();
+  const download = await downloadPromise;
+  await download.saveAs('test-results/collection-ui.pdf');
+  expect(readFileSync('test-results/collection-ui.pdf').subarray(0, 5).toString()).toBe('%PDF-');
+});
