@@ -137,6 +137,42 @@ export class Importer implements OnModuleDestroy {
       .catch(() => {});
     return page.content();
   }
+  private async readDetail(
+    page: Page,
+    state: NonNullable<Importer['active']>,
+    url: string,
+    initialHtml: string,
+  ) {
+    let html = initialHtml;
+    for (let attempt = 0; ; attempt++) {
+      if (state.cancelled) throw new Error('Сбор отменен');
+      if (state.httpStatus && state.httpStatus >= 400)
+        throw new Error(`Объявление недоступно: HTTP ${state.httpStatus}`);
+      try {
+        const parsed = parseHtml(html, url);
+        if (
+          !parsed.listings.length &&
+          parsed.warnings.some((w) => /Не найдена месячная цена/.test(w))
+        )
+          throw new Error(parsed.warnings.join(' '));
+        return parsed;
+      } catch (error) {
+        // Some detail pages hydrate the price after their initial JSON-LD appears.
+        if (
+          attempt >= 15 ||
+          !(error instanceof Error) ||
+          !/Не найдена месячная цена/.test(error.message)
+        )
+          throw error;
+        await page.waitForTimeout(1000);
+        html = await page.content();
+        if (isChallenge(html)) {
+          html = await this.waitForPage(page, state);
+          page = state.page!;
+        }
+      }
+    }
+  }
   private async run(state: NonNullable<Importer['active']>, limit: number, pages: number) {
     const { job } = state;
     const imported = new Set<string>();
@@ -194,7 +230,7 @@ export class Importer implements OnModuleDestroy {
               html = await this.waitForPage(page, state);
               page = state.page!;
             }
-            const parsed = parseHtml(html, link);
+            const parsed = await this.readDetail(page, state, link, html);
             parsed.listings.forEach((l) => {
               const mismatch = job.search ? searchMismatch(l, job.search) : null;
               if (mismatch) {
@@ -246,7 +282,7 @@ export class Importer implements OnModuleDestroy {
           ? job.alreadySaved
             ? 'Новых совпадений на просмотренных страницах нет. Сохраненные квартиры остаются в подборке.'
             : 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
-          : 'Не удалось получить ни одной квартиры';
+          : job.warnings[0] || 'Не удалось получить ни одной квартиры';
     } catch (e) {
       job.status = state.cancelled ? 'cancelled' : job.count ? 'partial' : 'failed';
       job.message = state.cancelled

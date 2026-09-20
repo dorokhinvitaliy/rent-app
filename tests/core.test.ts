@@ -522,3 +522,51 @@ for (const scenario of [
     }
   });
 }
+
+test('Single listing refresh waits for hydrated price and preserves personal metadata', async () => {
+  const { chromium } = await import('playwright');
+  const { Importer } = require('../apps/api/dist/importer.js');
+  const { Store } = require('../apps/api/dist/store.js');
+  const original = chromium.launchPersistentContext;
+  let reads = 0;
+  const page = {
+    on() {},
+    setDefaultNavigationTimeout() {},
+    async goto() {
+      return { status: () => 200 };
+    },
+    async waitForTimeout() {},
+    async waitForFunction() {},
+    async content() {
+      return ++reads < 4
+        ? '<script type="application/ld+json">{"@type":"WebPage"}</script>'
+        : fixture;
+    },
+  };
+  chromium.launchPersistentContext = async () =>
+    ({ route: async () => {}, pages: () => [page], close: async () => {} }) as any;
+  process.env.DATABASE_PATH = ':memory:';
+  const store = new Store();
+  try {
+    const saved = store.save(
+      listingSchema.parse({ title: 'Старая цена', url, source: 'cian', rent: 70000 }),
+    );
+    store.patch(saved.id, { rating: 4, notes: 'Сохранить заметку', favorite: true });
+    const importer = new Importer(store);
+    importer.start(url, 1, 1);
+    for (let i = 0; i < 100 && ['running', 'waiting'].includes(store.jobs()[0].status); i++)
+      await new Promise((r) => setTimeout(r, 5));
+    assert.equal(store.jobs()[0].updated, 1);
+    assert.equal(store.jobs()[0].count, 1);
+    assert.equal(store.all().length, 1);
+    assert.equal(store.get(saved.id).rent, 85000);
+    assert.equal(store.get(saved.id).notes, 'Сохранить заметку');
+    assert.equal(store.get(saved.id).rating, 4);
+    assert.equal(store.get(saved.id).favorite, true);
+    assert.ok(reads >= 4);
+  } finally {
+    chromium.launchPersistentContext = original;
+    store.onModuleDestroy();
+    delete process.env.DATABASE_PATH;
+  }
+});
