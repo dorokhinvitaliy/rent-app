@@ -1,3 +1,4 @@
+import { MetroDots } from './MetroDots';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, Search, X, TrainFront } from 'lucide-react';
 import { metroStations, normalizeMetro, type CianSearch } from '@rent/shared';
@@ -95,12 +96,14 @@ export function MetroPicker({
         </span>
         <span className="metro-trigger-copy">
           <span>Рядом с метро</span>
-          <strong>
+          <strong className="metro-summary-stations">
             {chosen.length
-              ? chosen
-                  .slice(0, 2)
-                  .map((s) => s.name)
-                  .join(', ')
+              ? chosen.map((s) => (
+                  <span className="metro-summary-station" key={s.ids[0]}>
+                    <MetroDots station={s} />
+                    <span>{s.name}</span>
+                  </span>
+                ))
               : 'Выберите станции'}
           </strong>
         </span>
@@ -168,8 +171,8 @@ export function MetroPicker({
         <div ref={list} className="metro-station-list" role="group" aria-label="Станции метро">
           {filtered.map((s) => (
             <label key={s.ids[0]} className="metro-station-row">
-              <span aria-hidden="true" className="metro-line-mark" style={{ color: s.color }}>
-                м
+              <span aria-hidden="true">
+                <MetroDots station={s} />
               </span>
               <span>{s.name}</span>
               <input

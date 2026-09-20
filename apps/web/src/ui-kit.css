@@ -2406,3 +2406,50 @@ input[type='checkbox']:checked {
     transition: none;
   }
 }
+.metro-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.metro-dots i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.metro-summary-stations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 13px;
+  white-space: normal !important;
+  max-height: 43px;
+  overflow: hidden;
+  align-content: start;
+}
+.metro-summary-station {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  max-width: 100%;
+}
+.metro-summary-station > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-secondary-fields .metro-refined .metro-picker-trigger {
+  align-items: center;
+}
+.metro-trigger-copy {
+  flex: 1;
+}
+.detail-metro .metro-dots {
+  margin-right: 5px;
+}
+.metro-station-row > span:first-child {
+  min-width: 24px;
+}

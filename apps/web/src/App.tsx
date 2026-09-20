@@ -1,3 +1,4 @@
+import { MetroDots, listingMetroStation } from './MetroDots';
 import { CardNote } from './CardNote';
 import { Rating } from './Rating';
 import { Select } from './Select';
@@ -1362,7 +1363,7 @@ const Card = memo(function Card({
         </div>
         <p className="card-address">{l.address || 'Адрес не указан'}</p>
         <p className="metro">
-          <span className="metro-symbol">м</span>
+          <MetroDots station={listingMetroStation(l)} />
           {l.metro || 'Метро не указано'}
           {l.metroMinutes !== null && (
             <>
@@ -1912,7 +1913,7 @@ function Detail({
           </div>
           {l.metro && (
             <p className="detail-metro">
-              м · {l.metro}
+              <MetroDots station={listingMetroStation(l)} /> {l.metro}
               {l.metroMinutes !== null ? ` · ${l.metroMinutes} мин. пешком` : ''}
             </p>
           )}
