@@ -179,6 +179,8 @@ test('Parameter search submits criteria, shows progress and isolates results fro
     .getAttribute('href');
   expect(new URL(preview!).searchParams.get('mintarea')).toBe('40');
   await panel.getByRole('button', { name: 'Найти квартиры' }).click();
+  expect(submitted).toBeUndefined();
+  await panel.getByRole('button', { name: 'Найти свежие объявления' }).click();
   expect(submitted).toMatchObject({
     region: '2',
     rooms: [2],
@@ -193,11 +195,12 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   ).toBeVisible();
   await panel.getByRole('button', { name: 'Открыть окно проверки' }).click();
   await expect.poll(() => opened).toBe(true);
-  await expect(page.locator('.apartment-card')).toHaveCount(8);
+  await expect(page.locator('.apartment-card')).toHaveCount(0);
   await page.getByRole('button', { name: 'Показать только результаты запуска' }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(0);
   await expect(panel.getByRole('button', { name: 'Поиск выполняется' })).toBeDisabled();
   await page.getByRole('button', { name: 'Показать всю сохраненную подборку' }).click();
+  await panel.getByRole('button', { name: 'Показать всю базу', exact: true }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(8);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -241,6 +244,7 @@ test('Metro multi-selection supports search, removal, city reset and persisted s
   await page.getByRole('button', { name: 'Готово', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Желаемые станции метро' })).toBeFocused();
   await page.getByRole('button', { name: 'Найти квартиры', exact: true }).click();
+  await page.getByRole('button', { name: 'Найти свежие объявления', exact: true }).click();
   await expect.poll(() => submitted?.metroStations).toEqual([116]);
   await page.reload();
   await expect(page.locator('.metro-trigger-copy')).toContainText('Сокол');

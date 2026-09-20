@@ -5,6 +5,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401 && !path.startsWith('/auth/'))
+      window.dispatchEvent(new Event('auth-required'));
     let message = 'Не удалось выполнить запрос';
     try {
       message = (await res.json()).message || message;

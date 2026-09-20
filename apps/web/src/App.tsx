@@ -1,3 +1,5 @@
+import { matchesDatabaseSearch } from './local-search';
+import { AccountButton, useAuth } from './Auth';
 import { MetroDots, listingMetroStation } from './MetroDots';
 import { CardNote } from './CardNote';
 import { Rating } from './Rating';
@@ -45,7 +47,14 @@ import {
   Layers3,
   ImageOff,
 } from 'lucide-react';
-import { costs, sourceNames, listingSchema, type Listing, type ListingInput } from '@rent/shared';
+import {
+  costs,
+  sourceNames,
+  listingSchema,
+  type CianSearch,
+  type Listing,
+  type ListingInput,
+} from '@rent/shared';
 import { api, type Job } from './api';
 import { SearchPanel } from './SearchPanel';
 const rub = (n: number) =>
@@ -146,6 +155,8 @@ function Modal({
 }
 type ApartmentCollection = { id: string; name: string; listingIds: string[]; createdAt: string };
 export default function App() {
+  const { user, open: openLogin } = useAuth();
+  const [databaseSearch, setDatabaseSearch] = useState<CianSearch | null>(null);
   const [collections, setCollections] = useState<ApartmentCollection[]>([]);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const [collectionPicker, setCollectionPicker] = useState<string[] | null>(null);
@@ -334,6 +345,7 @@ export default function App() {
           !resultsOnly ||
           !searchJobId ||
           (searchJob?.listingIds || []).includes(l.id)) &&
+        (!databaseSearch || view !== 'all' || matchesDatabaseSearch(l, databaseSearch)) &&
         (source === 'all' || l.source === source) &&
         (rooms === 'all' || (rooms === '3+' ? (l.rooms ?? -1) >= 3 : l.rooms === Number(rooms))) &&
         (!maxPrice || l.rent <= Number(maxPrice)) &&
@@ -437,23 +449,23 @@ export default function App() {
             <br />
             Выбирайте без спешки.
           </p>
-          <button onClick={() => setImportOpen(true)}>
+          <button onClick={() => (user ? setImportOpen(true) : openLogin())}>
             Добавить квартиру <ArrowUpRight size={15} />
           </button>
         </div>
         <div className="local-status">
           <span className="status-dot" />
           <div>
-            <b>Локальное хранилище</b>
-            <small>Ваши данные — на вашем устройстве</small>
+            <b>Общая база квартир</b>
+            <small>Личные отметки доступны только вам</small>
           </div>
           <Database size={16} />
         </div>
         <div className="profile">
           <span>В</span>
           <div>
-            <b>Ваше пространство</b>
-            <small>Локальная версия · 0.1</small>
+            <b>{user?.name || 'Гостевой режим'}</b>
+            <small>{user ? user.email : 'Смотрите квартиры без регистрации'}</small>
           </div>
         </div>
       </aside>
@@ -475,9 +487,7 @@ export default function App() {
                         : 'Все квартиры'}
             </span>
           </div>
-          <span className="privacy">
-            <span className="status-dot" /> Сохранено локально
-          </span>
+          <AccountButton />
         </header>
         <div className="page">
           <div className="page-heading">
@@ -519,7 +529,10 @@ export default function App() {
                   Экспорт XLSX
                 </button>
               )}
-              <button className="button primary" onClick={() => setImportOpen(true)}>
+              <button
+                className="button primary"
+                onClick={() => (user ? setImportOpen(true) : openLogin())}
+              >
                 <Plus size={18} />
                 Добавить квартиру
               </button>
@@ -533,6 +546,19 @@ export default function App() {
           )}
           {view === 'all' && (
             <SearchPanel
+              onSearch={(criteria) => {
+                setDatabaseSearch(criteria);
+                setResultsOnly(false);
+                reset();
+              }}
+              localCount={
+                databaseSearch
+                  ? listings.filter(
+                      (l) => l.rating !== 1 && matchesDatabaseSearch(l, databaseSearch),
+                    ).length
+                  : null
+              }
+              onClearSearch={() => setDatabaseSearch(null)}
               job={searchJob || jobs.find((j) => ['running', 'waiting'].includes(j.status))}
               running={running}
               onStarted={(job) => {
@@ -574,7 +600,10 @@ export default function App() {
                         ? 'Объявление или до 3 страниц каталога долгосрочной аренды.'
                         : 'Экспериментальный адаптер: ссылка на объявление или страницу поиска.'}
                     </p>
-                    <button className="button secondary" onClick={() => setImportOpen(true)}>
+                    <button
+                      className="button secondary"
+                      onClick={() => (user ? setImportOpen(true) : openLogin())}
+                    >
                       Импортировать <ArrowUpRight size={16} />
                     </button>
                   </div>
@@ -692,7 +721,7 @@ export default function App() {
                   ))}
                   <button
                     className="collection-folder collection-create"
-                    onClick={() => setCollectionPicker([])}
+                    onClick={() => (user ? setCollectionPicker([]) : openLogin())}
                   >
                     <FolderPlus size={22} />
                     <span>Новая подборка</span>
@@ -967,7 +996,9 @@ export default function App() {
           <button
             className="collection-save-button"
             onClick={() =>
-              setCollectionPicker(selected.filter((id) => listings.some((l) => l.id === id)))
+              user
+                ? setCollectionPicker(selected.filter((id) => listings.some((l) => l.id === id)))
+                : openLogin()
             }
           >
             <FolderPlus size={17} />В подборку
@@ -1697,6 +1728,7 @@ function Detail({
   onDelete: () => void;
   onSaveNotes: (notes: string) => Promise<void>;
 }) {
+  const { user } = useAuth();
   const dialog = useRef<HTMLDialogElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const drafts = useRef(new Map<string, string>());
@@ -1975,12 +2007,16 @@ function Detail({
               />
               Актуализировать
             </button>
-            <IconButton label="Редактировать" onClick={onEdit}>
-              <SlidersHorizontal size={17} />
-            </IconButton>
-            <IconButton label="Удалить" onClick={onDelete}>
-              <Trash2 size={17} />
-            </IconButton>
+            {user?.role === 'admin' && (
+              <>
+                <IconButton label="Редактировать" onClick={onEdit}>
+                  <SlidersHorizontal size={17} />
+                </IconButton>
+                <IconButton label="Удалить" onClick={onDelete}>
+                  <Trash2 size={17} />
+                </IconButton>
+              </>
+            )}
           </div>
           {refreshJob && (
             <p className="detail-refresh-message" role="status">

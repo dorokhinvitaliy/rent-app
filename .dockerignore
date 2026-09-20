@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.kilo
+data
+test-results
+playwright-report
+.env
+*.log

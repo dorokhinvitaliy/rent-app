@@ -9,9 +9,15 @@ import ExcelJS from 'exceljs';
 test('API integration: CRUD, validation, HTML import, deduplication, filtered XLSX and local origin guard', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'mesto-api-'));
   const server = spawn(process.execPath, [resolve('apps/api/dist/main.js')], {
-    env: { ...process.env, PORT: '3099', DATABASE_PATH: join(dir, 'db.sqlite') },
+    env: {
+      ...process.env,
+      PORT: '3099',
+      DATABASE_PATH: join(dir, 'db.sqlite'),
+      AUTH_INVITE_CODE: 'integration-invite-code-at-least-24',
+    },
     stdio: 'pipe',
   });
+  let cookie = '';
   const request = (
     path: string,
     method = 'GET',
@@ -20,7 +26,7 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
   ) =>
     fetch('http://127.0.0.1:3099/api' + path, {
       method,
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json', Cookie: cookie, ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
   try {
@@ -35,6 +41,16 @@ test('API integration: CRUD, validation, HTML import, deduplication, filtered XL
       await delay(100);
     }
     assert.equal(ready, true, 'Test API starts');
+    const login = await request('/auth/register', 'POST', {
+      email: 'api@example.test',
+      password: 'integration-password',
+      invite: 'integration-invite-code-at-least-24',
+    });
+    assert.equal(login.status, 201);
+    cookie = login.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
     assert.equal((await request('/listings', 'POST', { title: 'bad', rent: -100 })).status, 400);
     assert.equal(
       (await request('/demo', 'POST', {}, { Origin: 'https://evil.example' })).status,

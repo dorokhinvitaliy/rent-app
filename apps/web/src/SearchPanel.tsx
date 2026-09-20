@@ -1,3 +1,4 @@
+import { useAuth } from './Auth';
 import { MetroPicker } from './MetroPicker';
 import { Select } from './Select';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -11,23 +12,32 @@ import {
 } from 'lucide-react';
 import { cianSearchSchema, buildCianSearchUrl, searchCities, type CianSearch } from '@rent/shared';
 import { api, type Job } from './api';
-const key = 'mesto-search-criteria-v1';
+const legacyKey = 'mesto-search-criteria-v1';
 export function SearchPanel({
   job,
   running,
   onStarted,
   onCancel,
   onOpenBrowser,
+  onSearch,
+  localCount,
+  onClearSearch,
 }: {
+  onSearch: (criteria: CianSearch) => void;
+  localCount: number | null;
+  onClearSearch: () => void;
   job?: Job;
   running: boolean;
   onStarted: (job: Job) => void;
   onCancel: (id: string) => void;
   onOpenBrowser: (id: string) => void;
 }) {
+  const { user } = useAuth();
+  const key = legacyKey + ':' + (user?.id || 'guest');
+  const [searched, setSearched] = useState('');
   const [criteria, setCriteria] = useState<CianSearch>(() => {
     try {
-      const saved = localStorage.getItem(key);
+      const saved = localStorage.getItem(key) || localStorage.getItem(legacyKey);
       if (saved) {
         const parsed = cianSearchSchema.safeParse(JSON.parse(saved));
         if (parsed.success) return parsed.data;
@@ -48,8 +58,17 @@ export function SearchPanel({
   }, [criteria]);
   const parsed = cianSearchSchema.safeParse(criteria);
   const preview = parsed.success ? buildCianSearchUrl(parsed.data) : null;
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!parsed.success) {
+      setError(parsed.error.issues.map((x) => x.message).join('. '));
+      return;
+    }
+    setError('');
+    onSearch(parsed.data);
+    setSearched(JSON.stringify(criteria));
+  };
+  const fresh = async () => {
     setError('');
     if (!parsed.success) {
       setError(parsed.error.issues.map((x) => x.message).join('. '));
@@ -57,6 +76,7 @@ export function SearchPanel({
     }
     setBusy(true);
     try {
+      onSearch(parsed.data);
       const result = await api<Job>('/search/cian', 'POST', parsed.data);
       onStarted(result);
     } catch (e) {
@@ -105,7 +125,7 @@ export function SearchPanel({
       <div className="search-panel-heading">
         <div>
           <h2>Найти квартиру</h2>
-          <p>Задайте параметры — сохраним подходящие варианты с Циана.</p>
+          <p>Сначала найдём в нашей базе. При необходимости загрузим свежие с Циана.</p>
         </div>
         {preview && (
           <a
@@ -275,9 +295,8 @@ export function SearchPanel({
             </span>
           </label>
           <div>
-            <button className="button primary" disabled={busy || running}>
-              {busy || running ? <LoaderCircle size={18} className="spin" /> : <Search size={18} />}{' '}
-              {running ? 'Поиск выполняется' : 'Найти квартиры'}
+            <button className="button primary">
+              <Search size={18} /> Найти квартиры
             </button>
           </div>
         </div>
@@ -287,6 +306,39 @@ export function SearchPanel({
           </p>
         )}
       </form>
+      {searched === JSON.stringify(criteria) && localCount !== null && (
+        <div className="database-search-result" role="status">
+          <div>
+            <b>
+              {localCount ? `В нашей базе: ${localCount}` : 'В базе пока нет подходящих квартир'}
+            </b>
+            <p>
+              {localCount < 10
+                ? 'Мало вариантов? Проверим свежие объявления на Циане.'
+                : 'Можно посмотреть результаты или дополнить их свежими объявлениями.'}
+            </p>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                onClearSearch();
+                setSearched('');
+              }}
+            >
+              Показать всю базу
+            </button>
+          </div>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy || running}
+            onClick={() => void fresh()}
+          >
+            {busy || running ? <LoaderCircle size={16} className="spin" /> : <Search size={16} />}{' '}
+            {running ? 'Поиск выполняется' : 'Найти свежие объявления'}
+          </button>
+        </div>
+      )}
       {job && (
         <div
           className={'search-progress ' + (job.status === 'failed' ? 'failed' : '')}
