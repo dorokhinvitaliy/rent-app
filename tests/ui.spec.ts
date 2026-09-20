@@ -195,6 +195,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
     noCommission: true,
   });
   await expect(page.getByText('Нужна проверка на Циане', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ещё загрузить с Циана' })).toBeDisabled();
   await page.getByRole('button', { name: 'Открыть окно проверки' }).click();
   await expect.poll(() => opened).toBe(true);
   await expect(page.locator('.apartment-card')).toHaveCount(0);
@@ -233,6 +234,11 @@ test('Metro multi-selection supports search, removal, city reset and persisted s
   await page.getByRole('checkbox', { name: 'Аэропорт', exact: true }).check();
   await query.fill('Сокол');
   await page.getByRole('checkbox', { name: 'Сокол', exact: true }).check();
+  await expect(page.locator('.home-search .metro-summary-stations')).toContainText(',');
+  await expect(page.locator('.home-search .metro-summary-stations')).toHaveCSS(
+    'white-space',
+    'nowrap',
+  );
   await query.fill('');
   await page.getByRole('button', { name: 'Выбранные' }).click();
   await page.getByRole('checkbox', { name: 'Аэропорт', exact: true }).click();
@@ -311,7 +317,7 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await page.setViewportSize({ width: 390, height: 844 });
   await page.mouse.move(0, 0);
   await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
-  await card.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
+  await page.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
   await card.getByRole('button', { name: 'Сбросить оценку', exact: true }).click();
   await expect(
     card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }),
@@ -765,4 +771,28 @@ test('Search groups expose apartment criteria without parser settings', async ({
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await panel.screenshot({ path: 'test-results/search-redesign-mobile.png' });
+});
+
+test('Sticky search shares criteria and navigation can collapse persistently', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('form', { name: 'Быстрый поиск квартир' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Ещё загрузить с Циана' }).scrollIntoViewIfNeeded();
+  const compact = page.getByRole('form', { name: 'Быстрый поиск квартир' });
+  await expect(compact).toBeVisible();
+  await compact.getByRole('spinbutton', { name: 'Аренда до', exact: true }).fill('95000');
+  await expect(page.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toHaveValue('95000');
+  await page.screenshot({ path: 'test-results/compact-header-desktop.png' });
+  await page.getByRole('button', { name: 'Скрыть навигацию' }).click();
+  await expect(page.locator('.sidebar')).toBeHidden();
+  await page.reload();
+  await expect(page.locator('.sidebar')).toBeHidden();
+  await page.getByRole('button', { name: 'Показать навигацию' }).click();
+  await expect(page.locator('.sidebar')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Ещё загрузить с Циана' }).scrollIntoViewIfNeeded();
+  await expect(compact).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/compact-header-mobile.png' });
+  await compact.getByRole('button', { name: 'Все условия поиска' }).click();
+  await expect(compact).toHaveCount(0);
 });

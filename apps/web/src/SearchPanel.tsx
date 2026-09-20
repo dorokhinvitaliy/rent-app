@@ -2,18 +2,20 @@ import { createPortal } from 'react-dom';
 import { useAuth } from './Auth';
 import { MetroPicker } from './MetroPicker';
 import { Select } from './Select';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Search, ArrowUpRight, LoaderCircle } from 'lucide-react';
+import { useEffect, useState, useRef, type FormEvent } from 'react';
+import { Search, ArrowUpRight, LoaderCircle, SlidersHorizontal } from 'lucide-react';
 import { cianSearchSchema, buildCianSearchUrl, searchCities, type CianSearch } from '@rent/shared';
 import { api, type Job } from './api';
 const legacyKey = 'mesto-search-criteria-v1';
 export function SearchPanel({
+  searching,
   onStarted,
   onSearch,
   onQuery,
   localCount,
   onClearSearch,
 }: {
+  searching: boolean;
   onQuery: (query: string) => void;
   onSearch: (criteria: CianSearch) => void;
   localCount: number | null;
@@ -25,6 +27,20 @@ export function SearchPanel({
   const [footer, setFooter] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setFooter(document.getElementById('load-more-cian'));
+  }, []);
+  const panelRef = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderSlot(document.getElementById('compact-search-slot'));
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setCompact(!entry.isIntersecting && entry.boundingClientRect.bottom <= 72);
+      },
+      { rootMargin: '-72px 0px 0px 0px', threshold: 0 },
+    );
+    if (panelRef.current) observer.observe(panelRef.current);
+    return () => observer.disconnect();
   }, []);
   const [criteria, setCriteria] = useState<CianSearch>(() => {
     try {
@@ -123,6 +139,7 @@ export function SearchPanel({
   );
   return (
     <section
+      ref={panelRef}
       className="search-panel home-search"
       id="cian-search"
       aria-label="Поиск квартир на Циане"
@@ -296,11 +313,107 @@ export function SearchPanel({
           </p>
         )}
       </form>
+      {compact &&
+        headerSlot &&
+        createPortal(
+          <form className="compact-search" aria-label="Быстрый поиск квартир" onSubmit={submit}>
+            <Select
+              aria-label="Город поиска"
+              className="compact-city"
+              value={criteria.region}
+              onChange={(e) =>
+                setCriteria((prev) => ({
+                  ...prev,
+                  region: e.target.value as CianSearch['region'],
+                  metroStations: [],
+                }))
+              }
+            >
+              {Object.entries(searchCities).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+            <details className="compact-rooms">
+              <summary>
+                {criteria.rooms.length
+                  ? criteria.rooms.map((n) => n || 'Ст').join(', ') + ' комн.'
+                  : 'Комнат'}
+              </summary>
+              <div className="compact-options">
+                {[0, 1, 2, 3, 4, 5].map((n) => (
+                  <label key={n}>
+                    <input
+                      type="checkbox"
+                      checked={criteria.rooms.includes(n)}
+                      onChange={() =>
+                        change(
+                          'rooms',
+                          criteria.rooms.includes(n)
+                            ? criteria.rooms.filter((r) => r !== n)
+                            : [...criteria.rooms, n],
+                        )
+                      }
+                    />
+                    {n === 0 ? 'Студия' : n + ' комн.'}
+                  </label>
+                ))}
+              </div>
+            </details>
+            <label className="compact-price">
+              <input
+                aria-label="Аренда до"
+                type="number"
+                min="0"
+                placeholder="Бюджет до"
+                value={criteria.maxRent ?? ''}
+                onChange={(e) => change('maxRent', e.target.value ? Number(e.target.value) : null)}
+              />
+              <span>₽</span>
+            </label>
+            <MetroPicker
+              triggerLabel="Метро в быстром поиске"
+              key={'compact-' + criteria.region}
+              region={criteria.region}
+              selected={criteria.metroStations}
+              onChange={(ids) => change('metroStations', ids)}
+            />
+            <label className="compact-commission">
+              <input
+                type="checkbox"
+                checked={criteria.noCommission}
+                onChange={(e) => change('noCommission', e.target.checked)}
+              />
+              Без комиссии
+            </label>
+            <button
+              type="button"
+              className="compact-all"
+              aria-label="Все условия поиска"
+              title="Все условия поиска"
+              onClick={() =>
+                panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            >
+              <SlidersHorizontal size={17} />
+            </button>
+            <button
+              type="submit"
+              className="compact-submit"
+              aria-label="Найти по условиям"
+              disabled={busy}
+            >
+              {busy ? <LoaderCircle className="spin" size={17} /> : <Search size={17} />}
+            </button>
+          </form>,
+          headerSlot,
+        )}
       {footer &&
         createPortal(
           <button
             className="button secondary"
-            disabled={busy || !['all', 'cian'].includes(criteria.source)}
+            disabled={busy || searching || !['all', 'cian'].includes(criteria.source)}
             onClick={() => void fresh()}
           >
             {busy ? <LoaderCircle size={18} className="spin" /> : <Search size={18} />}

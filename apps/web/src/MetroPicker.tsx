@@ -4,10 +4,12 @@ import { ChevronDown, Search, X, TrainFront } from 'lucide-react';
 import { metroStations, normalizeMetro, type CianSearch } from '@rent/shared';
 
 export function MetroPicker({
+  triggerLabel = 'Желаемые станции метро',
   region,
   selected,
   onChange,
 }: {
+  triggerLabel?: string;
   region: CianSearch['region'];
   selected: number[];
   onChange: (ids: number[]) => void;
@@ -79,7 +81,7 @@ export function MetroPicker({
         ref={trigger}
         type="button"
         className="metro-picker-trigger"
-        aria-label="Желаемые станции метро"
+        aria-label={triggerLabel}
         aria-expanded={open}
         aria-controls={id}
         aria-haspopup="dialog"
@@ -98,8 +100,9 @@ export function MetroPicker({
           <span>Рядом с метро</span>
           <strong className="metro-summary-stations">
             {chosen.length
-              ? chosen.map((s) => (
+              ? chosen.map((s, index) => (
                   <span className="metro-summary-station" key={s.ids[0]}>
+                    {index > 0 && <span className="metro-comma">, </span>}
                     <MetroDots station={s} />
                     <span>{s.name}</span>
                   </span>

@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  PanelLeft,
   FolderPlus,
   FolderHeart,
   Trophy,
@@ -395,9 +396,12 @@ export default function App() {
       setNotice((e as Error).message);
     }
   };
+  const [navCollapsed, setNavCollapsed] = useState(
+    () => localStorage.getItem('mesto-nav-collapsed') === 'true',
+  );
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={cx('app-shell', navCollapsed && 'nav-collapsed')}>
+      <aside className="sidebar" id="main-navigation">
         <a className="brand" href="/" aria-label="Место — главная">
           <span className="brand-icon">
             <House size={22} strokeWidth={2.1} />
@@ -472,7 +476,19 @@ export default function App() {
       </aside>
       <main>
         <header className="topbar">
-          <div>
+          <button
+            className="nav-toggle"
+            aria-label={navCollapsed ? 'Показать навигацию' : 'Скрыть навигацию'}
+            aria-expanded={!navCollapsed}
+            aria-controls="main-navigation"
+            onClick={() => {
+              setNavCollapsed(!navCollapsed);
+              localStorage.setItem('mesto-nav-collapsed', String(!navCollapsed));
+            }}
+          >
+            <PanelLeft size={18} />
+          </button>
+          <div className="header-breadcrumb">
             Мой поиск <ChevronRight size={14} />{' '}
             <span>
               {view === 'imports'
@@ -488,6 +504,7 @@ export default function App() {
                         : 'Все квартиры'}
             </span>
           </div>
+          <div id="compact-search-slot" />
           <AccountButton />
         </header>
         <div className="page">
@@ -547,6 +564,7 @@ export default function App() {
           )}
           {view === 'all' && (
             <SearchPanel
+              searching={jobs.some((job) => ['queued', 'running', 'waiting'].includes(job.status))}
               onQuery={setQuery}
               onSearch={(criteria) => {
                 setDatabaseSearch(criteria);
