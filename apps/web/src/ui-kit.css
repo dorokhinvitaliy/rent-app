@@ -1862,3 +1862,20 @@ input[type='checkbox']:checked {
   border-radius: 18px;
   padding: 8px 12px;
 }
+
+.detail-photo-morph {
+  position: fixed;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+  background: #ebe9e6;
+}
+.detail-photo-morph > img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+}

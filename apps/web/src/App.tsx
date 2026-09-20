@@ -153,7 +153,6 @@ export default function App() {
   const [collections, setCollections] = useState<ApartmentCollection[]>([]);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const [collectionPicker, setCollectionPicker] = useState<string[] | null>(null);
-  const detailOrigin = useRef<DOMRect | null>(null);
   const detailPhoto = useRef(0);
   const noteRequests = useRef(new Set<string>());
   const ratingRequests = useRef(new Set<string>());
@@ -303,8 +302,6 @@ export default function App() {
     }
   }, []);
   const openListing = useCallback((id: string, photo = 0) => {
-    detailOrigin.current =
-      document.querySelector(`[data-listing-id="${id}"]`)?.getBoundingClientRect() || null;
     detailPhoto.current = photo;
     setDetail(id);
   }, []);
@@ -1114,7 +1111,6 @@ export default function App() {
       {current && (
         <Detail
           listing={current}
-          origin={detailOrigin.current}
           initialPhoto={detailPhoto.current}
           position={visible.findIndex((l) => l.id === current.id) + 1}
           total={visible.length}
@@ -1646,9 +1642,80 @@ function DescriptionPreview({ text }: { text: string }) {
     </section>
   );
 }
+function animateDetailPhoto(
+  host: HTMLElement,
+  image: HTMLImageElement | null,
+  from: DOMRect | undefined,
+  to: DOMRect | undefined,
+  opening: boolean,
+) {
+  if (
+    !image?.naturalWidth ||
+    !from ||
+    !to ||
+    from.width <= 0 ||
+    to.width <= 0 ||
+    matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+    return null;
+  const ghost = document.createElement('div');
+  ghost.className = 'detail-photo-morph';
+  ghost.setAttribute('aria-hidden', 'true');
+  const clone = image.cloneNode() as HTMLImageElement;
+  clone.removeAttribute('class');
+  clone.alt = '';
+  ghost.append(clone);
+  host.append(ghost);
+  const fit = (r: DOMRect, cover: boolean) =>
+    (cover ? Math.max : Math.min)(r.width / image.naturalWidth, r.height / image.naturalHeight);
+  const startScale = fit(from, opening),
+    endScale = fit(to, !opening);
+  const galleryRadius = innerWidth <= 760 ? '22px 22px 0 0' : '28px 0 0 28px';
+  const duration = opening ? 420 : 300;
+  const options = { duration, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' as const };
+  const frame = (r: DOMRect, radius: string) => ({
+    left: `${r.x}px`,
+    top: `${r.y}px`,
+    width: `${r.width}px`,
+    height: `${r.height}px`,
+    borderRadius: radius,
+  });
+  const geometry = ghost.animate(
+    [frame(from, opening ? '22px' : galleryRadius), frame(to, opening ? galleryRadius : '22px')],
+    options,
+  );
+  const picture = clone.animate(
+    [
+      {
+        width: `${image.naturalWidth * startScale}px`,
+        height: `${image.naturalHeight * startScale}px`,
+      },
+      {
+        width: `${image.naturalWidth * endScale}px`,
+        height: `${image.naturalHeight * endScale}px`,
+      },
+    ],
+    options,
+  );
+  const fade = ghost.animate(
+    [
+      { opacity: 1, offset: 0 },
+      { opacity: 1, offset: 0.85 },
+      { opacity: 0, offset: 1 },
+    ],
+    { ...options, easing: 'linear' },
+  );
+  const cancel = () => {
+    geometry.cancel();
+    picture.cancel();
+    fade.cancel();
+    ghost.remove();
+  };
+  void geometry.finished.then(() => ghost.remove()).catch(() => {});
+  return { cancel, finished: geometry.finished };
+}
 function Detail({
   listing: l,
-  origin,
   initialPhoto,
   position,
   total,
@@ -1666,7 +1733,6 @@ function Detail({
   onSaveNotes,
 }: {
   listing: Listing;
-  origin: DOMRect | null;
   initialPhoto: number;
   position: number;
   total: number;
@@ -1687,7 +1753,7 @@ function Detail({
   const panel = useRef<HTMLDivElement>(null);
   const drafts = useRef(new Map<string, string>());
   const closing = useRef(false);
-  const openingAnimation = useRef<Animation | null>(null);
+  const transitionCleanup = useRef<(() => void) | null>(null);
   const [photo, setPhoto] = useState(initialPhoto);
   const [saving, setSaving] = useState(false);
   const c = costs(l, months);
@@ -1695,27 +1761,32 @@ function Detail({
   const close = () => {
     if (closing.current || saving) return;
     closing.current = true;
+    transitionCleanup.current?.();
     const el = panel.current!;
-    const fromTransform = getComputedStyle(el).transform;
-    openingAnimation.current?.cancel();
-    const target = document.querySelector(`[data-listing-id="${l.id}"]`)?.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    const canMorph = target && target.bottom > 0 && target.top < innerHeight;
+    const media = el.querySelector<HTMLElement>('.detail-media')!;
+    const image = media.querySelector<HTMLImageElement>(':scope > img');
+    const target = document.querySelector<HTMLElement>(`[data-listing-id="${l.id}"] .card-image`);
+    const targetRect = target?.getBoundingClientRect();
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.animate(
-      [
-        { transform: fromTransform, opacity: 1 },
-        {
-          transform: canMorph
-            ? `translate(${target.x - r.x}px, ${target.y - r.y}px) scale(${target.width / r.width}, ${target.height / r.height})`
-            : 'scale(.96)',
-          opacity: 0,
-        },
-      ],
-      { duration: reduced ? 0 : 240, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' },
-    )
-      .finished.then(onClose)
-      .catch(onClose);
+    const morph =
+      targetRect && targetRect.bottom > 0 && targetRect.top < innerHeight
+        ? animateDetailPhoto(
+            dialog.current!,
+            image,
+            media.getBoundingClientRect(),
+            targetRect,
+            false,
+          )
+        : null;
+    const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: reduced ? 0 : 180,
+      fill: 'forwards',
+    });
+    transitionCleanup.current = () => {
+      morph?.cancel();
+      fade.cancel();
+    };
+    void (morph?.finished || fade.finished).then(onClose).catch(() => {});
   };
   useLayoutEffect(() => {
     const d = dialog.current!;
@@ -1723,31 +1794,47 @@ function Detail({
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     d.showModal();
-    // StrictMode replays effects. Always measure the final, untransformed panel.
-    openingAnimation.current?.cancel();
-    const r = el.getBoundingClientRect();
+    transitionCleanup.current?.();
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const source = document.querySelector<HTMLElement>(`[data-listing-id="${l.id}"]`);
-    const visibility = source?.style.visibility || '';
-    if (source) source.style.visibility = 'hidden';
-    const animation = el.animate(
-      [
-        {
-          transform: origin
-            ? `translate(${origin.x - r.x}px, ${origin.y - r.y}px) scale(${origin.width / r.width}, ${origin.height / r.height})`
-            : 'scale(.96)',
-          opacity: 1,
-          borderRadius: '22px',
-        },
-        { transform: 'none', opacity: 1, borderRadius: '28px' },
-      ],
-      { duration: reduced ? 0 : 460, easing: 'cubic-bezier(.22,1,.36,1)' },
+    const sourcePhoto = source?.querySelector<HTMLElement>('.card-image');
+    const image = sourcePhoto?.querySelector<HTMLImageElement>('.image-open img') || null;
+    const media = el.querySelector<HTMLElement>('.detail-media')!;
+    const morph = animateDetailPhoto(
+      d,
+      image,
+      sourcePhoto?.getBoundingClientRect(),
+      media.getBoundingClientRect(),
+      true,
     );
-    openingAnimation.current = animation;
+    const fade = el.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: reduced ? 0 : 260,
+      delay: reduced ? 0 : 70,
+      fill: 'backwards',
+      easing: 'ease-out',
+    });
+    const info = el.querySelector<HTMLElement>('.detail-info')!;
+    const reveal = info.animate(
+      [
+        { opacity: 0, transform: 'translateY(10px)' },
+        { opacity: 1, transform: 'none' },
+      ],
+      {
+        duration: reduced ? 0 : 250,
+        delay: reduced ? 0 : 130,
+        fill: 'backwards',
+        easing: 'ease-out',
+      },
+    );
+    const cleanup = () => {
+      morph?.cancel();
+      fade.cancel();
+      reveal.cancel();
+    };
+    transitionCleanup.current = cleanup;
     return () => {
-      animation.cancel();
-      if (openingAnimation.current === animation) openingAnimation.current = null;
-      if (source) source.style.visibility = visibility;
+      transitionCleanup.current?.();
+      transitionCleanup.current = null;
       d.close();
       document.body.style.overflow = overflow;
     };

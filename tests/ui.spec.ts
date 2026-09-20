@@ -654,46 +654,62 @@ test('Checkbox selection saves new and existing collections and removes only mem
   await page.screenshot({ path: 'test-results/collections-mobile.png', fullPage: true });
 });
 
-test('Modal morph starts at the card bounds and restores it after closing', async ({
+test('Photo morph preserves image proportions and does not stretch modal text', async ({
   page,
   request,
 }) => {
-  await request.post('/api/listings', { data: { title: 'Проверка morph перехода', rent: 65000 } });
+  await request.post('/api/listings', {
+    data: {
+      title: 'Проверка morph перехода',
+      rent: 65000,
+      photos: ['https://morph.test/photo.svg'],
+    },
+  });
+  await page.route('https://morph.test/**', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="#c7b9a4"/></svg>',
+    }),
+  );
   await page.goto('/');
   const card = page
     .locator('.apartment-card')
     .filter({ has: page.getByRole('button', { name: 'Проверка morph перехода', exact: true }) });
   await card.scrollIntoViewIfNeeded();
-  const origin = await card.boundingBox();
+  await card.locator('.image-open img').evaluate((el: HTMLImageElement) => el.decode());
+  const origin = await card.locator('.card-image').boundingBox();
   await card.getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
-  const geometry = await page.locator('.listing-panel').evaluate(async (el) => {
-    const animations = el.getAnimations();
-    if (animations.length !== 1)
-      throw new Error(`Expected one morph animation, got ${animations.length}`);
-    const animation = animations[0];
-    animation.pause();
-    animation.currentTime = 0;
+  const geometry = await page.locator('.detail-photo-morph').evaluate(async (el) => {
+    const animations = el.getAnimations({ subtree: true });
+    animations.forEach((a) => {
+      a.pause();
+      a.currentTime = 0;
+    });
     await new Promise(requestAnimationFrame);
     const start = el.getBoundingClientRect().toJSON();
-    animation.currentTime = 100;
+    animations.forEach((a) => (a.currentTime = 160));
     await new Promise(requestAnimationFrame);
     const middle = el.getBoundingClientRect().toJSON();
-    animation.finish();
-    await new Promise(requestAnimationFrame);
-    return { start, middle, end: el.getBoundingClientRect().toJSON() };
+    const image = el.querySelector('img')!.getBoundingClientRect();
+    const target = document.querySelector('.detail-media')!.getBoundingClientRect().toJSON();
+    const panelTransform = getComputedStyle(document.querySelector('.listing-panel')!).transform;
+    animations.forEach((a) => a.play());
+    return { start, middle, target, ratio: image.width / image.height, panelTransform };
   });
   expect(geometry.start.x).toBeCloseTo(origin!.x, 0);
-  expect(geometry.start.y).toBeCloseTo(origin!.y, 0);
   expect(geometry.start.width).toBeCloseTo(origin!.width, 0);
-  expect(geometry.start.height).toBeCloseTo(origin!.height, 0);
   expect(geometry.middle.width).toBeGreaterThan(geometry.start.width);
-  expect(geometry.middle.width).toBeLessThan(geometry.end.width);
+  expect(geometry.middle.width).toBeLessThan(geometry.target.width);
+  expect(geometry.ratio).toBeCloseTo(1.5, 2);
+  expect(geometry.panelTransform).toBe('none');
+  await expect(page.locator('.detail-photo-morph')).toHaveCount(0);
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(card).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await card.getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('.detail-photo-morph')).toHaveCount(0);
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-  await expect(card).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
