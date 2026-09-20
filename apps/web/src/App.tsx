@@ -2,6 +2,8 @@ import { Rating } from './Rating';
 import { Select } from './Select';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
+  Archive,
+  ArchiveRestore,
   RefreshCw,
   ArrowDownToLine,
   ArrowRight,
@@ -134,6 +136,7 @@ function Modal({
   );
 }
 export default function App() {
+  const [archiving, setArchiving] = useState<string[]>([]);
   const [resultsOnly, setResultsOnly] = useState(false);
   const [searchJobId, setSearchJobId] = useState<string | null>(null);
   const [listings, setListings] = useState<Listing[]>([]),
@@ -192,13 +195,39 @@ export default function App() {
       setBusy(false);
     }
   };
-  const favorites = listings.filter((l) => l.favorite),
+  const active = listings.filter((l) => l.rating !== 1);
+  const archived = listings.filter((l) => l.rating === 1);
+  const collection = view === 'archive' ? archived : active;
+  const rateListing = (l: Listing, rating: number | null) =>
+    action(
+      async () => {
+        const leaving = rating === 1 && view !== 'archive';
+        if (leaving) setArchiving((ids) => [...ids, l.id]);
+        try {
+          await api('/listings/' + l.id, 'PATCH', { rating });
+          if (leaving) {
+            await new Promise((resolve) => setTimeout(resolve, 320));
+            setSelected((ids) => ids.filter((id) => id !== l.id));
+          }
+          await refresh();
+        } finally {
+          setArchiving((ids) => ids.filter((id) => id !== l.id));
+        }
+      },
+      rating === 1
+        ? 'Объявление в архиве'
+        : l.rating === 1
+          ? 'Объявление возвращено в подборку'
+          : undefined,
+    );
+  const favorites = active.filter((l) => l.favorite),
     demo = listings.some((l) => l.demo);
   const searchJob = jobs.find((j) => j.id === searchJobId);
   const running = jobs.some((j) => ['running', 'waiting'].includes(j.status));
   const visible = listings
     .filter(
       (l) =>
+        (view === 'archive' ? l.rating === 1 : l.rating !== 1 || archiving.includes(l.id)) &&
         (view !== 'favorites' || l.favorite) &&
         (view !== 'all' ||
           !resultsOnly ||
@@ -267,8 +296,9 @@ export default function App() {
         <div className="nav-caption">ПРОСТРАНСТВО</div>
         <nav>
           {[
-            ['all', 'Все квартиры', LayoutGrid, listings.length],
+            ['all', 'Все квартиры', LayoutGrid, active.length],
             ['favorites', 'Избранное', Heart, favorites.length],
+            ['archive', 'Архив', Archive, archived.length],
             ['imports', 'Источники и импорт', Layers3, null],
           ].map(([key, label, Icon, count]) => {
             const I = Icon as typeof House;
@@ -276,7 +306,10 @@ export default function App() {
               <button
                 key={String(key)}
                 className={cx('nav-item', view === key && 'chosen')}
-                onClick={() => setView(String(key))}
+                onClick={() => {
+                  setView(String(key));
+                  reset();
+                }}
               >
                 <I size={19} />
                 <span>{String(label)}</span>
@@ -326,7 +359,9 @@ export default function App() {
                 ? 'Источники и импорт'
                 : view === 'favorites'
                   ? 'Избранное'
-                  : 'Все квартиры'}
+                  : view === 'archive'
+                    ? 'Архив'
+                    : 'Все квартиры'}
             </span>
           </div>
           <span className="privacy">
@@ -342,12 +377,16 @@ export default function App() {
                   ? 'Все источники. Одно место.'
                   : view === 'favorites'
                     ? 'Ближе к своему дому.'
-                    : 'Найдите свое место.'}
+                    : view === 'archive'
+                      ? 'Можно передумать.'
+                      : 'Найдите свое место.'}
               </h1>
               <p>
                 {view === 'imports'
                   ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
-                  : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
+                  : view === 'archive'
+                    ? 'Варианты с оценкой 1. Верните объявление или измените оценку, если передумаете.'
+                    : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -514,10 +553,10 @@ export default function App() {
                     <Building2 size={21} />
                   </span>
                   <div>
-                    <p>Всего сохранено</p>
+                    <p>{view === 'archive' ? 'В архиве' : 'В подборке'}</p>
                     <b>
-                      {listings.length}
-                      <span>{plural(listings.length, 'квартира', 'квартиры', 'квартир')}</span>
+                      {collection.length}
+                      <span>{plural(collection.length, 'квартира', 'квартиры', 'квартир')}</span>
                     </b>
                   </div>
                   <span className="stat-hint">Без повторов</span>
@@ -540,11 +579,11 @@ export default function App() {
                   </span>
                   <div>
                     <p>
-                      Минимум на въезд{listings.some((l) => costs(l).incomplete) ? ' · от' : ''}
+                      Минимум на въезд{collection.some((l) => costs(l).incomplete) ? ' · от' : ''}
                     </p>
                     <b>
-                      {listings.length
-                        ? rub(Math.min(...listings.map((l) => costs(l).moveIn)))
+                      {collection.length
+                        ? rub(Math.min(...collection.map((l) => costs(l).moveIn)))
                         : '—'}
                     </b>
                   </div>
@@ -555,9 +594,11 @@ export default function App() {
                   <h2>
                     {view === 'favorites'
                       ? 'Избранные квартиры'
-                      : searchJobId && resultsOnly
+                      : view === 'all' && searchJobId && resultsOnly
                         ? 'Результаты поиска'
-                        : 'Сохраненные квартиры'}
+                        : view === 'archive'
+                          ? 'Архив'
+                          : 'Сохраненные квартиры'}
                   </h2>
                   <span className="count-badge">{visible.length}</span>
                 </div>
@@ -708,14 +749,18 @@ export default function App() {
                     <House size={42} />
                   </span>
                   <h2>
-                    {listings.length
-                      ? 'Здесь пока нет подходящих квартир'
-                      : 'У хорошего поиска есть свое место'}
+                    {view === 'archive' && !archived.length
+                      ? 'Архив пуст'
+                      : listings.length
+                        ? 'Здесь пока нет подходящих квартир'
+                        : 'У хорошего поиска есть свое место'}
                   </h2>
                   <p>
-                    {listings.length
-                      ? 'Измените фильтры или добавьте варианты в избранное.'
-                      : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
+                    {view === 'archive' && !archived.length
+                      ? 'Сюда попадут объявления, которым вы поставите 1.'
+                      : listings.length
+                        ? 'Измените фильтры или добавьте варианты в избранное.'
+                        : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
                   </p>
                   <div>
                     <button
@@ -752,9 +797,9 @@ export default function App() {
                     <Card
                       key={l.id}
                       listing={l}
-                      rate={(rating) =>
-                        void action(() => api('/listings/' + l.id, 'PATCH', { rating }))
-                      }
+                      archiving={archiving.includes(l.id)}
+                      restore={() => void rateListing(l, null)}
+                      rate={(rating) => void rateListing(l, rating)}
                       ratingBusy={busy}
                       refreshDisabled={busy || running}
                       refreshJob={jobs.find((j) => j.url === l.url)}
@@ -961,6 +1006,8 @@ export default function App() {
   );
 }
 function Card({
+  archiving,
+  restore,
   listing: l,
   rate,
   ratingBusy,
@@ -973,6 +1020,8 @@ function Card({
   selected,
 }: {
   listing: Listing;
+  archiving: boolean;
+  restore: () => void;
   rate: (rating: number | null) => void;
   ratingBusy: boolean;
   refreshDisabled: boolean;
@@ -992,7 +1041,7 @@ function Card({
   const photo = Math.min(photoIndex, Math.max(0, l.photos.length - 1));
   return (
     <article
-      className={cx('apartment-card', selected && 'card-selected')}
+      className={cx('apartment-card', selected && 'card-selected', archiving && 'card-archiving')}
       onPointerLeave={() => {
         setPhotoIndex(0);
       }}
@@ -1128,6 +1177,17 @@ function Card({
         </div>
         <div className="card-action-row">
           <Rating value={l.rating ?? null} onChange={rate} disabled={ratingBusy} title={l.title} />
+          {l.rating === 1 && (
+            <button
+              className="card-restore"
+              title="Вернуть в подборку"
+              aria-label="Вернуть в подборку"
+              onClick={restore}
+              disabled={ratingBusy}
+            >
+              <ArchiveRestore size={16} />
+            </button>
+          )}
           <button
             className="card-detail"
             onClick={open}

@@ -300,3 +300,41 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await page.keyboard.press('Escape');
   await expect(card.locator('.rating-popover')).toBeHidden();
 });
+
+test('Rating one archives without deleting, survives reimport and can be restored', async ({
+  page,
+  request,
+}) => {
+  const url = 'https://www.cian.ru/rent/flat/123456789/';
+  const html = readFileSync(resolve('tests/fixtures/cian-detail.html'), 'utf8');
+  await request.post('/api/imports/html', { data: { url, html } });
+  const rows = await (await request.get('/api/listings')).json();
+  const listing = rows.find((l: any) => l.url === url);
+  await request.patch('/api/listings/' + listing.id, { data: { rating: null } });
+  await page.goto('/');
+  const card = page.locator('.apartment-card').filter({
+    has: page.getByRole('button', { name: 'Актуализировать ' + listing.title, exact: true }),
+  });
+  await card.locator('.rating-summary').hover();
+  await card.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'Объявление в архиве' })).toBeVisible();
+  await page.reload();
+  await expect(card).toHaveCount(0);
+  await request.post('/api/imports/html', { data: { url, html } });
+  const saved = (await (await request.get('/api/listings')).json()).find(
+    (l: any) => l.id === listing.id,
+  );
+  expect(saved.rating).toBe(1);
+  await page.getByRole('button', { name: /^Архив/ }).click();
+  await expect(card).toHaveCount(1);
+  await card.getByRole('button', { name: 'Вернуть в подборку', exact: true }).click();
+  await expect(card).toHaveCount(0);
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Все квартиры/ })
+    .click();
+  await expect(card).toHaveCount(1);
+  await page.reload();
+  await expect(card).toHaveCount(1);
+});
