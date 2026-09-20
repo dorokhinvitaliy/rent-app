@@ -2130,3 +2130,279 @@ input[type='checkbox']:checked {
     min-height: 40px;
   }
 }
+
+/* Metro: one summary field and a focused selection surface. */
+.search-secondary-fields .metro-refined .metro-picker-trigger {
+  padding: 10px 14px;
+  min-height: 65px;
+  gap: 12px;
+  background: #f7f7f7;
+  border: 1px solid transparent;
+  text-align: left;
+}
+.search-secondary-fields .metro-refined .metro-picker-trigger:hover {
+  background: #f0f0f0;
+}
+.search-secondary-fields .metro-refined .metro-picker-trigger[aria-expanded='true'] {
+  border-color: #202329;
+  background: #fff;
+}
+.metro-trigger-icon {
+  flex: 0 0 auto !important;
+  color: #555;
+}
+.metro-trigger-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 5px;
+}
+.metro-trigger-copy > span {
+  font-size: 10px;
+  color: #777;
+}
+.metro-trigger-copy strong {
+  font-weight: 500;
+  font-size: 13px;
+  color: #25272b;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.metro-refined .metro-trigger-count {
+  flex: 0 0 auto !important;
+  background: #24262a;
+  color: #fff;
+  min-width: 27px;
+  height: 27px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.metro-trigger-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+[aria-expanded='true'] > .metro-trigger-chevron {
+  transform: rotate(180deg);
+}
+.metro-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e6e6e6;
+  border-radius: 22px;
+  background: #fff;
+  color: #25272b;
+  box-shadow:
+    0 20px 70px #14171d26,
+    0 4px 12px #14171d0a;
+  overflow: hidden;
+}
+.metro-popover:popover-open {
+  display: flex;
+  flex-direction: column;
+  animation: metro-reveal 0.18s ease-out;
+}
+@keyframes metro-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.metro-popover-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.metro-popover-heading h3 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+.metro-popover-heading p {
+  font-size: 11px;
+  color: #858585;
+  margin: 5px 0 0;
+}
+.metro-dismiss {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #f3f3f3;
+  color: #777;
+  flex-shrink: 0;
+}
+.metro-search-wrap {
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+.metro-popover .metro-search {
+  border-radius: 12px;
+  padding: 0 12px;
+}
+.metro-popover .metro-search:focus-within {
+  border-color: #24262a;
+  box-shadow: none;
+}
+.metro-popover .metro-search input {
+  min-height: 42px;
+  font-size: 13px;
+}
+.metro-view-switch {
+  display: flex;
+  gap: 5px;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+.metro-view-switch button {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #777;
+}
+.metro-view-switch button[aria-pressed='true'] {
+  color: #24262a;
+  background: #f0f0f0;
+  font-weight: 600;
+}
+.metro-view-switch span {
+  font-size: 10px;
+  color: #888;
+}
+.metro-station-list {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  max-height: 268px;
+  padding: 0 10px 10px;
+  scrollbar-width: thin;
+}
+.metro-station-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 11px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.metro-station-row:hover {
+  background: #f6f6f6;
+}
+.metro-station-row:has(input:checked) {
+  background: #f8f8f8;
+}
+.metro-station-row + .metro-station-row {
+  margin-top: 2px;
+}
+.metro-line-mark {
+  font-size: 15px;
+  font-weight: 800;
+  width: 20px;
+  text-align: center;
+}
+.metro-station-row > span:nth-child(2) {
+  flex: 1;
+}
+.metro-station-row input {
+  flex-shrink: 0;
+}
+.metro-popover-footer {
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid #efefef;
+  flex-shrink: 0;
+  background: #fff;
+}
+.metro-reset {
+  font-size: 12px;
+  color: #656565;
+  padding: 8px 0;
+}
+.metro-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.metro-popover-footer > span {
+  margin-left: auto;
+  color: #909090;
+  font-size: 11px;
+}
+.metro-popover-footer .button {
+  min-height: 36px;
+  padding: 9px 18px;
+  font-size: 12px;
+  background: #22252a;
+}
+.metro-no-results {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 28px 12px;
+  gap: 10px;
+  color: #888;
+}
+.metro-no-results b {
+  font-size: 13px;
+  color: #444;
+  font-weight: 500;
+}
+.metro-no-results p {
+  font-size: 11px;
+  margin: 0;
+}
+.metro-no-results button {
+  font-size: 12px;
+  color: #25272b;
+  padding: 8px;
+}
+@media (max-width: 600px) {
+  .metro-popover {
+    border-radius: 22px;
+  }
+  .metro-popover::backdrop {
+    background: #17191d38;
+    backdrop-filter: blur(3px);
+  }
+  .metro-station-row {
+    min-height: 46px;
+  }
+  .metro-popover .metro-search input {
+    font-size: 16px;
+  }
+  .metro-station-list {
+    max-height: 38dvh;
+  }
+  .metro-popover-footer .button {
+    min-height: 42px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metro-popover:popover-open {
+    animation: none;
+  }
+  .metro-trigger-chevron {
+    transition: none;
+  }
+}
