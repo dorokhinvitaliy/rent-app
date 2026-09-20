@@ -1,3 +1,4 @@
+import { CardNote } from './CardNote';
 import { Rating } from './Rating';
 import { Select } from './Select';
 import {
@@ -1218,6 +1219,7 @@ const Card = memo(function Card({
             </div>
           </>
         )}
+        {l.notes.trim() && <CardNote key={l.notes} notes={l.notes.trim()} />}
         {l.photos.length > 0 && (
           <span className="photo-count">
             {photo + 1} / {l.photos.length}

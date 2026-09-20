@@ -441,3 +441,49 @@ test('Apartment ranking orders rated listings, shares places and responds to rat
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/ranking-mobile.png', fullPage: true });
 });
+
+test('Card notes expand on hover and tap without opening the apartment', async ({
+  page,
+  request,
+}) => {
+  const notes =
+    'Хорошая планировка, уточнить условия залога.\n' +
+    'Обсудить с собственником мебель и дату въезда. '.repeat(40);
+  const listing = await (
+    await request.post('/api/listings', {
+      data: { title: 'Квартира с личной заметкой', rent: 55000 },
+    })
+  ).json();
+  await request.patch('/api/listings/' + listing.id, { data: { notes } });
+  await page.goto('/');
+  const card = page
+    .locator('.apartment-card')
+    .filter({ has: page.getByRole('button', { name: listing.title, exact: true }) });
+  const trigger = card.getByRole('button', { name: 'Моя заметка', exact: true });
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await trigger.hover();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(card.getByRole('region', { name: 'Текст заметки' })).toHaveText(notes);
+  expect(
+    await card.locator('.card-note-text').evaluate((el) => el.scrollHeight > el.clientHeight),
+  ).toBe(true);
+  await page.screenshot({ path: 'test-results/card-note-desktop.png', fullPage: true });
+  await card.locator('.card-title').hover();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.mouse.move(0, 0);
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await card.screenshot({ path: 'test-results/card-note-mobile.png' });
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await request.patch('/api/listings/' + listing.id, { data: { notes: '' } });
+  await page.reload();
+  await expect(card.locator('.card-note')).toHaveCount(0);
+});

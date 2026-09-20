@@ -1082,3 +1082,80 @@ input[type='checkbox']:checked {
   color: #777c84;
   font-size: 11px;
 }
+
+/* Frosted personal note; photo navigation stays visible underneath. */
+.card-note {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 43px;
+  z-index: 3;
+  overflow: hidden;
+  border: 1px solid #ffffff55;
+  border-radius: 15px;
+  color: #fff;
+  background: #202329a6;
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 0 4px 16px #00000014;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+.card-note[data-expanded='true'] {
+  background: #202329cf;
+  box-shadow: 0 8px 22px #00000026;
+}
+.card-note-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 39px;
+  padding: 10px 12px;
+  text-align: left;
+  color: inherit;
+  font-size: 11px;
+}
+.card-note-trigger svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.card-note-trigger > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-note-trigger > svg:last-child {
+  transition: transform 180ms ease;
+}
+.card-note[data-expanded='true'] .card-note-trigger > svg:last-child {
+  transform: rotate(180deg);
+}
+.card-note-text {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff66 transparent;
+  overscroll-behavior: contain;
+}
+.card-note-text[hidden] {
+  display: none;
+}
+.card-note :focus-visible {
+  outline: 1px solid white;
+  outline-offset: -3px;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-note,
+  .card-note-trigger > svg:last-child {
+    transition: none;
+  }
+}
