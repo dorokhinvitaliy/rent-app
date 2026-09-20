@@ -380,6 +380,15 @@ export class Importer implements OnModuleDestroy {
         : e instanceof Error
           ? e.message
           : 'Ошибка импорта';
+      if (
+        !state.cancelled &&
+        /browserType\.|browserContext\.|Target page, context|SingletonLock|process_singleton/.test(
+          job.message,
+        )
+      ) {
+        console.error(`[import:${job.id}] Browser failure`, job.message);
+        job.message = 'Не удалось запустить браузер поиска. Попробуйте ещё раз чуть позже.';
+      }
       if (/Executable doesn't exist/.test(job.message))
         job.message =
           'Установите браузер: npx playwright install chromium, затем повторите импорт.';

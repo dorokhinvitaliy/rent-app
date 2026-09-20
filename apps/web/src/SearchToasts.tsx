@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Search, X } from 'lucide-react';
+import { Check, Search, X, AlertCircle } from 'lucide-react';
 import type { Job } from './api';
 const active = (job: Job) => ['queued', 'running', 'waiting'].includes(job.status);
 type Props = { jobs: Job[]; onCancel: (id: string) => void; onOpenBrowser: (id: string) => void };
@@ -7,8 +7,8 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
   const [hidden, setHidden] = useState(false);
   const working = active(job);
   useEffect(() => {
-    if (working || job.status === 'failed') return;
-    const timer = setTimeout(() => setHidden(true), 8000);
+    if (working) return;
+    const timer = setTimeout(() => setHidden(true), job.status === 'failed' ? 12000 : 8000);
     return () => clearTimeout(timer);
   }, [working, job.status]);
   if (hidden) return null;
@@ -30,7 +30,13 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
     <div className="search-toast" role="status">
       <div className="search-toast-row">
         <span className="search-toast-icon">
-          {working ? <Search size={18} /> : <Check size={18} />}
+          {working ? (
+            <Search size={18} />
+          ) : job.status === 'failed' ? (
+            <AlertCircle size={18} />
+          ) : (
+            <Check size={18} />
+          )}
         </span>
         <div className="search-toast-copy">
           <strong className={working && job.status !== 'waiting' ? 'search-shimmer' : ''}>
@@ -45,7 +51,15 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
                   : 'Результаты появятся в списке'}
             </small>
           )}
-          {job.status === 'failed' && <small>{job.message}</small>}
+          {job.status === 'failed' && (
+            <small>
+              {/browserType\.|browserContext\.|Target page|Call log:|[\r\n]|--disable-/.test(
+                job.message,
+              ) || job.message.length > 240
+                ? 'Поиск временно недоступен. Попробуйте ещё раз чуть позже.'
+                : job.message}
+            </small>
+          )}
         </div>
         <button
           aria-label={working ? 'Остановить поиск' : 'Закрыть поиск'}

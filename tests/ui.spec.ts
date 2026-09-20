@@ -721,3 +721,35 @@ test('Photo morph preserves image proportions and does not stretch modal text', 
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('Browser crash toast stays compact and hides Chromium diagnostics', async ({ page }) => {
+  await page.route('**/api/imports', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'crash',
+          status: 'failed',
+          url: 'https://www.cian.ru/',
+          count: 0,
+          warnings: [],
+          createdAt: new Date().toISOString(),
+          message:
+            'browserType.launchPersistentContext: Target page, context closed\n' +
+            '--disable-features '.repeat(500),
+        },
+      ],
+    }),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const toast = page.locator('.search-toast');
+  await expect(toast).toBeVisible();
+  await expect(toast).not.toContainText('launchPersistentContext');
+  await expect(toast).toContainText('Попробуйте ещё раз');
+  const box = await toast.boundingBox();
+  expect(box!.height).toBeLessThan(180);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: 'test-results/search-error-toast.png' });
+  await page.getByRole('button', { name: 'Закрыть поиск', exact: true }).click();
+  await expect(toast).toHaveCount(0);
+});

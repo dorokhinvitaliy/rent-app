@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+node deploy/prepare-browser-profiles.cjs
 export DISPLAY=:99
 Xvfb :99 -screen 0 1280x900x24 -nolisten tcp &
 xpid=$!
