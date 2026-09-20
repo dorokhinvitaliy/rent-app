@@ -112,7 +112,7 @@ export function SearchPanel({
       <form onSubmit={submit}>
         <div className="search-main-fields">
           <label className="field">
-            Город
+            <span className="field-caption">Город</span>
             <Select
               aria-label="Город"
               value={criteria.region}
@@ -128,7 +128,7 @@ export function SearchPanel({
           {range('Аренда в месяц, ₽', 'minRent', 'maxRent')}
           {range('Площадь, м²', 'minArea', 'maxArea')}
           <label className="field">
-            Пешком до метро
+            <span className="field-caption">Пешком до метро</span>
             <Select
               aria-label="Пешком до метро"
               value={criteria.metroMinutes ?? ''}
@@ -180,7 +180,7 @@ export function SearchPanel({
         {expanded && (
           <div className="search-extra">
             <label className="field">
-              Минимальный этаж
+              <span className="field-caption">Минимальный этаж</span>
               <input
                 type="number"
                 min="1"
@@ -193,7 +193,7 @@ export function SearchPanel({
               />
             </label>
             <label className="field">
-              Собрать до
+              <span className="field-caption">Собрать до</span>
               <Select
                 aria-label="Собрать до"
                 value={criteria.limit}
@@ -207,7 +207,7 @@ export function SearchPanel({
               </Select>
             </label>
             <label className="field">
-              Просмотреть до
+              <span className="field-caption">Просмотреть до</span>
               <Select
                 aria-label="Просмотреть до"
                 value={criteria.pages}

@@ -57,6 +57,9 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await page.getByRole('button', { name: 'Вручную', exact: true }).click();
   await page.getByLabel('Название', { exact: true }).fill('Моя тестовая квартира');
   await page.getByLabel('Аренда / месяц, ₽', { exact: true }).fill('50000');
+  await page
+    .getByLabel('Адрес', { exact: true })
+    .fill('Москва, Западный административный округ, район Очаково-Матвеевское, длинный адрес дома');
   await page.getByRole('button', { name: 'Сохранить квартиру' }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(7);
   await page
@@ -112,7 +115,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   await minPrice.focus();
   expect(await minPrice.evaluate((e) => getComputedStyle(e).outlineStyle)).toBe('none');
   expect(await minPrice.evaluate((e) => getComputedStyle(e).boxShadow)).toBe('none');
-  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(69, 97, 232)');
+  await expect(minPrice.locator('xpath=../..')).toHaveCSS('border-color', 'rgb(201, 218, 249)');
   await page.keyboard.press('Tab');
   await expect(panel.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toBeFocused();
   await panel.getByRole('combobox', { name: 'Город', exact: true }).click();

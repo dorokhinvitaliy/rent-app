@@ -1275,7 +1275,7 @@ function ImportModal({
           <>
             <div className="form-grid">
               <label className="field">
-                Максимум квартир
+                <span className="field-caption">Максимум квартир</span>
                 <Select
                   aria-label="Максимум квартир"
                   value={limit}
@@ -1288,7 +1288,7 @@ function ImportModal({
                 </Select>
               </label>
               <label className="field">
-                Страниц каталога
+                <span className="field-caption">Страниц каталога</span>
                 <Select
                   aria-label="Страниц каталога"
                   value={pages}
@@ -1395,7 +1395,7 @@ function EditModal({
     required = false,
   ) => (
     <label className="field" key={k}>
-      {label}
+      <span className="field-caption">{label}</span>
       <input
         type="number"
         min={k === 'rent' || k === 'area' ? 0.01 : 0}
@@ -1442,7 +1442,7 @@ function EditModal({
       <form onSubmit={submit}>
         <div className="form-grid">
           <label className="field span-2">
-            Название
+            <span className="field-caption">Название</span>
             <input
               required
               maxLength={200}
@@ -1452,7 +1452,7 @@ function EditModal({
             />
           </label>
           <label className="field span-2">
-            Адрес
+            <span className="field-caption">Адрес</span>
             <input
               maxLength={500}
               value={data.address}
@@ -1461,7 +1461,7 @@ function EditModal({
             />
           </label>
           <label className="field">
-            Источник
+            <span className="field-caption">Источник</span>
             <Select
               aria-label="Источник"
               value={data.source}
@@ -1474,7 +1474,7 @@ function EditModal({
             </Select>
           </label>
           <label className="field">
-            Ссылка
+            <span className="field-caption">Ссылка</span>
             <input
               type="url"
               value={data.url || ''}
@@ -1487,7 +1487,7 @@ function EditModal({
           {numericField('Площадь, м²', 'area')}
           {numericField('Этаж', 'floor')}
           <label className="field">
-            Метро
+            <span className="field-caption">Метро</span>
             <input
               maxLength={100}
               value={data.metro}
@@ -1507,7 +1507,7 @@ function EditModal({
           {numericField('Возвратный залог, ₽', 'deposit')}
           {numericField('Комиссия', 'commission')}
           <label className="field">
-            Тип комиссии
+            <span className="field-caption">Тип комиссии</span>
             <Select
               aria-label="Тип комиссии"
               value={data.commissionType}
@@ -1519,7 +1519,7 @@ function EditModal({
           </label>
           {numericField('Прочие разовые расходы, ₽', 'otherCosts', true)}
           <label className="field span-2">
-            Описание
+            <span className="field-caption">Описание</span>
             <textarea
               rows={3}
               maxLength={20000}
@@ -1528,7 +1528,7 @@ function EditModal({
             />
           </label>
           <label className="field span-2">
-            Фотографии · по одной ссылке на строку
+            <span className="field-caption">Фотографии · по одной ссылке на строку</span>
             <textarea
               rows={3}
               value={photos}
