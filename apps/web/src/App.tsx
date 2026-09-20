@@ -187,6 +187,7 @@ export default function App() {
     [maxPrice, setMaxPrice] = useState(''),
     [maxEntry, setMaxEntry] = useState(''),
     [sort, setSort] = useState('new'),
+    [ratingFilter, setRatingFilter] = useState('all'),
     [filters, setFilters] = useState(false),
     [noFee, setNoFee] = useState(false);
   const [loading, setLoading] = useState(true),
@@ -345,6 +346,7 @@ export default function App() {
   const favorites = active.filter((l) => l.favorite),
     demo = listings.some((l) => l.demo);
   const searchJob = jobs.find((j) => j.id === searchJobId);
+  const personalFilter = !!user && !['ranking', 'archive'].includes(view) ? ratingFilter : 'all';
   const visible = listings
     .filter(
       (l) =>
@@ -362,18 +364,29 @@ export default function App() {
         (!maxPrice || l.rent <= Number(maxPrice)) &&
         (!maxEntry || costs(l).moveIn <= Number(maxEntry)) &&
         (!noFee || l.commission === 0) &&
+        (personalFilter === 'all' ||
+          (personalFilter === 'unrated' ? l.rating == null : l.rating != null)) &&
         `${l.title} ${l.address} ${l.metro}`.toLowerCase().includes(query.toLowerCase()),
     )
     .sort((a, b) =>
       view === 'ranking'
         ? (b.rating ?? 0) - (a.rating ?? 0) || a.rent - b.rent || a.id.localeCompare(b.id)
-        : sort === 'rating'
-          ? (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt.localeCompare(a.createdAt)
-          : sort === 'rent'
-            ? a.rent - b.rent
-            : sort === 'entry'
-              ? costs(a).moveIn - costs(b).moveIn
-              : b.createdAt.localeCompare(a.createdAt),
+        : sort === 'rating' || sort === 'rating-asc'
+          ? (a.rating == null ? 1 : 0) - (b.rating == null ? 1 : 0) ||
+            (sort === 'rating'
+              ? (b.rating ?? 0) - (a.rating ?? 0)
+              : (a.rating ?? 0) - (b.rating ?? 0)) ||
+            b.createdAt.localeCompare(a.createdAt)
+          : sort === 'unrated' || sort === 'rated'
+            ? (sort === 'unrated'
+                ? Number(a.rating != null) - Number(b.rating != null)
+                : Number(b.rating != null) - Number(a.rating != null)) ||
+              b.createdAt.localeCompare(a.createdAt)
+            : sort === 'rent'
+              ? a.rent - b.rent
+              : sort === 'entry'
+                ? costs(a).moveIn - costs(b).moveIn
+                : b.createdAt.localeCompare(a.createdAt),
     );
   const current = listings.find((l) => l.id === detail);
   const toggle = useCallback(
@@ -386,12 +399,14 @@ export default function App() {
     setMaxPrice('');
     setMaxEntry('');
     setNoFee(false);
+    setRatingFilter('all');
     setQuery('');
   };
   const download = async (
     ids: string[],
     format: 'xlsx' | 'pdf' = 'xlsx',
     name = 'Подборка квартир',
+    detailed = false,
   ) => {
     if (!ids.length) return;
     if (format === 'pdf') setPdfBusy(true);
@@ -400,7 +415,12 @@ export default function App() {
         '/api/export.' +
           format +
           '?' +
-          new URLSearchParams({ ids: ids.join(','), months: String(months), name }),
+          new URLSearchParams({
+            ids: ids.join(','),
+            months: String(months),
+            name,
+            detailed: detailed ? '1' : '0',
+          }),
       );
       if (!res.ok) {
         const error = await res.json().catch(() => null);
@@ -935,6 +955,23 @@ export default function App() {
                     Яндекс
                   </button>
                 </div>
+                {user && !['ranking', 'archive'].includes(view) && (
+                  <div className="rating-filter" role="group" aria-label="Фильтр по моей оценке">
+                    {[
+                      ['all', 'Все'],
+                      ['unrated', 'Без оценки'],
+                      ['rated', 'С оценкой'],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        aria-pressed={ratingFilter === key}
+                        onClick={() => setRatingFilter(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {view === 'ranking' ? (
                   <span className="ranking-order">
                     <Trophy size={15} /> От лучших к менее подходящим
@@ -948,7 +985,20 @@ export default function App() {
                       onChange={(e) => setSort(e.target.value)}
                     >
                       <option value="new">Сначала новые</option>
-                      <option value="rating">По моей оценке</option>
+                      {user && [
+                        <option key="unrated" value="unrated">
+                          Сначала без оценки
+                        </option>,
+                        <option key="rated" value="rated">
+                          Сначала оценённые
+                        </option>,
+                        <option key="rating" value="rating">
+                          Оценка: по убыванию
+                        </option>,
+                        <option key="rating-asc" value="rating-asc">
+                          Оценка: по возрастанию
+                        </option>,
+                      ]}
                       <option value="rent">Дешевле в месяц</option>
                       <option value="entry">Меньше на въезд</option>
                     </Select>
@@ -1192,6 +1242,8 @@ export default function App() {
       {current && (
         <Detail
           listing={current}
+          onPdf={() => void download([current.id], 'pdf', current.title, true)}
+          pdfBusy={pdfBusy}
           initialPhoto={detailPhoto.current}
           position={visible.findIndex((l) => l.id === current.id) + 1}
           total={visible.length}
@@ -1225,7 +1277,13 @@ export default function App() {
                 return true;
               }
             }
-            if (saved && !reviewIds && value === 1 && view !== 'archive') {
+            if (
+              saved &&
+              !reviewIds &&
+              ((value === 1 && view !== 'archive') ||
+                (personalFilter === 'unrated' && value != null) ||
+                (personalFilter === 'rated' && value == null))
+            ) {
               if (adjacent) {
                 setDetail((id) => (id === current.id ? adjacent.id : id));
               } else {
@@ -1856,6 +1914,8 @@ function animateDetailPhoto(
 }
 function Detail({
   listing: l,
+  onPdf,
+  pdfBusy,
   initialPhoto,
   position,
   total,
@@ -1878,6 +1938,8 @@ function Detail({
   onDelete,
   onSaveNotes,
 }: {
+  onPdf: () => void;
+  pdfBusy: boolean;
   listing: Listing;
   initialPhoto: number;
   position: number;
@@ -2116,6 +2178,15 @@ function Detail({
             <span>/ месяц</span>
           </div>
           <div className={cx('detail-personal-actions', reviewLabel && 'reviewing')}>
+            <button
+              className="detail-collection-button"
+              onClick={onPdf}
+              disabled={pdfBusy}
+              aria-label="Скачать подробный PDF объявления"
+            >
+              <ArrowDownToLine size={16} />
+              {pdfBusy ? 'Готовим…' : 'PDF'}
+            </button>
             <Rating
               key={l.id}
               value={l.rating ?? null}

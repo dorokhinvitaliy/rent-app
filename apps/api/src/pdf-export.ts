@@ -18,8 +18,68 @@ const fontCss = [400, 700]
   .join('');
 const house =
   '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10 12 3l9 7v10H3zM9 20v-7h6v7"/></svg>';
+function fullDetails(l: Listing, viewings: Viewing[]) {
+  const text = (value: string) => `<p class="full-text">${escape(value)}</p>`;
+  const section = (title: string, body: string) =>
+    body ? `<section class="full-section"><h3>${escape(title)}</h3>${body}</section>` : '';
+  const c = costs(l);
+  const row = (label: string, value: string) =>
+    `<div class="full-row"><span>${escape(label)}</span><b>${escape(value)}</b></div>`;
+  const expenses = [
+    ['Аренда в месяц', rub(l.rent)],
+    ['Коммунальные платежи', l.utilities == null ? 'Не указаны' : rub(l.utilities)],
+    ['Залог', l.deposit == null ? 'Не указан' : rub(l.deposit)],
+    ['Комиссия', l.commission == null ? 'Не указана' : rub(c.fee)],
+    ['Прочие расходы на въезд', rub(l.otherCosts)],
+    ['Всего на въезд' + (c.incomplete ? ' · от' : ''), rub(c.moveIn)],
+  ];
+  const contact = l.details.contact;
+  return `<div class="full-details">${section('Стоимость и условия', expenses.map(([k, v]) => row(k, v)).join(''))}
+    ${section('Описание', l.description ? text(l.description) : '')}
+    ${l.details.sections.map((s) => section(s.title, s.items.map((item) => row(item.label, item.value)).join(''))).join('')}
+    ${section(
+      'Удобства и правила',
+      Object.entries(l.details.amenities)
+        .filter(([key]) => amenityLabels[key])
+        .map(([key, value]) => row(amenityLabels[key], value ? 'Да' : 'Нет'))
+        .join(''),
+    )}
+    ${section('Контакт', contact ? text([contact.name, contact.role === 'owner' ? 'Собственник' : contact.role === 'agent' ? 'Агент' : '', ...contact.phones, contact.relay ? 'Подменный номер площадки: может измениться.' : ''].filter(Boolean).join(' · ')) : '')}
+    ${l.rating != null ? section('Моя оценка', text(l.rating + ' из 5')) : ''}
+    ${section('Мой комментарий', l.notes.trim() ? text(l.notes) : '')}
+    ${section(
+      'Мои просмотры',
+      viewings
+        .filter((v) => v.listingId === l.id)
+        .map((v) =>
+          text(
+            new Date(v.startsAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) +
+              ' МСК · ' +
+              { planned: 'Запланирован', visited: 'Состоялся', cancelled: 'Отменён' }[v.status] +
+              (v.feedback ? '\n' + v.feedback : ''),
+          ),
+        )
+        .join(''),
+    )}
+    ${section(
+      'Фотографии',
+      l.photos
+        .slice(1)
+        .map(
+          (src, i) =>
+            `<figure class="full-photo"><img src="${escape(src)}"><figcaption>${i + 2} / ${l.photos.length}</figcaption></figure>`,
+        )
+        .join(''),
+    )}
+    </div>`;
+}
 let busy = false;
-export async function collectionPdf(name: string, listings: Listing[], viewings: Viewing[] = []) {
+export async function collectionPdf(
+  name: string,
+  listings: Listing[],
+  viewings: Viewing[] = [],
+  detailed = false,
+) {
   if (busy) throw new BadRequestException('PDF уже формируется. Повторите через минуту.');
   if (!listings.length) throw new BadRequestException('В подборке пока нет квартир');
   if (listings.length > 300)
@@ -51,10 +111,10 @@ export async function collectionPdf(name: string, listings: Listing[], viewings:
     await page.setContent(
       `<!doctype html><html lang="ru"><meta charset="utf-8"><style>${fontCss}
  *{box-sizing:border-box}body{font-family:Golos,Arial,sans-serif;color:#23262b;margin:0;font-size:12px;-webkit-print-color-adjust:exact}.sheet{break-after:page}.sheet:last-child{break-after:auto}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}.brand{display:flex;gap:9px;align-items:center;font-size:27px;font-weight:700;letter-spacing:-1.4px}.brand-icon{display:grid;place-items:center;width:34px;height:34px;background:#f0f0ed;border-radius:11px}.edition{font-size:8px;color:#8b8e8b;letter-spacing:1.8px;text-transform:uppercase}h1{font-size:28px;line-height:1.17;letter-spacing:-.9px;margin:0;max-width:95%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.intro{display:flex;justify-content:space-between;gap:12px;color:#8b8e91;font-size:10px;margin:12px 0 26px}.card{height:350px;display:grid;grid-template-columns:47% 1fr;background:#f5f5f2;border-radius:21px;overflow:hidden;margin-bottom:20px;break-inside:avoid}.visual{position:relative;background:#eaeae6;height:350px;overflow:hidden}.photo{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}.placeholder{position:absolute;inset:0;display:flex;gap:10px;align-items:center;justify-content:center;flex-direction:column;color:#a0a19a;font-size:11px}.badge{position:absolute;z-index:2;left:16px;top:16px;border-radius:15px;background:#fffffff0;padding:7px 11px;color:#343630;font-size:9px}.number{position:absolute;z-index:2;left:16px;bottom:15px;color:white;background:#2229;padding:5px 9px;border-radius:10px;font-size:10px}.info{padding:20px;display:flex;flex-direction:column;min-width:0}.overline{font-size:8px;color:#90918c;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}.price{font-size:29px;line-height:1.2;font-weight:700;letter-spacing:-1px;white-space:nowrap}.price small{font-size:10px;font-weight:400;color:#8b8d88;letter-spacing:0}h2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-shrink:0;font-size:15px;font-weight:700;line-height:1.4;margin:10px 0 5px;letter-spacing:-.2px}.facts{font-size:11px;color:#73766f;margin-bottom:8px}.address{font-size:11px;color:#72756f;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.metro{font-size:10px;line-height:1.5;margin-top:7px;color:#50574e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#777e72;margin-right:5px;vertical-align:middle}.bottom{margin-top:auto;border-top:1px solid #dedfd8;padding-top:13px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.entry small{display:block;font-size:9px;color:#8c8f85;margin-bottom:3px}.entry b{font-size:19px;letter-spacing:-.6px;white-space:nowrap}.link{font-size:10px;color:#353b32;text-decoration:none;border-bottom:1px solid #aaa;white-space:nowrap;padding-bottom:2px}.note{font-size:9px;color:#969992;line-height:1.5;margin-top:15px}
-.expenses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:11px 0 8px}.expense small{display:block;font-size:8px;color:#8b8e85;margin-bottom:3px}.expense b{font-size:10px;font-weight:400;white-space:nowrap}.features{font-size:9px;line-height:1.5;color:#656a60;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;flex-shrink:0}.bottom{flex-shrink:0}.personal-note{position:absolute;z-index:3;left:14px;right:14px;bottom:43px;padding:12px 14px;border-radius:14px 14px 3px 14px;background:#292d2be8;color:#fff;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.personal-note small{display:block;color:#c7cbc6;font-size:8px;margin-bottom:4px}.personal-note p{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}.visit{font-size:9px;line-height:1.45;background:#e9ece6;border-radius:8px;padding:7px 9px;margin:0 0 8px;flex-shrink:0}.visit b{font-weight:700}.visit-feedback{margin-top:8px!important} </style>${pages
+.expenses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:11px 0 8px}.expense small{display:block;font-size:8px;color:#8b8e85;margin-bottom:3px}.expense b{font-size:10px;font-weight:400;white-space:nowrap}.features{font-size:9px;line-height:1.5;color:#656a60;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:10px;flex-shrink:0}.bottom{flex-shrink:0}.personal-note{position:absolute;z-index:3;left:14px;right:14px;bottom:43px;padding:12px 14px;border-radius:14px 14px 3px 14px;background:#292d2be8;color:#fff;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.personal-note small{display:block;color:#c7cbc6;font-size:8px;margin-bottom:4px}.personal-note p{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}.visit{font-size:9px;line-height:1.45;background:#e9ece6;border-radius:8px;padding:7px 9px;margin:0 0 8px;flex-shrink:0}.visit b{font-weight:700}.visit-feedback{margin-top:8px!important}.full-section{margin-top:24px}.full-section h3{font-size:17px;break-after:avoid;margin:0 0 12px}.full-text{font-size:11px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;orphans:3;widows:3}.full-row{display:flex;justify-content:space-between;gap:24px;padding:9px 0;border-bottom:1px solid #eee;break-inside:avoid;font-size:11px}.full-row span{color:#85877e}.full-row b{text-align:right;font-weight:400;max-width:65%;overflow-wrap:anywhere}.full-photo{margin:12px 0;break-inside:avoid}.full-photo img{width:100%;height:300px;object-fit:contain;background:#f5f5f2;border-radius:14px}.full-photo figcaption{font-size:9px;color:#888;text-align:right;margin-top:5px}.full-details{margin-bottom:24px} </style>${pages
         .map(
           (batch, pi) =>
-            `<section class="sheet"><header><div class="brand"><span class="brand-icon">${house}</span>место.</div><span class="edition">Подборка квартир</span></header><h1>${escape(name)}</h1><div class="intro"><span>${listings.length} вариантов · ${escape(date)}</span><span>${pi * 2 + 1}–${Math.min(pi * 2 + 2, listings.length)} / ${listings.length}</span></div>${batch
+            `<section class="sheet"><header><div class="brand"><span class="brand-icon">${house}</span>место.</div><span class="edition">${detailed ? 'Квартира подробно' : 'Подборка квартир'}</span></header><h1>${escape(name)}</h1><div class="intro"><span>${listings.length === 1 ? '1 квартира' : listings.length + ' вариантов'} · ${escape(date)}</span><span>${pi * 2 + 1}–${Math.min(pi * 2 + 2, listings.length)} / ${listings.length}</span></div>${batch
               .map((l, i) => {
                 const c = costs(l);
                 const title =
@@ -143,7 +203,7 @@ export async function collectionPdf(name: string, listings: Listing[], viewings:
               })
               .join(
                 '',
-              )}<p class="note">${batch.some((l) => l.demo) ? 'Демонстрационные квартиры: цены вымышлены. ' : ''}Цены и условия уточняйте у владельца объявления. Неизвестные расходы не включены в сумму на въезд.</p></section>`,
+              )}${detailed ? fullDetails(batch[0], viewings) : ''}<p class="note">${batch.some((l) => l.demo) ? 'Демонстрационные квартиры: цены вымышлены. ' : ''}Цены и условия уточняйте у владельца объявления. Неизвестные расходы не включены в сумму на въезд.</p></section>`,
         )
         .join('')}</html>`,
       { waitUntil: 'domcontentloaded' },

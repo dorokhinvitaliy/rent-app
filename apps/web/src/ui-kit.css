@@ -3911,3 +3911,43 @@ html {
 .viewing-inline-editor {
   flex: 1 0 100%;
 }
+
+.rating-filter {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #eee;
+  flex-shrink: 0;
+}
+.rating-filter button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
+}
+.rating-filter button[aria-pressed='true'] {
+  color: #fff;
+  background: #23252a;
+}
+.rating-filter button:focus-visible {
+  outline: 2px solid #23252a;
+  outline-offset: 2px;
+}
+.results-line {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .rating-filter {
+    width: 100%;
+  }
+  .rating-filter button {
+    flex: 1;
+  }
+}
+
+.detail-personal-actions {
+  flex-wrap: wrap;
+}

@@ -304,7 +304,7 @@ test('Personal ratings persist, sort listings and refresh an individual source l
     card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
-  await page.getByRole('option', { name: 'По моей оценке', exact: true }).click();
+  await page.getByRole('option', { name: 'Оценка: по убыванию', exact: true }).click();
   await expect(page.locator('.apartment-card').first().locator('.rating-summary')).toHaveAttribute(
     'title',
     '5/5 · Отличный вариант',
@@ -873,6 +873,12 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await page.goto('/');
   await page.getByRole('button', { name: 'Открыть Квартира для просмотра', exact: true }).click();
   const modal = page.getByRole('dialog');
+  const fullDownload = page.waitForEvent('download');
+  const fullRequest = page.waitForRequest((req) => req.url().includes('/api/export.pdf'));
+  await modal.getByRole('button', { name: 'Скачать подробный PDF объявления' }).click();
+  expect(new URL((await fullRequest).url()).searchParams.get('detailed')).toBe('1');
+  await (await fullDownload).saveAs('test-results/full-listing.pdf');
+  expect(readFileSync('test-results/full-listing.pdf').subarray(0, 5).toString()).toBe('%PDF-');
   await expect(modal.getByRole('link', { name: '+7 999 000-00-00' })).toHaveAttribute(
     'href',
     'tel:+79990000000',
@@ -1087,4 +1093,48 @@ test('Archiving from the detail modal keeps listing navigation usable', async ({
   await archiveCurrent();
   await expect(modal).toHaveCount(0);
   await expect(cards).toHaveCount(0);
+});
+
+test('Personal rating filters and sort orders keep unrated listings distinct from new ones', async ({
+  page,
+  request,
+}) => {
+  const ids: string[] = [];
+  for (const [i, rating] of [null, 2, 5].entries()) {
+    const l = await (
+      await request.post('/api/listings', {
+        data: { title: 'Фильтр оценки ' + i, address: 'Проверка личного фильтра', rent: 60000 },
+      })
+    ).json();
+    ids.push(l.id);
+    if (rating) await request.patch('/api/listings/' + l.id, { data: { rating } });
+  }
+  await page.goto('/');
+  await page.getByLabel('Поиск по адресу или метро').fill('Проверка личного фильтра');
+  const cards = page.locator('.apartment-card');
+  await expect(cards).toHaveCount(3);
+  const filter = page.getByRole('group', { name: 'Фильтр по моей оценке' });
+  await filter.getByRole('button', { name: 'С оценкой', exact: true }).click();
+  await expect(cards).toHaveCount(2);
+  await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
+  await page.getByRole('option', { name: 'Оценка: по возрастанию', exact: true }).click();
+  await expect(cards.first()).toHaveAttribute('data-listing-id', ids[1]);
+  await filter.getByRole('button', { name: 'Все', exact: true }).click();
+  await expect(cards.last()).toHaveAttribute('data-listing-id', ids[0]);
+  await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
+  await page.getByRole('option', { name: 'Оценка: по убыванию', exact: true }).click();
+  await expect(cards.first()).toHaveAttribute('data-listing-id', ids[2]);
+  await expect(cards.last()).toHaveAttribute('data-listing-id', ids[0]);
+  await filter.getByRole('button', { name: 'Без оценки', exact: true }).click();
+  await expect(cards).toHaveCount(1);
+  await cards.first().getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await modal.getByRole('button', { name: 'Оценить Фильтр оценки 0', exact: true }).click();
+  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(modal).toHaveCount(0);
+  await expect(cards).toHaveCount(0);
+  await filter.getByRole('button', { name: 'С оценкой', exact: true }).click();
+  await expect(cards).toHaveCount(3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

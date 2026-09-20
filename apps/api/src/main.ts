@@ -247,6 +247,7 @@ class AppController {
   @Get('export.pdf') async exportPdf(
     @Query('ids') ids: string | undefined,
     @Query('name') name: string | undefined,
+    @Query('detailed') detailed: string | undefined,
     @Res() res: Response,
     @Req() req: Request,
   ) {
@@ -255,7 +256,15 @@ class AppController {
       ids === undefined ? null : new Set(parse(z.string().max(100000), ids).split(','));
     const listings = this.store.all().filter((l) => !selected || selected.has(l.id));
     const title = parse(z.string().trim().min(1).max(100).default('Подборка квартир'), name);
-    const bytes = await collectionPdf(title, listings, currentUser() ? this.store.viewings() : []);
+    const full = parse(z.enum(['0', '1']).default('0'), detailed) === '1';
+    if (full && listings.length !== 1)
+      throw new BadRequestException('Выберите одно объявление для подробного PDF');
+    const bytes = await collectionPdf(
+      title,
+      listings,
+      currentUser() ? this.store.viewings() : [],
+      full,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="mesto-apartments.pdf"');
     res.send(bytes);
