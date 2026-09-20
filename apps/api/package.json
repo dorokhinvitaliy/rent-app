@@ -1,1 +1,24 @@
-{"name":"@rent/api","version":"0.1.0","private":true,"scripts":{"build":"tsc -p tsconfig.json","dev":"concurrently -k \"tsc -w -p tsconfig.json\" \"node --watch dist/main.js\"","start":"node dist/main.js"},"dependencies":{"@nestjs/common":"^11.1.6","@nestjs/core":"^11.1.6","@nestjs/platform-express":"^11.1.6","@rent/shared":"0.1.0","cheerio":"^1.1.2","exceljs":"^4.4.0","playwright":"^1.63.0","reflect-metadata":"^0.2.2","rxjs":"^7.8.2"},"devDependencies":{"@types/express":"^5.0.3"}}
+{
+  "name": "@rent/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "concurrently -k \"tsc -w -p tsconfig.json\" \"node --watch dist/main.js\"",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.0.3",
+    "@nestjs/core": "^12.0.3",
+    "@nestjs/platform-express": "^12.0.3",
+    "@rent/shared": "0.1.0",
+    "cheerio": "^1.1.2",
+    "exceljs": "^4.4.0",
+    "playwright": "^1.63.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3"
+  }
+}

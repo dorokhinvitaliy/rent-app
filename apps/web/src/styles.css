@@ -1555,6 +1555,64 @@ input[type='checkbox'] {
     transform: rotate(360deg);
   }
 }
+/* Readable content typography at the default desktop density. */
+.nav-item {
+  font-size: 13px;
+}
+.button {
+  font-size: 12px;
+}
+.heading-copy > p {
+  font-size: 12px;
+}
+.stat p {
+  font-size: 11px;
+}
+.search-field input,
+.filter-bar select,
+.price-filter input,
+.filter-button {
+  font-size: 12px;
+}
+.source-tabs button,
+.sort,
+.sort select {
+  font-size: 11px;
+}
+.card-title {
+  font-size: 13px;
+}
+.card-address,
+.metro {
+  font-size: 11px;
+}
+.metro > span:last-child {
+  font-size: 10px;
+}
+.card-cost > span {
+  font-size: 11px;
+}
+.card-cost small {
+  font-size: 9px;
+}
+.card-cost > b {
+  font-size: 15px;
+}
+.card-detail {
+  font-size: 11px;
+}
+.cost-rows > div {
+  font-size: 12px;
+}
+.cost-rows > div > span {
+  color: #75816a;
+}
+.calculator-note {
+  font-size: 11px;
+}
+.source-tag {
+  font-size: 10px;
+}
 @media (min-width: 1600px) {
   .card-image {
     height: 245px;
