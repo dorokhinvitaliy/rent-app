@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  Trophy,
   Archive,
   ArchiveRestore,
   RefreshCw,
@@ -228,7 +229,9 @@ export default function App() {
   );
   const active = listings.filter((l) => l.rating !== 1);
   const archived = listings.filter((l) => l.rating === 1);
-  const collection = view === 'archive' ? archived : active;
+  const rated = active.filter((l) => (l.rating ?? 0) >= 2);
+  const rankFor = (rating: number) => rated.filter((l) => l.rating! > rating).length + 1;
+  const collection = view === 'archive' ? archived : view === 'ranking' ? rated : active;
   const rateListing = useCallback(async (l: Listing, rating: number | null) => {
     if (ratingRequests.current.has(l.id)) return;
     ratingRequests.current.add(l.id);
@@ -279,6 +282,7 @@ export default function App() {
     .filter(
       (l) =>
         (view === 'archive' ? l.rating === 1 : l.rating !== 1 || archiving.includes(l.id)) &&
+        (view !== 'ranking' || (l.rating ?? 0) >= 2 || archiving.includes(l.id)) &&
         (view !== 'favorites' || l.favorite) &&
         (view !== 'all' ||
           !resultsOnly ||
@@ -292,13 +296,15 @@ export default function App() {
         `${l.title} ${l.address} ${l.metro}`.toLowerCase().includes(query.toLowerCase()),
     )
     .sort((a, b) =>
-      sort === 'rating'
-        ? (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt.localeCompare(a.createdAt)
-        : sort === 'rent'
-          ? a.rent - b.rent
-          : sort === 'entry'
-            ? costs(a).moveIn - costs(b).moveIn
-            : b.createdAt.localeCompare(a.createdAt),
+      view === 'ranking'
+        ? (b.rating ?? 0) - (a.rating ?? 0) || a.rent - b.rent || a.id.localeCompare(b.id)
+        : sort === 'rating'
+          ? (b.rating ?? 0) - (a.rating ?? 0) || b.createdAt.localeCompare(a.createdAt)
+          : sort === 'rent'
+            ? a.rent - b.rent
+            : sort === 'entry'
+              ? costs(a).moveIn - costs(b).moveIn
+              : b.createdAt.localeCompare(a.createdAt),
     );
   const current = listings.find((l) => l.id === detail);
   const toggle = useCallback(
@@ -351,6 +357,7 @@ export default function App() {
           {[
             ['all', 'Все квартиры', LayoutGrid, active.length],
             ['favorites', 'Избранное', Heart, favorites.length],
+            ['ranking', 'Рейтинг', Trophy, rated.length],
             ['archive', 'Архив', Archive, archived.length],
             ['imports', 'Источники и импорт', Layers3, null],
           ].map(([key, label, Icon, count]) => {
@@ -414,7 +421,9 @@ export default function App() {
                   ? 'Избранное'
                   : view === 'archive'
                     ? 'Архив'
-                    : 'Все квартиры'}
+                    : view === 'ranking'
+                      ? 'Рейтинг'
+                      : 'Все квартиры'}
             </span>
           </div>
           <span className="privacy">
@@ -432,14 +441,18 @@ export default function App() {
                     ? 'Ближе к своему дому.'
                     : view === 'archive'
                       ? 'Можно передумать.'
-                      : 'Найдите свое место.'}
+                      : view === 'ranking'
+                        ? 'Лучшие — по вашим оценкам.'
+                        : 'Найдите свое место.'}
               </h1>
               <p>
                 {view === 'imports'
                   ? 'Соберите квартиры с разных площадок в одну понятную подборку.'
                   : view === 'archive'
                     ? 'Варианты с оценкой 1. Верните объявление или измените оценку, если передумаете.'
-                    : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
+                    : view === 'ranking'
+                      ? 'Выше оценка — выше место. При равных оценках место общее, сначала показываем меньшую аренду.'
+                      : 'Квартиры, которые вам подходят. Стоимость, в которой всё понятно.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -606,7 +619,13 @@ export default function App() {
                     <Building2 size={21} />
                   </span>
                   <div>
-                    <p>{view === 'archive' ? 'В архиве' : 'В подборке'}</p>
+                    <p>
+                      {view === 'archive'
+                        ? 'В архиве'
+                        : view === 'ranking'
+                          ? 'В рейтинге'
+                          : 'В подборке'}
+                    </p>
                     <b>
                       {collection.length}
                       <span>{plural(collection.length, 'квартира', 'квартиры', 'квартир')}</span>
@@ -651,7 +670,9 @@ export default function App() {
                         ? 'Результаты поиска'
                         : view === 'archive'
                           ? 'Архив'
-                          : 'Сохраненные квартиры'}
+                          : view === 'ranking'
+                            ? 'Ваш рейтинг квартир'
+                            : 'Сохраненные квартиры'}
                   </h2>
                   <span className="count-badge">{visible.length}</span>
                 </div>
@@ -758,19 +779,25 @@ export default function App() {
                     Яндекс
                   </button>
                 </div>
-                <label className="sort">
-                  Сортировка:{' '}
-                  <Select
-                    aria-label="Сортировка"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                  >
-                    <option value="new">Сначала новые</option>
-                    <option value="rating">По моей оценке</option>
-                    <option value="rent">Дешевле в месяц</option>
-                    <option value="entry">Меньше на въезд</option>
-                  </Select>
-                </label>
+                {view === 'ranking' ? (
+                  <span className="ranking-order">
+                    <Trophy size={15} /> От лучших к менее подходящим
+                  </span>
+                ) : (
+                  <label className="sort">
+                    Сортировка:{' '}
+                    <Select
+                      aria-label="Сортировка"
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                    >
+                      <option value="new">Сначала новые</option>
+                      <option value="rating">По моей оценке</option>
+                      <option value="rent">Дешевле в месяц</option>
+                      <option value="entry">Меньше на въезд</option>
+                    </Select>
+                  </label>
+                )}
               </div>
               {demo && (
                 <div className="demo-banner">
@@ -802,33 +829,41 @@ export default function App() {
                     <House size={42} />
                   </span>
                   <h2>
-                    {view === 'archive' && !archived.length
-                      ? 'Архив пуст'
-                      : listings.length
-                        ? 'Здесь пока нет подходящих квартир'
-                        : 'У хорошего поиска есть свое место'}
+                    {view === 'ranking' && !rated.length
+                      ? 'Пока нет оценённых квартир'
+                      : view === 'archive' && !archived.length
+                        ? 'Архив пуст'
+                        : listings.length
+                          ? 'Здесь пока нет подходящих квартир'
+                          : 'У хорошего поиска есть свое место'}
                   </h2>
                   <p>
-                    {view === 'archive' && !archived.length
-                      ? 'Сюда попадут объявления, которым вы поставите 1.'
-                      : listings.length
-                        ? 'Измените фильтры или добавьте варианты в избранное.'
-                        : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
+                    {view === 'ranking' && !rated.length
+                      ? 'Оцените квартиры в подборке. Варианты с оценками от 2 до 5 появятся здесь, с оценкой 1 — в архиве.'
+                      : view === 'archive' && !archived.length
+                        ? 'Сюда попадут объявления, которым вы поставите 1.'
+                        : listings.length
+                          ? 'Измените фильтры или добавьте варианты в избранное.'
+                          : 'Укажите параметры в форме выше и нажмите «Найти квартиры». Здесь появятся объявления с Циана.'}
                   </p>
                   <div>
                     <button
                       className="button primary"
                       onClick={() =>
-                        listings.length && !(searchJobId && resultsOnly)
-                          ? reset()
-                          : document
-                              .getElementById('cian-search')
-                              ?.scrollIntoView({ behavior: 'smooth' })
+                        view === 'ranking' && !rated.length
+                          ? (setView('all'), reset())
+                          : listings.length && !(searchJobId && resultsOnly)
+                            ? reset()
+                            : document
+                                .getElementById('cian-search')
+                                ?.scrollIntoView({ behavior: 'smooth' })
                       }
                     >
-                      {listings.length && !(searchJobId && resultsOnly)
-                        ? 'Сбросить фильтры'
-                        : 'Настроить поиск'}
+                      {view === 'ranking' && !rated.length
+                        ? 'Оценить квартиры'
+                        : listings.length && !(searchJobId && resultsOnly)
+                          ? 'Сбросить фильтры'
+                          : 'Настроить поиск'}
                       <ArrowRight size={17} />
                     </button>
                     {!listings.length && (
@@ -850,6 +885,7 @@ export default function App() {
                     <Card
                       key={l.id}
                       listing={l}
+                      rank={view === 'ranking' ? rankFor(l.rating!) : undefined}
                       archiving={archiving.includes(l.id)}
                       rate={rateListing}
                       ratingBusy={busy || ratingPending.includes(l.id)}
@@ -1045,6 +1081,7 @@ export default function App() {
   );
 }
 const Card = memo(function Card({
+  rank,
   archiving,
   listing: l,
   rate,
@@ -1058,6 +1095,7 @@ const Card = memo(function Card({
   selected,
 }: {
   listing: Listing;
+  rank?: number;
   archiving: boolean;
   rate: (listing: Listing, rating: number | null) => void;
   ratingBusy: boolean;
@@ -1140,6 +1178,13 @@ const Card = memo(function Card({
         >
           <Photo src={l.photos[photo]} alt={l.title} />
         </button>
+        {rank !== undefined && (
+          <span className="ranking-badge" aria-label={`Место ${rank}, оценка ${l.rating} из 5`}>
+            <Trophy size={13} />
+            <b>#{rank}</b>
+            <span>{l.rating}/5</span>
+          </span>
+        )}
         <span className={'source-tag ' + l.source}>
           <i />
           {sourceNames[l.source]}

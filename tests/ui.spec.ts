@@ -394,3 +394,50 @@ test('Rating updates only its card without refetching or disabling other cards',
   expect(listFetches).toBe(0);
   expect(await page.evaluate(() => (window as any).neighborMutations)).toBe(0);
 });
+
+test('Apartment ranking orders rated listings, shares places and responds to rating changes', async ({
+  page,
+  request,
+}) => {
+  for (const [name, rent, rating] of [
+    ['Лидер', 80000, 5],
+    ['Доступный', 50000, 5],
+    ['Запасной', 60000, 3],
+    ['Без оценки', 40000, null],
+    ['Отклонённый', 30000, 1],
+  ] as const) {
+    const l = await (
+      await request.post('/api/listings', { data: { title: 'Рейтинг тест ' + name, rent } })
+    ).json();
+    await request.patch('/api/listings/' + l.id, { data: { rating } });
+  }
+  await page.goto('/');
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Рейтинг/ })
+    .click();
+  await page.getByRole('textbox', { name: 'Поиск по адресу или метро' }).fill('Рейтинг тест');
+  const cards = page.locator('.apartment-card');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.locator('.card-title')).toHaveText([
+    'Рейтинг тест Доступный',
+    'Рейтинг тест Лидер',
+    'Рейтинг тест Запасной',
+  ]);
+  expect(await cards.nth(0).locator('.ranking-badge b').innerText()).toBe(
+    await cards.nth(1).locator('.ranking-badge b').innerText(),
+  );
+  const reserve = cards.filter({ hasText: 'Рейтинг тест Запасной' });
+  await reserve.locator('.rating-summary').hover();
+  await reserve.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
+  await expect(cards.locator('.card-title')).toHaveText([
+    'Рейтинг тест Доступный',
+    'Рейтинг тест Запасной',
+    'Рейтинг тест Лидер',
+  ]);
+  await reserve.locator('.rating-summary').hover();
+  await reserve.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await expect(cards).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/ranking-mobile.png', fullPage: true });
+});

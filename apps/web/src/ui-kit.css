@@ -1055,3 +1055,30 @@ input[type='checkbox']:checked {
     transition: none;
   }
 }
+
+.ranking-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 20px;
+  background: #17191deb;
+  color: white;
+  font-size: 11px;
+  pointer-events: none;
+}
+.ranking-badge > span {
+  padding-left: 7px;
+  border-left: 1px solid #ffffff35;
+  color: #d5d7db;
+}
+.ranking-order {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #777c84;
+  font-size: 11px;
+}
