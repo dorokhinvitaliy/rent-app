@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/search', (route) =>
+    route.fulfill({ json: { count: 10, reason: 'enough', job: null } }),
+  );
+});
 test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLSX, manual create and HTML import', async ({
   page,
   request,
@@ -180,7 +185,7 @@ test('Parameter search submits criteria, shows progress and isolates results fro
   expect(new URL(preview!).searchParams.get('mintarea')).toBe('40');
   await panel.getByRole('button', { name: 'Найти квартиры' }).click();
   expect(submitted).toBeUndefined();
-  await panel.getByRole('button', { name: 'Найти свежие объявления' }).click();
+  await page.getByRole('button', { name: 'Ещё загрузить с Циана' }).click();
   expect(submitted).toMatchObject({
     region: '2',
     rooms: [2],
@@ -190,17 +195,11 @@ test('Parameter search submits criteria, shows progress and isolates results fro
     metroMinutes: 10,
     noCommission: true,
   });
-  await expect(
-    panel.getByText('Пройдите проверку в открывшемся браузере', { exact: true }),
-  ).toBeVisible();
-  await panel.getByRole('button', { name: 'Открыть окно проверки' }).click();
+  await expect(page.getByText('Нужна проверка на Циане', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Открыть окно проверки' }).click();
   await expect.poll(() => opened).toBe(true);
   await expect(page.locator('.apartment-card')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Показать только результаты запуска' }).click();
-  await expect(page.locator('.apartment-card')).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: 'Поиск выполняется' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Показать всю сохраненную подборку' }).click();
-  await panel.getByRole('button', { name: 'Показать всю базу', exact: true }).click();
+  await panel.getByRole('button', { name: 'Сбросить условия', exact: true }).click();
   await expect(page.locator('.apartment-card')).toHaveCount(8);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -244,7 +243,7 @@ test('Metro multi-selection supports search, removal, city reset and persisted s
   await page.getByRole('button', { name: 'Готово', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Желаемые станции метро' })).toBeFocused();
   await page.getByRole('button', { name: 'Найти квартиры', exact: true }).click();
-  await page.getByRole('button', { name: 'Найти свежие объявления', exact: true }).click();
+  await page.getByRole('button', { name: 'Ещё загрузить с Циана', exact: true }).click();
   await expect.poll(() => submitted?.metroStations).toEqual([116]);
   await page.reload();
   await expect(page.locator('.metro-trigger-copy')).toContainText('Сокол');

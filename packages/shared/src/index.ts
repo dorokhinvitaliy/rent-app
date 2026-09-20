@@ -93,6 +93,9 @@ export const searchCities = { '1': 'Москва', '2': 'Санкт-Петерб
 const searchNumber = z.number().finite().nonnegative().nullable().default(null);
 export const cianSearchSchema = z
   .object({
+    query: z.string().trim().max(120).default(''),
+    source: z.enum(['all', 'cian', 'yandex', 'manual']).default('all'),
+    maxMoveIn: searchNumber,
     region: z.enum(['1', '2', '4777']).default('1'),
     metroStations: z
       .array(z.number().int().positive())
@@ -165,7 +168,23 @@ export function buildCianSearchUrl(input: CianSearch): string {
   return url.href;
 }
 // Source search parameters can change. Recheck every parsed offer before saving a search result.
+export function matchesDatabaseSearch(l: ListingInput, s: CianSearch) {
+  const city =
+    s.region === '1'
+      ? /москва|московск/i
+      : s.region === '2'
+        ? /санкт[ -]петербург|спб/i
+        : /казань/i;
+  return city.test(l.address) && !searchMismatch(l, s);
+}
 export function searchMismatch(l: ListingInput, s: CianSearch): string | null {
+  if (s.source !== 'all' && l.source !== s.source) return 'Другой источник';
+  if (
+    s.query &&
+    !`${l.title} ${l.address} ${l.metro}`.toLowerCase().includes(s.query.toLowerCase())
+  )
+    return 'Не совпадает адрес или название';
+  if (s.maxMoveIn !== null && costs(l).moveIn > s.maxMoveIn) return 'Сумма на въезд вне бюджета';
   if ((s.minRent !== null && l.rent < s.minRent) || (s.maxRent !== null && l.rent > s.maxRent))
     return 'Аренда вне бюджета';
   if (s.rooms.length && (l.rooms === null || !s.rooms.includes(l.rooms)))

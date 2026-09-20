@@ -31,7 +31,7 @@ export class Store implements OnModuleDestroy {
     this.db.exec('PRAGMA user_version=3;');
     const jobs = this.jobs();
     for (const job of jobs)
-      if (['running', 'waiting'].includes(job.status))
+      if (['queued', 'running', 'waiting'].includes(job.status))
         this.saveJob({ ...job, status: 'failed', message: 'Сбор прерван перезапуском приложения' });
   }
   collections() {
@@ -205,6 +205,9 @@ export class Store implements OnModuleDestroy {
   removeDemo() {
     for (const l of this.all()) if (l.demo) this.remove(l.id);
   }
+  hasUrl(url: string) {
+    return !!this.db.prepare('SELECT id FROM listings WHERE url=?').get(url);
+  }
   saveJob(job: ImportJob) {
     if (currentUser() && !job.userId) job.userId = currentUser()!.id;
     this.db
@@ -229,7 +232,7 @@ export type ImportJob = {
   userId?: string;
   id: string;
   url: string;
-  status: 'running' | 'waiting' | 'done' | 'partial' | 'failed' | 'cancelled';
+  status: 'queued' | 'running' | 'waiting' | 'done' | 'partial' | 'failed' | 'cancelled';
   message: string;
   count: number;
   added?: number;
@@ -239,6 +242,7 @@ export type ImportJob = {
   warnings: string[];
   search?: CianSearch;
   listingIds?: string[];
+  nextPage?: number;
   scanned?: number;
   skipped?: number;
   createdAt: string;

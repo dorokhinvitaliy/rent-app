@@ -2,32 +2,91 @@ import { Injectable, BadRequestException, OnModuleDestroy } from '@nestjs/common
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { matchingMetroStops, searchMismatch, type CianSearch } from '@rent/shared';
+import { currentUser, userContext, type User } from './user-context';
+import {
+  matchingMetroStops,
+  searchMismatch,
+  matchesDatabaseSearch,
+  buildCianSearchUrl,
+  type CianSearch,
+} from '@rent/shared';
 import { Store, dataDir, type ImportJob } from './store';
 import { sourceUrl, isChallenge, extractLinks, parseHtml } from './parser';
+type Task = {
+  job: ImportJob;
+  user?: User;
+  key: string;
+  limit: number;
+  pages: number;
+  slot?: number;
+  context?: BrowserContext;
+  page?: Page;
+  headless?: boolean;
+  httpStatus?: number;
+  showRequested?: boolean;
+  cancelled: boolean;
+};
 @Injectable()
 export class Importer implements OnModuleDestroy {
-  private active?: {
-    job: ImportJob;
-    context?: BrowserContext;
-    page?: Page;
-    headless?: boolean;
-    httpStatus?: number;
-    showRequested?: boolean;
-    cancelled: boolean;
-  };
+  private active = new Map<string, Task>();
+  private queue: Task[] = [];
+  private stopping = false;
+  private concurrency = Math.max(
+    1,
+    Math.min(3, Math.floor(Number(process.env.PARSER_CONCURRENCY) || 2)),
+  );
   constructor(private readonly store: Store) {}
+  search(criteria: CianSearch) {
+    const count = this.store
+      .all()
+      .filter((l) => l.rating !== 1 && matchesDatabaseSearch(l, criteria)).length;
+    if (!['all', 'cian'].includes(criteria.source)) return { count, reason: 'source', job: null };
+    if (count >= 10) return { count, reason: 'enough', job: null };
+    const recent = this.store
+      .jobs()
+      .find(
+        (j) =>
+          j.search &&
+          JSON.stringify(j.search) === JSON.stringify(criteria) &&
+          (['queued', 'running', 'waiting'].includes(j.status) ||
+            Date.now() - Date.parse(j.createdAt) < 60000),
+      );
+    if (recent) return { count, reason: 'recent', job: recent };
+    return {
+      count,
+      reason: 'fetching',
+      job: this.start(buildCianSearchUrl(criteria), criteria.limit, criteria.pages, criteria),
+    };
+  }
+  more(criteria: CianSearch) {
+    const previous = this.store
+      .jobs()
+      .find((j) => JSON.stringify(j.search) === JSON.stringify(criteria));
+    if (previous && ['queued', 'running', 'waiting'].includes(previous.status)) return previous;
+    const url = new URL(buildCianSearchUrl(criteria));
+    if (criteria.onlyNew && previous?.nextPage)
+      url.searchParams.set('p', String(previous.nextPage));
+    return this.start(url.href, criteria.limit, criteria.pages, criteria);
+  }
   start(url: string, limit: number, pages: number, search?: CianSearch) {
     const checked = sourceUrl(url);
-    if (this.active)
+    if (this.stopping) throw new BadRequestException('Сервер перезапускается');
+    const user = currentUser();
+    const key = JSON.stringify([checked.url, search, limit, pages]);
+    const tasks = [...this.active.values(), ...this.queue];
+    const duplicate = tasks.find((t) => t.user?.id === user?.id && t.key === key);
+    if (duplicate) return duplicate.job;
+    if (tasks.filter((t) => t.user?.id === user?.id).length >= 3)
       throw new BadRequestException(
-        'Другой сбор уже выполняется. Дождитесь завершения или отмените его.',
+        'У вас уже три задачи. Дождитесь завершения или отмените одну.',
       );
+    if (tasks.length >= 20)
+      throw new BadRequestException('Очередь заполнена. Попробуйте чуть позже.');
     const job: ImportJob = {
       id: randomUUID(),
       url: checked.url,
-      status: 'running',
-      message: 'Открываем браузер для сбора…',
+      status: 'queued',
+      message: 'В очереди на поиск…',
       count: 0,
       added: 0,
       updated: 0,
@@ -39,31 +98,61 @@ export class Importer implements OnModuleDestroy {
       skipped: 0,
       createdAt: new Date().toISOString(),
     };
-    this.active = { job, cancelled: false };
     this.store.saveJob(job);
-    void this.run(this.active, limit, pages);
+    this.queue.push({ job, user, key, limit, pages, cancelled: false });
+    this.pump();
     return job;
   }
+  private pump() {
+    while (!this.stopping && this.active.size < this.concurrency && this.queue.length) {
+      const task = this.queue.shift()!;
+      task.slot = Array.from({ length: this.concurrency }, (_, i) => i).find(
+        (i) => ![...this.active.values()].some((t) => t.slot === i),
+      )!;
+      this.active.set(task.job.id, task);
+      const launch = () => {
+        task.job.status = 'running';
+        task.job.message = 'Открываем браузер для сбора…';
+        this.store.saveJob(task.job);
+        void this.run(task, task.limit, task.pages);
+      };
+      if (task.user) userContext.run(task.user, launch);
+      else userContext.exit(launch);
+    }
+  }
   async cancel(id: string) {
-    if (this.active?.job.id === id) {
-      this.active.cancelled = true;
-      await this.active.context?.close();
+    const index = this.queue.findIndex((t) => t.job.id === id);
+    if (index >= 0) {
+      const [task] = this.queue.splice(index, 1);
+      task.cancelled = true;
+      task.job.status = 'cancelled';
+      task.job.message = 'Поиск отменён до запуска';
+      this.store.saveJob(task.job);
+    }
+    const task = this.active.get(id);
+    if (task) {
+      task.cancelled = true;
+      await task.context?.close();
     }
     return { ok: true };
   }
   openBrowser(id: string) {
-    if (!this.active || this.active.job.id !== id || !this.active.job.canOpenBrowser)
+    const task = this.active.get(id);
+    if (!task || !task.job.canOpenBrowser)
       throw new BadRequestException('Окно проверки сейчас не требуется');
-    this.active.showRequested = true;
+    task.showRequested = true;
     return { ok: true };
   }
-  private async launchBrowser(state: NonNullable<Importer['active']>, headless: boolean) {
-    state.context = await chromium.launchPersistentContext(resolve(dataDir, 'browser-profile'), {
-      headless,
-      viewport: { width: 1280, height: 900 },
-      locale: 'ru-RU',
-      acceptDownloads: false,
-    });
+  private async launchBrowser(state: Task, headless: boolean) {
+    state.context = await chromium.launchPersistentContext(
+      resolve(dataDir, state.slot ? `browser-profile-${state.slot}` : 'browser-profile'),
+      {
+        headless,
+        viewport: { width: 1280, height: 900 },
+        locale: 'ru-RU',
+        acceptDownloads: false,
+      },
+    );
     if (state.cancelled) throw new Error('Сбор отменен');
     // Disallow browser subresources targeting local services.
     await state.context.route('**/*', async (route) => {
@@ -87,7 +176,7 @@ export class Importer implements OnModuleDestroy {
     state.headless = headless;
     return page;
   }
-  private async waitForPage(page: Page, state: NonNullable<Importer['active']>) {
+  private async waitForPage(page: Page, state: Task) {
     let deadline = Date.now() + 180000;
     await page.waitForTimeout(1200);
     while (state.httpStatus === 403 || isChallenge(await page.content())) {
@@ -139,12 +228,7 @@ export class Importer implements OnModuleDestroy {
       .catch(() => {});
     return page.content();
   }
-  private async readDetail(
-    page: Page,
-    state: NonNullable<Importer['active']>,
-    url: string,
-    initialHtml: string,
-  ) {
+  private async readDetail(page: Page, state: Task, url: string, initialHtml: string) {
     let html = initialHtml;
     for (let attempt = 0; ; attempt++) {
       if (state.cancelled) throw new Error('Сбор отменен');
@@ -175,11 +259,10 @@ export class Importer implements OnModuleDestroy {
       }
     }
   }
-  private async run(state: NonNullable<Importer['active']>, limit: number, pages: number) {
+  private async run(state: Task, limit: number, pages: number) {
     const { job } = state;
     const imported = new Set<string>();
     const visited = new Set<string>();
-    const existing = new Set(this.store.all().map((l) => l.url));
     try {
       let page = await this.launchBrowser(state, false);
       const isDetail = /\/(rent\/flat|offer)\/\d+/.test(job.url);
@@ -192,6 +275,7 @@ export class Importer implements OnModuleDestroy {
             pageKey,
             String((Number(catalog.searchParams.get(pageKey)) || 1) + p - 1),
           );
+        job.nextPage = Number(catalog.searchParams.get(pageKey)) || 1;
         job.message = `Загружаем страницу ${p}…`;
         this.store.saveJob(job);
         const response = await page.goto(catalog.href, { waitUntil: 'domcontentloaded' });
@@ -217,7 +301,7 @@ export class Importer implements OnModuleDestroy {
           if (state.cancelled) throw new Error('Сбор отменен');
           visited.add(link);
           job.scanned = visited.size;
-          if (job.search?.onlyNew && existing.has(link)) {
+          if (job.search?.onlyNew && this.store.hasUrl(link)) {
             job.alreadySaved = (job.alreadySaved || 0) + 1;
             this.store.saveJob(job);
             continue;
@@ -247,13 +331,16 @@ export class Importer implements OnModuleDestroy {
                   l.metroMinutes = stop.minutes;
                 }
               }
-              const wasSaved = existing.has(l.url);
+              const wasSaved = this.store.hasUrl(l.url!);
+              if (job.search?.onlyNew && wasSaved) {
+                job.alreadySaved = (job.alreadySaved || 0) + 1;
+                return;
+              }
               const saved = this.store.save(l);
               if (!imported.has(l.url!)) {
                 if (wasSaved) job.updated = (job.updated || 0) + 1;
                 else job.added = (job.added || 0) + 1;
               }
-              existing.add(l.url);
               job.listingIds!.push(saved.id);
               imported.add(l.url!);
             });
@@ -270,6 +357,7 @@ export class Importer implements OnModuleDestroy {
             job.warnings.push(`${link}: ${e instanceof Error ? e.message : 'Ошибка чтения'}`);
           }
         }
+        if (links.every((link) => visited.has(link))) job.nextPage! += 1;
       }
       job.status = job.count
         ? job.warnings.length
@@ -299,13 +387,22 @@ export class Importer implements OnModuleDestroy {
       job.canOpenBrowser = false;
       await state.context?.close().catch(() => {});
       this.store.saveJob(job);
-      this.active = undefined;
+      this.active.delete(job.id);
+      this.pump();
     }
   }
   async onModuleDestroy() {
-    if (this.active) {
-      this.active.cancelled = true;
-      await this.active.context?.close().catch(() => {});
+    this.stopping = true;
+    for (const task of this.queue.splice(0)) {
+      task.job.status = 'cancelled';
+      task.job.message = 'Сервер перезапускается. Повторите поиск.';
+      this.store.saveJob(task.job);
     }
+    await Promise.all(
+      [...this.active.values()].map(async (task) => {
+        task.cancelled = true;
+        await task.context?.close().catch(() => {});
+      }),
+    );
   }
 }

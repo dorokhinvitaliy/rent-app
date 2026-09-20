@@ -129,15 +129,14 @@ class AppController {
   @Get('imports') imports() {
     return this.store.jobs();
   }
+  @Post('search') search(@Body() body: unknown, @Req() req: Request) {
+    this.auth.throttle('search:' + req.ip, 20, 60_000);
+    return this.importer.search(parse(cianSearchSchema, body));
+  }
   @Post('search/cian') searchCian(@Body() body: unknown, @Req() req: Request) {
     this.auth.throttle('parser:' + req.ip, 6, 60_000);
     const criteria = parse(cianSearchSchema, body);
-    return this.importer.start(
-      buildCianSearchUrl(criteria),
-      criteria.limit,
-      criteria.pages,
-      criteria,
-    );
+    return this.importer.more(criteria);
   }
   @Post('listings/:id/refresh') refreshListing(@Param('id') id: string, @Req() req: Request) {
     this.auth.throttle('parser:' + req.ip, 6, 60_000);

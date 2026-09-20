@@ -56,12 +56,14 @@ import {
   type ListingInput,
 } from '@rent/shared';
 import { api, type Job } from './api';
+import { SearchToasts } from './SearchToasts';
 import { SearchPanel } from './SearchPanel';
 const rub = (n: number) =>
   new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
 
 const cx = (...v: (string | false | undefined)[]) => v.filter(Boolean).join(' ');
 const statusNames: Record<string, string> = {
+  queued: 'В очереди',
   running: 'В процессе',
   waiting: 'Ожидает проверки',
   done: 'Завершен',
@@ -333,7 +335,6 @@ export default function App() {
   const favorites = active.filter((l) => l.favorite),
     demo = listings.some((l) => l.demo);
   const searchJob = jobs.find((j) => j.id === searchJobId);
-  const running = jobs.some((j) => ['running', 'waiting'].includes(j.status));
   const visible = listings
     .filter(
       (l) =>
@@ -546,6 +547,7 @@ export default function App() {
           )}
           {view === 'all' && (
             <SearchPanel
+              onQuery={setQuery}
               onSearch={(criteria) => {
                 setDatabaseSearch(criteria);
                 setResultsOnly(false);
@@ -558,34 +560,17 @@ export default function App() {
                     ).length
                   : null
               }
-              onClearSearch={() => setDatabaseSearch(null)}
-              job={searchJob || jobs.find((j) => ['running', 'waiting'].includes(j.status))}
-              running={running}
+              onClearSearch={() => {
+                setDatabaseSearch(null);
+                reset();
+              }}
               onStarted={(job) => {
-                setJobs((js) => [job, ...js]);
+                setJobs((js) => [job, ...js.filter((j) => j.id !== job.id)]);
                 setSearchJobId(job.id);
                 setResultsOnly(false);
                 reset();
               }}
-              onOpenBrowser={(id) =>
-                void action(() => api('/imports/' + id + '/open-browser', 'POST', {}))
-              }
-              onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
             />
-          )}
-          {view === 'all' && searchJobId && (
-            <div className="search-results-context">
-              <span>
-                {resultsOnly
-                  ? `Результаты этого запуска: ${visible.length}`
-                  : `Вся подборка: ${listings.length} · Найдено в этом запуске: ${searchJob?.count ?? 0}`}
-              </span>
-              <button onClick={() => setResultsOnly(!resultsOnly)}>
-                {resultsOnly
-                  ? 'Показать всю сохраненную подборку'
-                  : 'Показать только результаты запуска'}
-              </button>
-            </div>
           )}
           {view === 'imports' ? (
             <>
@@ -636,7 +621,7 @@ export default function App() {
                   {jobs.map((j) => (
                     <div className="job" key={j.id}>
                       <span className={cx('job-icon', j.status === 'failed' && 'error')}>
-                        {['running', 'waiting'].includes(j.status) ? (
+                        {['queued', 'running', 'waiting'].includes(j.status) ? (
                           <LoaderCircle className="spin" size={19} />
                         ) : j.status === 'failed' ? (
                           <X size={19} />
@@ -678,7 +663,7 @@ export default function App() {
                           Открыть окно проверки
                         </button>
                       )}
-                      {['running', 'waiting'].includes(j.status) && (
+                      {['queued', 'running', 'waiting'].includes(j.status) && (
                         <button
                           className="text-button"
                           onClick={() =>
@@ -749,58 +734,60 @@ export default function App() {
                   {visible.length} показано · {listings.length} всего сохранено
                 </span>
               </div>
-              <div className="filter-bar">
-                <label className="search-field">
-                  <Search size={18} />
-                  <input
-                    aria-label="Поиск по адресу или метро"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Адрес, район или метро"
-                  />
-                </label>
-                <Select
-                  aria-label="Источник"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                >
-                  <option value="all">Все источники</option>
-                  <option value="cian">Циан</option>
-                  <option value="yandex">Яндекс Недвижимость</option>
-                  <option value="manual">Вручную</option>
-                </Select>
-                <Select
-                  aria-label="Количество комнат"
-                  value={rooms}
-                  onChange={(e) => setRooms(e.target.value)}
-                >
-                  <option value="all">Комнат</option>
-                  <option value="0">Студия</option>
-                  <option value="1">1 комната</option>
-                  <option value="2">2 комнаты</option>
-                  <option value="3+">3 и больше</option>
-                </Select>
-                <label className="price-filter">
-                  <input
-                    type="number"
-                    aria-label="Максимальная аренда"
-                    min="0"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    placeholder="Бюджет до"
-                  />
-                  <span>₽</span>
-                </label>
-                <button
-                  className={cx('filter-button', filters && 'active')}
-                  onClick={() => setFilters(!filters)}
-                >
-                  <SlidersHorizontal size={17} />
-                  <span>Фильтры</span>
-                  {(maxEntry || noFee) && <i />}
-                </button>
-              </div>
-              {filters && (
+              {view !== 'all' && (
+                <div className="filter-bar">
+                  <label className="search-field">
+                    <Search size={18} />
+                    <input
+                      aria-label="Поиск по адресу или метро"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Адрес, район или метро"
+                    />
+                  </label>
+                  <Select
+                    aria-label="Источник"
+                    value={source}
+                    onChange={(e) => setSource(e.target.value)}
+                  >
+                    <option value="all">Все источники</option>
+                    <option value="cian">Циан</option>
+                    <option value="yandex">Яндекс Недвижимость</option>
+                    <option value="manual">Вручную</option>
+                  </Select>
+                  <Select
+                    aria-label="Количество комнат"
+                    value={rooms}
+                    onChange={(e) => setRooms(e.target.value)}
+                  >
+                    <option value="all">Комнат</option>
+                    <option value="0">Студия</option>
+                    <option value="1">1 комната</option>
+                    <option value="2">2 комнаты</option>
+                    <option value="3+">3 и больше</option>
+                  </Select>
+                  <label className="price-filter">
+                    <input
+                      type="number"
+                      aria-label="Максимальная аренда"
+                      min="0"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      placeholder="Бюджет до"
+                    />
+                    <span>₽</span>
+                  </label>
+                  <button
+                    className={cx('filter-button', filters && 'active')}
+                    onClick={() => setFilters(!filters)}
+                  >
+                    <SlidersHorizontal size={17} />
+                    <span>Фильтры</span>
+                    {(maxEntry || noFee) && <i />}
+                  </button>
+                </div>
+              )}
+              {view !== 'all' && filters && (
                 <div className="extra-filters">
                   <label className="entry-filter">
                     <span>Бюджет на въезд</span>
@@ -826,7 +813,7 @@ export default function App() {
                 </div>
               )}
               <div className="results-line">
-                <div className="source-tabs">
+                <div className="source-tabs" hidden={view === 'all'}>
                   <button
                     className={cx(source === 'all' && 'selected')}
                     onClick={() => setSource('all')}
@@ -966,7 +953,14 @@ export default function App() {
                       saveNote={saveNote}
                       rate={rateListing}
                       ratingBusy={busy || ratingPending.includes(l.id)}
-                      refreshDisabled={busy || running || ratingPending.includes(l.id)}
+                      refreshDisabled={
+                        busy ||
+                        jobs.some(
+                          (j) =>
+                            j.url === l.url && ['queued', 'running', 'waiting'].includes(j.status),
+                        ) ||
+                        ratingPending.includes(l.id)
+                      }
                       refreshJob={jobs.find((j) => j.url === l.url)}
                       refreshListing={refreshListing}
                       open={openListing}
@@ -986,6 +980,7 @@ export default function App() {
             </>
           )}
         </div>
+        {view === 'all' && <div id="load-more-cian" className="load-more-cian" />}
       </main>
       {selected.filter((id) => listings.some((l) => l.id === id)).length > 0 && (
         <div className="compare-tray">
@@ -1048,6 +1043,13 @@ export default function App() {
           }}
         />
       )}
+      <SearchToasts
+        jobs={jobs}
+        onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
+        onOpenBrowser={(id) =>
+          void action(() => api('/imports/' + id + '/open-browser', 'POST', {}))
+        }
+      />
       {notice && (
         <div className="toast" role="status">
           {notice}
@@ -1107,7 +1109,13 @@ export default function App() {
           onRefresh={() => refreshListing(current)}
           refreshJob={jobs.find((j) => j.url === current.url)}
           refreshDisabled={
-            busy || running || !current.url || current.source === 'manual' || current.demo
+            busy ||
+            jobs.some(
+              (j) => j.url === current.url && ['queued', 'running', 'waiting'].includes(j.status),
+            ) ||
+            !current.url ||
+            current.source === 'manual' ||
+            current.demo
           }
           months={months}
           setMonths={setMonths}
@@ -1252,7 +1260,7 @@ const Card = memo(function Card({
   selected: boolean;
 }) {
   const c = costs(l);
-  const refreshing = refreshJob && ['running', 'waiting'].includes(refreshJob.status);
+  const refreshing = refreshJob && ['queued', 'running', 'waiting'].includes(refreshJob.status);
   const refreshable = !!l.url && l.source !== 'manual' && !l.demo;
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -2002,7 +2010,9 @@ function Detail({
               <RefreshCw
                 size={15}
                 className={
-                  refreshJob && ['running', 'waiting'].includes(refreshJob.status) ? 'spin' : ''
+                  refreshJob && ['queued', 'running', 'waiting'].includes(refreshJob.status)
+                    ? 'spin'
+                    : ''
                 }
               />
               Актуализировать

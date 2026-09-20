@@ -1,6 +1,6 @@
 import { test, expect, request as createRequest } from '@playwright/test';
 test.use({ storageState: { cookies: [], origins: [] } });
-test('Guest searches the database before Cian and logs in only for personal actions', async ({
+test('Guest sees local results while scarce matches automatically trigger Cian; personal actions need login', async ({
   page,
 }) => {
   const admin = await createRequest.newContext({
@@ -21,17 +21,21 @@ test('Guest searches the database before Cian and logs in only for personal acti
     data: { notes: 'Секретная заметка', rating: 4 },
   });
   let starts = 0;
-  await page.route('**/api/search/cian', async (route) => {
+  await page.route('**/api/search', async (route) => {
     starts++;
     await route.fulfill({
       json: {
-        id: 'guest-search',
-        status: 'done',
-        message: 'Новые объявления проверены',
-        count: 0,
-        warnings: [],
-        listingIds: [],
-        search: route.request().postDataJSON(),
+        count: 1,
+        reason: 'fetching',
+        job: {
+          id: 'guest-search',
+          status: 'done',
+          message: 'Новые объявления проверены',
+          count: 0,
+          warnings: [],
+          listingIds: [],
+          search: route.request().postDataJSON(),
+        },
       },
     });
   });
@@ -42,9 +46,9 @@ test('Guest searches the database before Cian and logs in only for personal acti
   await page.getByLabel('Аренда в месяц, ₽ до', { exact: true }).fill('43000');
   await page.getByRole('button', { name: 'Найти квартиры', exact: true }).click();
   await expect(card).toBeVisible();
-  expect(starts).toBe(0);
-  await page.getByRole('button', { name: 'Найти свежие объявления', exact: true }).click();
-  expect(starts).toBe(1);
+  await expect.poll(() => starts).toBe(1);
+  await expect(page.getByLabel('Максимальная аренда')).toHaveCount(0);
+  await expect(page.getByLabel('Поиск по адресу или метро')).toHaveCount(1);
   await card.getByRole('button', { name: 'В избранное', exact: true }).click();
   const login = page.locator('.account-dialog');
   await expect(login).toBeVisible();

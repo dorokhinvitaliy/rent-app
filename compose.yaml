@@ -12,6 +12,7 @@ services:
     environment:
       NODE_ENV: production
       APP_ORIGIN: https://${DOMAIN:?Set DOMAIN in .env}
+      PARSER_CONCURRENCY: ${PARSER_CONCURRENCY:-2}
       TRUST_PROXY: '1'
       ENABLE_VNC: ${ENABLE_VNC:-0}
     volumes:
