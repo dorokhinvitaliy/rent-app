@@ -981,6 +981,8 @@ input[type='checkbox']:checked {
 .card-action-row .card-refresh {
   display: grid;
   place-items: center;
+  place-content: center;
+  gap: 0;
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
