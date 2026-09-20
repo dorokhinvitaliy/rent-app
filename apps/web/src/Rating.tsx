@@ -12,14 +12,13 @@ export function Rating({
   onChange,
   disabled,
   title,
-  hovered,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
   disabled: boolean;
   title: string;
-  hovered: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [preview, setPreview] = useState<number | null>(null);
@@ -77,7 +76,13 @@ export function Rating({
         }
       }}
     >
-      <div className="rating-island">
+      <div
+        className="rating-island"
+        onPointerEnter={(e) => {
+          if (e.pointerType === 'mouse') setHovered(true);
+        }}
+        onPointerLeave={() => setHovered(false)}
+      >
         <button
           ref={trigger}
           type="button"

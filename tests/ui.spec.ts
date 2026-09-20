@@ -259,13 +259,17 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   const card = page.locator('.apartment-card').filter({
     has: page.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }),
   });
-  await card.hover();
+  await card.locator('.card-title').hover();
+  await expect(card.locator('.rating-popover')).toBeHidden();
+  await card.locator('.rating-summary').hover();
   await card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
   await expect(
     card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await card.hover();
+  await card.locator('.card-title').hover();
+  await expect(card.locator('.rating-popover')).toBeHidden();
+  await card.locator('.rating-summary').hover();
   await expect(
     card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');

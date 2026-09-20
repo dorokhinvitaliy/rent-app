@@ -986,7 +986,6 @@ function Card({
   const c = costs(l);
   const refreshing = refreshJob && ['running', 'waiting'].includes(refreshJob.status);
   const refreshable = !!l.url && l.source !== 'manual' && !l.demo;
-  const [hovered, setHovered] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
@@ -994,11 +993,7 @@ function Card({
   return (
     <article
       className={cx('apartment-card', selected && 'card-selected')}
-      onPointerEnter={(e) => {
-        if (e.pointerType === 'mouse') setHovered(true);
-      }}
       onPointerLeave={() => {
-        setHovered(false);
         setPhotoIndex(0);
       }}
     >
@@ -1132,13 +1127,7 @@ function Card({
           <b>{rub(c.moveIn)}</b>
         </div>
         <div className="card-action-row">
-          <Rating
-            hovered={hovered}
-            value={l.rating ?? null}
-            onChange={rate}
-            disabled={ratingBusy}
-            title={l.title}
-          />
+          <Rating value={l.rating ?? null} onChange={rate} disabled={ratingBusy} title={l.title} />
           <button
             className="card-detail"
             onClick={open}
