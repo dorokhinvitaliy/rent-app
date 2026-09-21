@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Check, Search, X, AlertCircle } from 'lucide-react';
+import { Check, Search, X, AlertCircle, RefreshCw } from 'lucide-react';
 import type { Job } from './api';
 const active = (job: Job) => ['queued', 'running', 'waiting'].includes(job.status);
-type Props = { jobs: Job[]; onCancel: (id: string) => void; onOpenBrowser: (id: string) => void };
-function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { job: Job }) {
+type Props = {
+  jobs: Job[];
+  listings: { url: string | null; title: string; address: string }[];
+  onCancel: (id: string) => void;
+  onOpenBrowser: (id: string) => void;
+};
+function SearchToast({
+  job,
+  listings,
+  onCancel,
+  onOpenBrowser,
+}: Omit<Props, 'jobs'> & { job: Job }) {
+  const listing =
+    !job.search && !job.urls?.length ? listings.find((item) => item.url === job.url) : undefined;
+  const updating = !!listing;
   const [hidden, setHidden] = useState(false);
   const working = active(job);
   useEffect(() => {
@@ -12,8 +25,21 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
     return () => clearTimeout(timer);
   }, [working, job.status]);
   if (hidden) return null;
-  const title =
-    job.status === 'queued'
+  const title = updating
+    ? job.status === 'queued'
+      ? 'Скоро обновлю объявление…'
+      : job.status === 'waiting'
+        ? 'Нужна проверка на Циане'
+        : working
+          ? 'Обновляю объявление…'
+          : job.status === 'failed'
+            ? 'Не удалось обновить объявление'
+            : job.status === 'cancelled'
+              ? 'Обновление остановлено'
+              : job.status === 'partial' && !job.count
+                ? 'Не удалось обновить объявление'
+                : 'Объявление обновлено'
+    : job.status === 'queued'
       ? 'Скоро начну поиск…'
       : job.status === 'waiting'
         ? 'Нужна проверка на Циане'
@@ -31,7 +57,11 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
       <div className="search-toast-row">
         <span className="search-toast-icon">
           {working ? (
-            <Search size={18} />
+            updating ? (
+              <RefreshCw size={18} className="spin" />
+            ) : (
+              <Search size={18} />
+            )
           ) : job.status === 'failed' ? (
             <AlertCircle size={18} />
           ) : (
@@ -42,7 +72,16 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
           <strong className={working && job.status !== 'waiting' ? 'search-shimmer' : ''}>
             {title}
           </strong>
-          {working && job.status !== 'queued' && (
+          {listing && (
+            <small
+              className="search-toast-listing"
+              title={listing.title + (listing.address ? ' · ' + listing.address : '')}
+            >
+              {listing.title}
+              {listing.address ? ' · ' + listing.address : ''}
+            </small>
+          )}
+          {working && job.status !== 'queued' && (!updating || job.status === 'waiting') && (
             <small>
               {job.status === 'waiting'
                 ? 'Пройдите проверку, чтобы продолжить'
@@ -56,13 +95,23 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
               {/browserType\.|browserContext\.|Target page|Call log:|[\r\n]|--disable-/.test(
                 job.message,
               ) || job.message.length > 240
-                ? 'Поиск временно недоступен. Попробуйте ещё раз чуть позже.'
+                ? updating
+                  ? 'Не получилось проверить данные. Попробуйте чуть позже.'
+                  : 'Поиск временно недоступен. Попробуйте ещё раз чуть позже.'
                 : job.message}
             </small>
           )}
         </div>
         <button
-          aria-label={working ? 'Остановить поиск' : 'Закрыть поиск'}
+          aria-label={
+            updating
+              ? working
+                ? 'Остановить обновление'
+                : 'Закрыть уведомление об обновлении'
+              : working
+                ? 'Остановить поиск'
+                : 'Закрыть поиск'
+          }
           onClick={() => (working ? onCancel(job.id) : setHidden(true))}
         >
           <X size={16} />
@@ -77,7 +126,7 @@ function SearchToast({ job, onCancel, onOpenBrowser }: Omit<Props, 'jobs'> & { j
         <div
           className={'search-toast-progress ' + (job.status === 'running' ? 'moving' : '')}
           role="progressbar"
-          aria-label="Поиск квартир"
+          aria-label={updating ? 'Обновление объявления' : 'Поиск квартир'}
           aria-valuetext={title}
         >
           <span />

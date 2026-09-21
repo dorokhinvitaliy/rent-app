@@ -336,10 +336,7 @@ export default function App() {
   }, []);
   const refreshListing = useCallback(
     (l: Listing) => {
-      void action(
-        () => api('/listings/' + l.id + '/refresh', 'POST', {}),
-        'Актуализация запущена в браузере',
-      );
+      void action(() => api('/listings/' + l.id + '/refresh', 'POST', {}));
     },
     [action],
   );
@@ -1196,6 +1193,7 @@ export default function App() {
       )}
       <SearchToasts
         jobs={jobs}
+        listings={listings}
         onCancel={(id) => void action(() => api('/imports/' + id + '/cancel', 'POST', {}))}
         onOpenBrowser={(id) =>
           void action(() => api('/imports/' + id + '/open-browser', 'POST', {}))
@@ -1662,18 +1660,6 @@ const Card = memo(function Card({
             <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
           </button>
         </div>
-        {refreshJob && (
-          <p className="card-refresh-status" role="status">
-            {refreshing
-              ? refreshJob.status === 'waiting'
-                ? 'Нужна проверка — откройте окно в блоке поиска'
-                : 'Проверяем данные на площадке…'
-              : refreshJob.status === 'done' ||
-                  (refreshJob.status === 'partial' && refreshJob.count > 0)
-                ? 'Данные актуализированы'
-                : `Не обновлено: ${refreshJob.message}`}
-          </p>
-        )}
       </div>
     </article>
   );
@@ -2381,13 +2367,10 @@ function Detail({
               </>
             )}
           </div>
-          {refreshJob && (
-            <p className="detail-refresh-message" role="status">
-              {refreshJob.message}
-            </p>
-          )}
-          <small className="detail-updated">
-            Обновлено {new Date(l.updatedAt).toLocaleString('ru-RU')}
+          <small className="detail-updated" title={new Date(l.updatedAt).toLocaleString('ru-RU')}>
+            <RefreshCw size={11} />
+            Данные обновлены{' '}
+            {new Date(l.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
           </small>
         </section>
       </div>

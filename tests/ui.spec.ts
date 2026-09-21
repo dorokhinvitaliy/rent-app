@@ -313,6 +313,25 @@ test('Personal ratings persist, sort listings and refresh an individual source l
     '5/5 · Отличный вариант',
   );
   let refreshed = false;
+  await page.clock.install();
+  let refreshStatus = 'running';
+  await page.route('**/api/imports', (route) =>
+    route.fulfill({
+      json: refreshed
+        ? [
+            {
+              id: 'refresh-test',
+              url: sourced.url,
+              status: refreshStatus,
+              count: refreshStatus === 'done' ? 1 : 0,
+              warnings: [],
+              message: 'Добавлено новых: 0. Обновлено: 1.',
+              createdAt: new Date().toISOString(),
+            },
+          ]
+        : [],
+    }),
+  );
   await page.route('**/api/listings/' + sourced.id + '/refresh', (route) => {
     refreshed = true;
     return route.fulfill({
@@ -321,6 +340,17 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   });
   await card.getByRole('button', { name: 'Актуализировать ' + sourced.title, exact: true }).click();
   await expect.poll(() => refreshed).toBe(true);
+  const toast = page.locator('.search-toast');
+  await expect(toast).toContainText('Обновляю объявление…');
+  await expect(toast).toContainText(sourced.title);
+  await expect(toast).not.toContainText('Ищу подходящие квартиры');
+  await card.getByRole('button', { name: 'Подробнее и расчет' }).click();
+  await expect(page.getByRole('dialog')).not.toContainText('Добавлено новых');
+  refreshStatus = 'done';
+  await page.clock.runFor(4100);
+  await expect(toast).toContainText('Объявление обновлено', { timeout: 7000 });
+  await expect(toast).not.toContainText('Добавлено новых');
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await card.screenshot({ path: 'test-results/rating-card.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.mouse.move(0, 0);
