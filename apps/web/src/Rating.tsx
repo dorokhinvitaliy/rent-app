@@ -62,6 +62,7 @@ export function Rating({
     <div
       className="personal-rating"
       data-expanded={shown}
+      data-rated={value !== null}
       ref={root}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && !alwaysOpen) {

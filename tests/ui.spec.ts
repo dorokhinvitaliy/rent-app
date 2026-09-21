@@ -886,7 +886,8 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
     'tel:+79990000000',
   );
   await expect(modal.locator('.detail-memberships')).toContainText('PDF для просмотра');
-  await modal.getByRole('button', { name: 'Оценить Квартира для просмотра', exact: true }).click();
+  await expect(modal.getByRole('group', { name: 'Оценка Квартира для просмотра' })).toBeVisible();
+  await expect(modal.getByText('Моя оценка', { exact: true })).toBeHidden();
   await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
   await expect(
     modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
@@ -997,15 +998,9 @@ test('Collection review visits only unrated apartments and advances after persis
   const modal = page.getByRole('dialog');
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 1');
   await expect(modal).toContainText('Оценка подборки · 1 из 2');
-  await modal
-    .getByRole('button', { name: 'Оценить Оценить последовательно 1', exact: true })
-    .click();
   await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 2');
   await expect(modal).toContainText('Оценка подборки · 2 из 2');
-  await modal
-    .getByRole('button', { name: 'Оценить Оценить последовательно 2', exact: true })
-    .click();
   await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
   await expect(modal).toHaveCount(0);
   await expect(
@@ -1077,7 +1072,6 @@ test('Archiving from the detail modal keeps listing navigation usable', async ({
   await modal.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', titles[1]);
   const archiveCurrent = async () => {
-    await modal.getByRole('button', { name: /^Оценить Навигация после архива/ }).click();
     await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
   };
   await archiveCurrent();
@@ -1130,7 +1124,6 @@ test('Personal rating filters and sort orders keep unrated listings distinct fro
   await expect(cards).toHaveCount(1);
   await cards.first().getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
   const modal = page.getByRole('dialog');
-  await modal.getByRole('button', { name: 'Оценить Фильтр оценки 0', exact: true }).click();
   await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
   await expect(modal).toHaveCount(0);
   await expect(cards).toHaveCount(0);

@@ -4102,3 +4102,19 @@ html {
 .detail-decision .detail-comment-login:hover {
   color: #fff;
 }
+
+.detail-decision .personal-rating[data-rated='false'] .rating-summary {
+  visibility: hidden;
+}
+.detail-decision .personal-rating[data-rated='false'] .rating-clear {
+  visibility: hidden;
+}
+.detail-decision .personal-rating[data-rated='false'] {
+  height: 34px;
+}
+.detail-decision .personal-rating[data-rated='false'] .rating-island {
+  height: 34px;
+}
+.detail-decision .personal-rating[data-rated='false'] .rating-popover {
+  top: 0;
+}
