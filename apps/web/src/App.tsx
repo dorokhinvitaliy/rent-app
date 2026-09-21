@@ -628,6 +628,7 @@ export default function App() {
           )}
           {view === 'all' && (
             <SearchPanel
+              key={user?.id || 'guest'}
               searching={jobs.some((job) => ['queued', 'running', 'waiting'].includes(job.status))}
               onQuery={setQuery}
               onSearch={(criteria) => {
@@ -1912,6 +1913,88 @@ function animateDetailPhoto(
   void geometry.finished.then(() => ghost.remove()).catch(() => {});
   return { cancel, finished: geometry.finished };
 }
+function DetailComment({
+  notes,
+  initialDraft,
+  onDraft,
+  onSave,
+}: {
+  notes: string;
+  initialDraft?: string;
+  onDraft: (v: string) => void;
+  onSave: (v: string) => Promise<void>;
+}) {
+  const { user, open: login } = useAuth();
+  const [draft, setDraft] = useState(initialDraft ?? notes);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const dirty = draft.trim() !== notes.trim();
+  if (!user)
+    return (
+      <button className="detail-comment-login" onClick={login}>
+        <Plus size={16} />
+        <span>Добавить комментарий</span>
+        <ArrowUpRight size={15} />
+      </button>
+    );
+  return (
+    <form
+      className="detail-comment"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!user) {
+          login();
+          return;
+        }
+        if (!dirty || busy) return;
+        setBusy(true);
+        setError('');
+        try {
+          await onSave(draft.trim());
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label htmlFor="detail-comment-field">
+        Мой комментарий <span>· только для вас</span>
+      </label>
+      <textarea
+        id="detail-comment-field"
+        aria-label="Быстрый комментарий"
+        rows={2}
+        maxLength={5000}
+        placeholder={
+          user ? 'Что нравится? Что стоит уточнить?' : 'Войдите, чтобы оставить комментарий'
+        }
+        readOnly={!user}
+        value={draft}
+        disabled={busy}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onDraft(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            e.currentTarget.form?.requestSubmit();
+          }
+        }}
+      />
+      {(dirty || error) && (
+        <div className="detail-comment-footer">
+          <span role={error ? 'alert' : undefined}>{error || 'Не сохранено'}</span>
+          <button disabled={busy || !dirty} aria-label="Сохранить комментарий">
+            <Check size={14} />
+            {busy ? 'Сохраняем…' : 'Сохранить'}
+          </button>
+        </div>
+      )}
+    </form>
+  );
+}
 function Detail({
   listing: l,
   onPdf,
@@ -2134,22 +2217,6 @@ function Detail({
               ))}
             </div>
           )}
-          <CardNote
-            key={l.id}
-            notes={l.notes.trim()}
-            editable
-            initialDraft={drafts.current.get(l.id)}
-            onDraft={(value) => drafts.current.set(l.id, value)}
-            onSave={async (value) => {
-              setSaving(true);
-              try {
-                await onSaveNotes(value);
-                drafts.current.delete(l.id);
-              } finally {
-                setSaving(false);
-              }
-            }}
-          />
         </section>
         <section className="detail-info">
           <div className="detail-topline">
@@ -2177,7 +2244,7 @@ function Detail({
             <strong>{rub(l.rent)}</strong>
             <span>/ месяц</span>
           </div>
-          <div className={cx('detail-personal-actions', reviewLabel && 'reviewing')}>
+          <div className="detail-personal-actions">
             <button
               className="detail-collection-button"
               onClick={onPdf}
@@ -2187,16 +2254,6 @@ function Detail({
               <ArrowDownToLine size={16} />
               {pdfBusy ? 'Готовим…' : 'PDF'}
             </button>
-            <Rating
-              key={l.id}
-              value={l.rating ?? null}
-              alwaysOpen={!!reviewLabel}
-              onChange={async (value) => {
-                if (await onRate(value)) close();
-              }}
-              disabled={ratingBusy}
-              title={l.title}
-            />
             <button
               type="button"
               className={cx('detail-collection-button', memberships.length > 0 && 'saved')}
@@ -2217,6 +2274,33 @@ function Detail({
               ))}
             </div>
           )}
+          <div className="detail-decision">
+            <Rating
+              key={l.id}
+              value={l.rating ?? null}
+              alwaysOpen
+              onChange={async (value) => {
+                if (await onRate(value)) close();
+              }}
+              disabled={ratingBusy}
+              title={l.title}
+            />
+            <DetailComment
+              key={'comment-' + l.id}
+              notes={l.notes}
+              initialDraft={drafts.current.get(l.id)}
+              onDraft={(value) => drafts.current.set(l.id, value)}
+              onSave={async (value) => {
+                setSaving(true);
+                try {
+                  await onSaveNotes(value);
+                  drafts.current.delete(l.id);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            />
+          </div>
           <ViewingWidget
             key={'viewing-' + l.id}
             listingId={l.id}

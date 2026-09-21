@@ -41,13 +41,14 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await expect(page.getByRole('listbox')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toBeVisible();
   const detailNote = page.getByRole('dialog');
-  await detailNote
-    .getByRole('button', { name: /Добавить комментарий|Редактировать комментарий/ })
-    .click();
+  await expect(detailNote.getByRole('group', { name: /^Оценка / })).toBeVisible();
+  await detailNote.locator('.detail-decision').scrollIntoViewIfNeeded();
+  await detailNote.screenshot({ path: 'test-results/detail-decision-desktop.png' });
   await detailNote.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Уточнить счетчики');
   await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
-  await expect(detailNote.locator('.card-note-preview')).toHaveText('Уточнить счетчики');
-  await detailNote.getByRole('button', { name: 'Редактировать комментарий', exact: true }).click();
+  await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
+    'Уточнить счетчики',
+  );
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
     'Уточнить счетчики',
   );
@@ -55,7 +56,9 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
     .getByRole('textbox', { name: 'Быстрый комментарий' })
     .fill('Уточнить счетчики и залог');
   await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
-  await expect(detailNote.locator('.card-note-preview')).toHaveText('Уточнить счетчики и залог');
+  await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
+    'Уточнить счетчики и залог',
+  );
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByLabel('Поиск по адресу или метро').fill('');
@@ -524,7 +527,7 @@ test('Quick comment saves inline, retains failed drafts and persists after reloa
 }) => {
   const listing = await (
     await request.post('/api/listings', {
-      data: { title: 'Быстрый комментарий тест', rent: 50000 },
+      data: { title: 'Быстрый комментарий тест', address: 'Москва', rent: 50000 },
     })
   ).json();
   await page.goto('/');
@@ -592,16 +595,13 @@ test('Detail modal navigates apartments and photos independently and preserves n
   ).toBeDisabled();
   await dialog.getByRole('button', { name: 'Следующее фото', exact: true }).click();
   await expect(dialog.locator('.detail-photo-count')).toHaveText('2 / 2');
-  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
   await notes.fill('Черновик для первой квартиры');
   await dialog.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(firstTitle);
   await expect(dialog.locator('.detail-photo-count')).toHaveText('1 / 2');
-  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
   await expect(notes).toHaveValue('');
   await dialog.getByRole('button', { name: 'Предыдущее объявление', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
   await expect(notes).toHaveValue('Черновик для первой квартиры');
   await notes.fill('');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -619,7 +619,9 @@ test('Checkbox selection saves new and existing collections and removes only mem
   const ids: string[] = [];
   for (let i = 0; i < 5; i++) {
     const l = await (
-      await request.post('/api/listings', { data: { title: 'Подборки тест ' + i, rent: 60000 } })
+      await request.post('/api/listings', {
+        data: { title: 'Подборки тест ' + i, address: 'Москва', rent: 60000 },
+      })
     ).json();
     ids.push(l.id);
   }
@@ -889,7 +891,6 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await expect(
     modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('Escape');
   await expect(modal).toBeVisible();
   await modal.getByRole('button', { name: 'В подборках · 1', exact: true }).click();
   const picker = page.locator('dialog.modal');
@@ -1137,4 +1138,39 @@ test('Personal rating filters and sort orders keep unrated listings distinct fro
   await expect(cards).toHaveCount(3);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('Saved search criteria apply immediately on reopening search and reload without parsing', async ({
+  page,
+  request,
+}) => {
+  for (const rent of [45000, 95000])
+    await request.post('/api/listings', {
+      data: {
+        title: 'Сохранённый поиск ' + rent,
+        address: 'Москва, проверка восстановления',
+        rent,
+      },
+    });
+  await page.goto('/');
+  await page.getByLabel('Аренда в месяц, ₽ до', { exact: true }).fill('50000');
+  await page.getByLabel('Поиск по адресу или метро').fill('проверка восстановления');
+  let searches = 0;
+  page.on('request', (req) => {
+    if (req.method() === 'POST' && /\/api\/search(?:$|\/cian)/.test(req.url())) searches++;
+  });
+  await page.reload();
+  await expect(page.getByLabel('Аренда в месяц, ₽ до', { exact: true })).toHaveValue('50000');
+  await expect(page.locator('.apartment-card')).toHaveCount(1);
+  await expect(page.locator('.apartment-card')).toContainText('45 000');
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Избранное/ })
+    .click();
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: /^Все квартиры/ })
+    .click();
+  await expect(page.locator('.apartment-card')).toHaveCount(1);
+  expect(searches).toBe(0);
 });

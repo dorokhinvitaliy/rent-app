@@ -54,6 +54,14 @@ export function SearchPanel({
     } catch {}
     return cianSearchSchema.parse({});
   });
+  // Restore the form and the applied local filter together, without starting a parser job.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(key) || localStorage.getItem(legacyKey);
+      if (saved && cianSearchSchema.safeParse(JSON.parse(saved)).success) onSearch(criteria);
+      else onClearSearch();
+    } catch {}
+  }, []);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const change = <K extends keyof CianSearch>(field: K, value: CianSearch[K]) =>
