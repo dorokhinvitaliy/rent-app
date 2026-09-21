@@ -1928,6 +1928,12 @@ function DetailComment({
   const [draft, setDraft] = useState(initialDraft ?? notes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const field = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    if (!field.current) return;
+    field.current.style.height = '0px';
+    field.current.style.height = Math.min(180, field.current.scrollHeight) + 'px';
+  }, [draft, user?.id]);
   const dirty = draft.trim() !== notes.trim();
   if (!user)
     return (
@@ -1962,9 +1968,10 @@ function DetailComment({
         Мой комментарий <span>· только для вас</span>
       </label>
       <textarea
+        ref={field}
         id="detail-comment-field"
         aria-label="Быстрый комментарий"
-        rows={2}
+        rows={1}
         maxLength={5000}
         placeholder={
           user ? 'Что нравится? Что стоит уточнить?' : 'Войдите, чтобы оставить комментарий'
