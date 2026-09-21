@@ -3955,26 +3955,31 @@ html {
 .detail-decision {
   margin: 12px 0 18px;
   display: grid;
-  gap: 14px;
+  gap: 6px;
+  padding: 12px 17px 14px;
+  background: linear-gradient(145deg, #49453f, #363430);
+  border: 1px solid #ffffff12;
+  color: #fff;
+  border-radius: 22px 22px 5px 22px;
+  box-shadow: 0 8px 22px #27231f0d;
 }
 .detail-decision .personal-rating {
-  width: 248px;
+  width: 100%;
   max-width: 100%;
-  height: 70px;
+  height: 54px;
   margin: 0;
 }
 .detail-decision .personal-rating .rating-island {
   width: 100%;
   max-width: none;
-  box-shadow: 0 5px 15px #17191d12;
+  height: 54px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 .detail-comment {
-  background: linear-gradient(145deg, #49453f, #363430);
-  border: 1px solid #ffffff12;
-  color: #fff;
-  border-radius: 22px 22px 5px 22px;
-  padding: 15px 17px 12px;
-  box-shadow: 0 8px 22px #27231f0d;
+  padding: 2px 0 0;
 }
 .detail-comment label {
   display: block;
@@ -4007,7 +4012,7 @@ html {
   outline: none;
   box-shadow: none;
 }
-.detail-comment:focus-within {
+.detail-decision:focus-within {
   background: linear-gradient(145deg, #514c45, #3c3934);
 }
 .detail-comment-footer {
@@ -4053,4 +4058,47 @@ html {
 
 .detail-comment label span {
   color: #aaa69f;
+}
+
+.detail-decision .personal-rating .rating-summary {
+  top: 0;
+  left: 0;
+  padding-left: 0;
+}
+.detail-decision .rating-popover {
+  left: 0;
+  right: 0;
+  top: 20px;
+}
+.detail-decision .rating-thermometer {
+  width: min(240px, 100%);
+  height: 34px;
+}
+.detail-decision .rating-thermometer:before {
+  top: 15px;
+  height: 4px;
+}
+.detail-decision .rating-popover-heading {
+  right: -7px;
+  top: -22px;
+}
+.detail-decision .rating-thermometer button[aria-pressed='true'] i {
+  border-color: #443f39;
+}
+.detail-decision .detail-comment label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.detail-decision .detail-comment-login {
+  padding: 7px 0;
+  color: #ddd8d0;
+  background: transparent;
+}
+.detail-decision .detail-comment-login:hover {
+  color: #fff;
 }
