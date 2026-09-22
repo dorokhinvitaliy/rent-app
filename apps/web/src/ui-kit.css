@@ -4331,3 +4331,15 @@ html {
     gap: 5px;
   }
 }
+.detail-media-dock .detail-decision .personal-rating[data-rated] .rating-island {
+  height: 28px;
+}
+.detail-media-dock .personal-rating[data-expanded] .rating-summary {
+  width: 40px;
+  right: 22px;
+  padding: 0;
+  justify-content: center;
+}
+.detail-media-dock .personal-rating[data-expanded] .rating-live-label {
+  display: none;
+}
