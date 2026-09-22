@@ -44,7 +44,10 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await expect(detailNote.getByRole('group', { name: /^Оценка / })).toBeVisible();
   await detailNote.locator('.detail-decision').scrollIntoViewIfNeeded();
   await detailNote.screenshot({ path: 'test-results/detail-decision-desktop.png' });
-  await detailNote.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
+  await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveCount(0);
+  await detailNote.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toBeVisible();
+  await page.waitForTimeout(500);
   const impression = detailNote.locator('.detail-decision');
   const cleanHeight = (await impression.boundingBox())!.height;
   await detailNote.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Уточнить счетчики');
@@ -642,8 +645,7 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await expect(
     dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await dialog.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
-  await expect(notes).toBeFocused();
+  await expect(notes).toBeVisible();
   await notes.fill('Черновик для первой квартиры');
   await dialog.locator('.detail-info').evaluate((el) => (el.scrollTop = 0));
   await page.waitForTimeout(500);
@@ -651,7 +653,7 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(firstTitle);
   await expect(dialog.locator('.detail-photo-count')).toHaveText('1 / 2');
-  await expect(dialog.getByRole('button', { name: 'Добавить заметку', exact: true })).toBeVisible();
+  await expect(notes).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Предыдущее объявление', exact: true }).click();
   await expect(notes).toHaveValue('Черновик для первой квартиры');
   await notes.fill('');
@@ -662,6 +664,7 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await expect(
     dialog.getByRole('button', { name: 'Сохранить комментарий', exact: true }),
   ).toBeInViewport();
+  await page.waitForTimeout(750);
   await dialog.screenshot({ path: 'test-results/photo-widget-mobile.png' });
   const mediaBounds = await dialog.locator('.detail-media').boundingBox();
   const dockBounds = await dock.boundingBox();

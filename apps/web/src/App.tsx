@@ -1899,7 +1899,27 @@ function animateDetailPhoto(
   void geometry.finished.then(() => ghost.remove()).catch(() => {});
   return { cancel, finished: geometry.finished };
 }
+function DecisionIsland({ expanded, children }: { expanded: boolean; children: ReactNode }) {
+  const content = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>();
+  useLayoutEffect(() => {
+    const el = content.current!;
+    const measure = () => setHeight(el.getBoundingClientRect().height + 2);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div className="detail-decision decision-island" data-open={expanded} style={{ height }}>
+      <div ref={content} className="decision-island-content">
+        {children}
+      </div>
+    </div>
+  );
+}
 function DetailComment({
+  reveal = false,
   notes,
   initialDraft,
   onDraft,
@@ -1907,6 +1927,7 @@ function DetailComment({
 }: {
   notes: string;
   initialDraft?: string;
+  reveal?: boolean;
   onDraft: (v: string) => void;
   onSave: (v: string) => Promise<void>;
 }) {
@@ -1918,8 +1939,15 @@ function DetailComment({
   const field = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     if (!field.current) return;
-    field.current.style.height = '0px';
-    field.current.style.height = Math.min(180, field.current.scrollHeight) + 'px';
+    const el = field.current;
+    const previous = el.style.height || '22px';
+    el.style.transition = 'none';
+    el.style.height = '0px';
+    const height = Math.min(180, el.scrollHeight) + 'px';
+    el.style.height = previous;
+    void el.offsetHeight;
+    el.style.transition = '';
+    el.style.height = height;
   }, [draft, user?.id, editing]);
   const dirty = draft.trim() !== notes.trim();
   if (!user)
@@ -1930,7 +1958,7 @@ function DetailComment({
         <ArrowUpRight size={15} />
       </button>
     );
-  if (!draft && !notes && !editing)
+  if (!draft && !notes && !editing && !reveal)
     return (
       <button type="button" className="detail-comment-add" onClick={() => setEditing(true)}>
         <Plus size={15} />
@@ -2185,13 +2213,6 @@ function Detail({
             {sourceNames[l.source]}
             {l.demo ? ' · демо' : ''}
           </span>
-          <button
-            className="detail-favorite"
-            onClick={onFavorite}
-            aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
-          >
-            <Heart size={19} fill={l.favorite ? 'currentColor' : 'none'} />
-          </button>
           {l.photos.length > 1 && (
             <>
               <button
@@ -2214,33 +2235,59 @@ function Detail({
             {l.photos.length ? `${safePhoto + 1} / ${l.photos.length}` : 'Нет фотографий'}
           </span>
           <div className="detail-media-dock">
-            <div className="detail-decision">
-              <Rating
-                key={l.id}
-                value={l.rating ?? null}
-                alwaysOpen
-                onChange={async (value) => {
-                  if (await onRate(value)) close();
-                }}
-                disabled={ratingBusy}
-                title={l.title}
-              />
-              <DetailComment
-                key={'comment-' + l.id}
-                notes={l.notes}
-                initialDraft={drafts.current.get(l.id)}
-                onDraft={(value) => drafts.current.set(l.id, value)}
-                onSave={async (value) => {
-                  setSaving(true);
-                  try {
-                    await onSaveNotes(value);
-                    drafts.current.delete(l.id);
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-              />
-            </div>
+            <DecisionIsland expanded={!!l.rating || !!l.notes || !!drafts.current.get(l.id)}>
+              <div className="decision-island-toolbar">
+                <button
+                  className="decision-island-action"
+                  onClick={onFavorite}
+                  aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
+                  aria-pressed={l.favorite}
+                >
+                  <Heart size={17} fill={l.favorite ? 'currentColor' : 'none'} />
+                </button>
+                <Rating
+                  key={l.id}
+                  value={l.rating ?? null}
+                  alwaysOpen
+                  onChange={async (value) => {
+                    if (await onRate(value)) close();
+                  }}
+                  disabled={ratingBusy}
+                  title={l.title}
+                />
+                <button
+                  className="decision-island-action"
+                  disabled={ratingBusy}
+                  aria-label="В архив"
+                  title="В архив · Не подходит"
+                  onClick={async () => {
+                    if (await onRate(1)) close();
+                  }}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              {(!!l.rating || !!l.notes || !!drafts.current.get(l.id)) && (
+                <div className="decision-island-note">
+                  <DetailComment
+                    reveal
+                    key={'comment-' + l.id}
+                    notes={l.notes}
+                    initialDraft={drafts.current.get(l.id)}
+                    onDraft={(value) => drafts.current.set(l.id, value)}
+                    onSave={async (value) => {
+                      setSaving(true);
+                      try {
+                        await onSaveNotes(value);
+                        drafts.current.delete(l.id);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </DecisionIsland>
             {l.photos.length > 1 && (
               <div className="detail-thumbs">
                 {l.photos.map((src, i) => (
