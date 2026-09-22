@@ -111,6 +111,8 @@ export const patchSchema = listingSchema
   .strict();
 export type ListingInput = z.infer<typeof listingSchema>;
 export type Listing = ListingInput & {
+  publicationStatus?: 'active' | 'removed';
+  publicationCheckedAt?: string;
   id: string;
   favorite: boolean;
   rating?: number | null;
@@ -226,7 +228,11 @@ export function buildCianSearchUrl(input: CianSearch): string {
   return url.href;
 }
 // Source search parameters can change. Recheck every parsed offer before saving a search result.
-export function matchesDatabaseSearch(l: ListingInput, s: CianSearch) {
+export function matchesDatabaseSearch(
+  l: ListingInput & { publicationStatus?: string },
+  s: CianSearch,
+) {
+  if (l.publicationStatus === 'removed') return false;
   const city =
     s.region === '1'
       ? /москва|московск/i

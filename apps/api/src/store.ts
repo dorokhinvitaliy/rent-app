@@ -170,6 +170,17 @@ export class Store implements OnModuleDestroy {
       rating: state?.rating == null ? null : Number(state.rating),
     };
   }
+  setPublicationStatus(url: string, status: 'active' | 'removed') {
+    const row = this.db.prepare('SELECT data FROM listings WHERE url=?').get(url);
+    if (!row) return;
+    const listing: Listing = JSON.parse(row.data as string);
+    listing.publicationStatus = status;
+    listing.publicationCheckedAt = new Date().toISOString();
+    this.db
+      .prepare('UPDATE listings SET data=? WHERE id=?')
+      .run(JSON.stringify(listing), listing.id);
+    return listing.id;
+  }
   save(input: ListingInput, demo = false): Listing {
     const row = input.url
       ? this.db.prepare('SELECT data FROM listings WHERE url=?').get(input.url)
@@ -210,6 +221,8 @@ export class Store implements OnModuleDestroy {
     const now = new Date().toISOString();
     const listing: Listing = {
       ...merged,
+      publicationStatus: old?.publicationStatus,
+      publicationCheckedAt: old?.publicationCheckedAt,
       id: old?.id || randomUUID(),
       favorite: old?.favorite || false,
       notes: old?.notes || '',
@@ -299,6 +312,7 @@ export type ImportJob = {
   warnings: string[];
   search?: CianSearch;
   listingIds?: string[];
+  removedIds?: string[];
   nextPage?: number;
   scanned?: number;
   skipped?: number;

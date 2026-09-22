@@ -27,6 +27,7 @@ export type Job = {
   canOpenBrowser?: boolean;
   warnings: string[];
   listingIds?: string[];
+  removedIds?: string[];
   urls?: string[];
   search?: import('@rent/shared').CianSearch;
   scanned?: number;

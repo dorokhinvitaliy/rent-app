@@ -99,6 +99,12 @@ export function Viewings({
                         {l.title}
                       </button>
                       <p>{l.address}</p>
+                      {l.publicationStatus === 'removed' && (
+                        <p className="publication-warning">
+                          Снято с публикации
+                          {v.status === 'planned' ? ' · Уточните, состоится ли просмотр' : ''}
+                        </p>
+                      )}
                       {v.feedback && <blockquote>{v.feedback}</blockquote>}
                       {l.details?.contact?.phones[0] && (
                         <a className="viewing-phone" href={'tel:' + l.details.contact.phones[0]}>

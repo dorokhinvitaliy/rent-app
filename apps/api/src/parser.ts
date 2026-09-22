@@ -255,3 +255,27 @@ export function extractLinks(html: string, url: string): string[] {
   });
   return [...links];
 }
+
+// Only explicit source notices count; description text and recommendations do not.
+export function isRemovedOffer(html: string, status?: number): boolean {
+  if (isChallenge(html) || (status && status >= 500) || status === 403 || status === 429)
+    return false;
+  if (status === 410) return true;
+  const $ = load(html);
+  $(
+    'script,style,[data-name="Description"],[data-name="DescriptionWrapper"],[data-name="Recommendations"]',
+  ).remove();
+  return $(
+    'h1,h2,[data-name*="Status"],[data-name*="Removed"],[data-name*="Archive"],[role="alert"]',
+  )
+    .toArray()
+    .some((el) => {
+      const text = $(el).text().replace(/\s+/g, ' ').trim();
+      return (
+        text.length < 250 &&
+        /(?:объявление|предложение)\s+(?:снято с публикации|снято с размещения|больше не актуально|удалено|в архиве)|объявление перенесено в архив/i.test(
+          text,
+        )
+      );
+    });
+}

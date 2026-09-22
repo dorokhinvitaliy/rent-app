@@ -348,6 +348,7 @@ export default function App() {
   const visible = listings
     .filter(
       (l) =>
+        (view !== 'all' || l.publicationStatus !== 'removed') &&
         (view === 'archive' ? l.rating === 1 : l.rating !== 1 || archiving.includes(l.id)) &&
         (view !== 'ranking' || (l.rating ?? 0) >= 2 || archiving.includes(l.id)) &&
         (view !== 'collections' || !!currentCollection?.listingIds.includes(l.id)) &&
@@ -461,7 +462,12 @@ export default function App() {
         <div className="nav-caption">ПРОСТРАНСТВО</div>
         <nav>
           {[
-            ['all', 'Все квартиры', LayoutGrid, active.length],
+            [
+              'all',
+              'Все квартиры',
+              LayoutGrid,
+              active.filter((l) => l.publicationStatus !== 'removed').length,
+            ],
             ['favorites', 'Избранное', Star, favorites.length],
             ['ranking', 'Рейтинг', Trophy, rated.length],
             ['collections', 'Подборки', FolderHeart, collections.length],
@@ -1590,6 +1596,9 @@ const Card = memo(function Card({
         )}
       </div>
       <div className="card-content">
+        {l.publicationStatus === 'removed' && (
+          <span className="publication-badge">Снято с публикации</span>
+        )}
         <button className="card-title" onClick={() => open(l.id, photo)}>
           {l.rooms === 0 ? 'Студия' : l.rooms ? `${l.rooms}-комн. квартира` : l.title}
           {l.area ? ` · ${l.area} м²` : ''}
@@ -2346,6 +2355,9 @@ function Detail({
               <X size={18} />
             </IconButton>
           </div>
+          {l.publicationStatus === 'removed' && (
+            <span className="publication-badge">Снято с публикации</span>
+          )}
           <h2>{l.title}</h2>
           <p className="detail-address">{l.address || 'Адрес не указан'}</p>
           <div className="detail-facts">

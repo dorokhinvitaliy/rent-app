@@ -1310,3 +1310,40 @@ test('Sidebar scrolls to its bottom independently in a short window', async ({ p
   expect(await page.evaluate(() => window.scrollY)).toBe(pageTop);
   await sidebar.screenshot({ path: 'test-results/sidebar-scrolled.png' });
 });
+
+test('Removed offers are hidden in search but retained in collections and details', async ({
+  page,
+  request,
+}) => {
+  const listing = await (
+    await request.post('/api/listings', {
+      data: { title: 'Снятая квартира тест', address: 'Москва', rent: 65000 },
+    })
+  ).json();
+  await request.post('/api/collections', {
+    data: { name: 'Снятые варианты', listingIds: [listing.id] },
+  });
+  await page.route('**/api/listings', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const listings = await response.json();
+    await route.fulfill({
+      response,
+      json: listings.map((row: any) =>
+        row.id === listing.id ? { ...row, publicationStatus: 'removed' } : row,
+      ),
+    });
+  });
+  await page.goto('/');
+  await expect(page.locator('.apartment-card').filter({ hasText: listing.title })).toHaveCount(0);
+  await page
+    .locator('aside')
+    .getByRole('button', { name: /^Подборки/ })
+    .click();
+  await page.getByRole('button', { name: /Снятые варианты/ }).click();
+  const card = page.locator('.apartment-card').filter({ hasText: listing.title });
+  await expect(card).toContainText('Снято с публикации');
+  await card.locator('.card-title').click();
+  await expect(page.getByRole('dialog')).toContainText('Снято с публикации');
+  await page.getByRole('dialog').screenshot({ path: 'test-results/removed-offer.png' });
+});

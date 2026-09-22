@@ -11,7 +11,7 @@ import {
   type CianSearch,
 } from '@rent/shared';
 import { Store, dataDir, type ImportJob } from './store';
-import { sourceUrl, isChallenge, extractLinks, parseHtml } from './parser';
+import { sourceUrl, isChallenge, extractLinks, parseHtml, isRemovedOffer } from './parser';
 type Task = {
   job: ImportJob;
   user?: User;
@@ -352,6 +352,12 @@ export class Importer implements OnModuleDestroy {
                 html = await this.waitForPage(page, state);
                 page = state.page!;
               }
+              if (isRemovedOffer(html, state.httpStatus)) {
+                const removedId = this.store.setPublicationStatus(link, 'removed');
+                if (removedId) (job.removedIds ||= []).push(removedId);
+                this.store.saveJob(job);
+                continue;
+              }
               const parsed = await this.readDetail(page, state, link, html);
               parsed.listings.forEach((l) => {
                 const mismatch = job.search ? searchMismatch(l, job.search) : null;
@@ -373,6 +379,7 @@ export class Importer implements OnModuleDestroy {
                   return;
                 }
                 const saved = this.store.save(l);
+                this.store.setPublicationStatus(l.url!, 'active');
                 if (!imported.has(l.url!)) {
                   if (wasSaved) job.updated = (job.updated || 0) + 1;
                   else job.added = (job.added || 0) + 1;
@@ -396,20 +403,24 @@ export class Importer implements OnModuleDestroy {
           if (links.every((link) => visited.has(link))) job.nextPage! += 1;
         }
       }
-      job.status = job.count
-        ? job.warnings.length
-          ? 'partial'
-          : 'done'
-        : job.search && (job.skipped || job.alreadySaved)
-          ? 'done'
-          : 'failed';
-      job.message = job.count
-        ? `Добавлено новых: ${job.added}. Обновлено: ${job.updated}.`
-        : job.search && (job.skipped || job.alreadySaved)
-          ? job.alreadySaved
-            ? 'Новых совпадений на просмотренных страницах нет. Сохраненные квартиры остаются в подборке.'
-            : 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
-          : job.warnings[0] || 'Не удалось получить ни одной квартиры';
+      job.status =
+        job.count || job.removedIds?.length
+          ? job.warnings.length
+            ? 'partial'
+            : 'done'
+          : job.search && (job.skipped || job.alreadySaved)
+            ? 'done'
+            : 'failed';
+      job.message =
+        job.removedIds?.length && !job.count
+          ? 'Объявление снято с публикации'
+          : job.count
+            ? `Добавлено новых: ${job.added}. Обновлено: ${job.updated}.`
+            : job.search && (job.skipped || job.alreadySaved)
+              ? job.alreadySaved
+                ? 'Новых совпадений на просмотренных страницах нет. Сохраненные квартиры остаются в подборке.'
+                : 'Подтвержденных совпадений нет. Попробуйте расширить параметры.'
+              : job.warnings[0] || 'Не удалось получить ни одной квартиры';
     } catch (e) {
       job.status = state.cancelled ? 'cancelled' : job.count ? 'partial' : 'failed';
       job.message = state.cancelled

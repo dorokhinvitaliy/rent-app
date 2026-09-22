@@ -25,33 +25,36 @@ function SearchToast({
     return () => clearTimeout(timer);
   }, [working, job.status]);
   if (hidden) return null;
-  const title = updating
-    ? job.status === 'queued'
-      ? 'Скоро обновлю объявление…'
-      : job.status === 'waiting'
-        ? 'Нужна проверка на Циане'
-        : working
-          ? 'Обновляю объявление…'
-          : job.status === 'failed'
-            ? 'Не удалось обновить объявление'
-            : job.status === 'cancelled'
-              ? 'Обновление остановлено'
-              : job.status === 'partial' && !job.count
+  const title =
+    updating && job.removedIds?.length
+      ? 'Объявление снято с публикации'
+      : updating
+        ? job.status === 'queued'
+          ? 'Скоро обновлю объявление…'
+          : job.status === 'waiting'
+            ? 'Нужна проверка на Циане'
+            : working
+              ? 'Обновляю объявление…'
+              : job.status === 'failed'
                 ? 'Не удалось обновить объявление'
-                : 'Объявление обновлено'
-    : job.status === 'queued'
-      ? 'Скоро начну поиск…'
-      : job.status === 'waiting'
-        ? 'Нужна проверка на Циане'
-        : working
-          ? job.scanned
-            ? 'Проверяю новые предложения…'
-            : 'Ищу подходящие квартиры…'
-          : job.status === 'failed'
-            ? 'Не удалось продолжить поиск'
-            : job.status === 'cancelled'
-              ? 'Поиск остановлен'
-              : `Найдено квартир: ${job.count}`;
+                : job.status === 'cancelled'
+                  ? 'Обновление остановлено'
+                  : job.status === 'partial' && !job.count
+                    ? 'Не удалось обновить объявление'
+                    : 'Объявление обновлено'
+        : job.status === 'queued'
+          ? 'Скоро начну поиск…'
+          : job.status === 'waiting'
+            ? 'Нужна проверка на Циане'
+            : working
+              ? job.scanned
+                ? 'Проверяю новые предложения…'
+                : 'Ищу подходящие квартиры…'
+              : job.status === 'failed'
+                ? 'Не удалось продолжить поиск'
+                : job.status === 'cancelled'
+                  ? 'Поиск остановлен'
+                  : `Найдено квартир: ${job.count}`;
   return (
     <div className="search-toast" role="status">
       <div className="search-toast-row">
