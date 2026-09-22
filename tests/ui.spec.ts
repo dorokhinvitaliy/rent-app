@@ -371,7 +371,7 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await page.mouse.move(0, 0);
   await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
   await page.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
-  await card.getByRole('button', { name: 'Сбросить оценку', exact: true }).click();
+  await card.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(
     card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }),
   ).toHaveAttribute('title', 'Оценить вариант');

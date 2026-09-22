@@ -4625,3 +4625,104 @@ html {
 .heart-button.hearted {
   color: #ffe1a0 !important;
 }
+
+/* One transforming surface: no floating menu or duplicate caption. */
+.three-rating {
+  height: 38px;
+}
+.three-rating .rating-bubble {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 22px;
+  background: #24262a;
+  overflow: hidden;
+  transition:
+    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms ease;
+}
+.three-rating[data-expanded='true'] .rating-bubble {
+  width: 140px;
+  box-shadow: 0 4px 14px #00000012;
+}
+.three-rating .rating-bubble > .rating-summary {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 38px !important;
+  height: 38px !important;
+  padding: 0 !important;
+  justify-content: center;
+  background: transparent;
+  transition:
+    opacity 140ms,
+    transform 220ms;
+}
+.three-rating[data-expanded='true'] .rating-bubble > .rating-summary {
+  opacity: 0;
+  transform: scale(0.7);
+  pointer-events: none;
+}
+.three-rating .rating-bubble > .rating-popover {
+  position: absolute;
+  inset: 3px;
+  width: 134px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-5px);
+  transition:
+    opacity 180ms,
+    transform 300ms,
+    visibility 180ms;
+}
+.three-rating[data-expanded='true'] .rating-bubble > .rating-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.rating-options {
+  gap: 4px;
+  justify-content: space-between;
+}
+.rating-options > button {
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  flex: 0 0 32px;
+  transition:
+    color 180ms,
+    background 180ms,
+    transform 220ms;
+}
+.rating-options > button:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+.rating-options > button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.three-rating .rating-options {
+  justify-content: space-around;
+}
+.detail-media-dock .detail-decision.decision-island {
+  width: min(100%, 168px);
+}
+.detail-media-dock .decision-island[data-open='true'] {
+  width: min(100%, 330px);
+}
+.decision-island-toolbar .rating-options {
+  width: 140px;
+  margin: 0 auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .three-rating .rating-bubble,
+  .three-rating .rating-bubble > .rating-summary,
+  .three-rating .rating-bubble > .rating-popover,
+  .rating-options > button {
+    transition: none;
+  }
+}
