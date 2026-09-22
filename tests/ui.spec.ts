@@ -626,6 +626,10 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog.getByRole('button', { name: 'Следующее фото', exact: true }).click();
   await expect(dialog.locator('.detail-photo-count')).toHaveText('2 / 2');
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
+  await dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await expect(
+    dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await notes.fill('Черновик для первой квартиры');
   await dialog.locator('.detail-info').evaluate((el) => (el.scrollTop = 0));
   await page.waitForTimeout(500);

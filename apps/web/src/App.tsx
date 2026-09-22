@@ -1959,9 +1959,7 @@ function DetailComment({
         aria-label="Быстрый комментарий"
         rows={1}
         maxLength={5000}
-        placeholder={
-          user ? 'Что нравится? Что стоит уточнить?' : 'Войдите, чтобы оставить комментарий'
-        }
+        placeholder={user ? 'Добавить заметку…' : 'Войдите, чтобы оставить комментарий'}
         readOnly={!user}
         value={draft}
         disabled={busy}
@@ -1978,10 +1976,13 @@ function DetailComment({
       />
       {(dirty || error) && (
         <div className="detail-comment-footer">
-          <span role={error ? 'alert' : undefined}>{error || 'Не сохранено'}</span>
-          <button disabled={busy || !dirty} aria-label="Сохранить комментарий">
-            <Check size={14} />
-            {busy ? 'Сохраняем…' : 'Сохранить'}
+          {error && <span role="alert">{error}</span>}
+          <button
+            disabled={busy || !dirty}
+            aria-label="Сохранить комментарий"
+            title="Сохранить комментарий · ⌘/Ctrl + Enter"
+          >
+            {busy ? <RefreshCw size={15} className="spin" /> : <Check size={16} />}
           </button>
         </div>
       )}

@@ -4252,3 +4252,82 @@ html {
     top: 38%;
   }
 }
+
+/* A small photo annotation, not a form card. */
+.detail-media-dock .detail-decision {
+  width: min(100%, 330px);
+  padding: 12px 16px 14px;
+  gap: 8px;
+  background: #252723b8;
+  border-color: #ffffff1f;
+  box-shadow: 0 6px 24px #00000024;
+}
+.detail-media-dock .detail-decision .personal-rating,
+.detail-media-dock .detail-decision .rating-island {
+  height: 28px;
+}
+.detail-media-dock .rating-popover {
+  top: 0 !important;
+  right: 70px;
+}
+.detail-media-dock .rating-summary {
+  left: auto !important;
+  right: 24px;
+  top: 0;
+  height: 28px;
+  padding: 0;
+  font-size: 12px;
+}
+.detail-media-dock .rating-summary > i,
+.detail-media-dock .rating-live-label {
+  display: none;
+}
+.detail-media-dock .rating-popover-heading {
+  top: 0;
+  right: -75px;
+}
+.detail-media-dock .detail-comment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 0;
+}
+.detail-media-dock .detail-comment textarea {
+  grid-column: 1;
+  align-self: center;
+  font-size: 13px;
+  font-weight: 400;
+}
+.detail-media-dock .detail-comment textarea::placeholder {
+  color: #e1e0d8b3;
+}
+.detail-media-dock .detail-comment-footer {
+  display: contents;
+}
+.detail-media-dock .detail-comment-footer button {
+  grid-column: 2;
+  grid-row: 1;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+  background: #ffffff20;
+  color: #fff;
+  border: 1px solid #ffffff18;
+}
+.detail-media-dock .detail-comment-footer button:hover:not(:disabled) {
+  background: #ffffff35;
+}
+.detail-media-dock .detail-comment-footer [role='alert'] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  color: #ffd7c9;
+  font-size: 11px;
+}
+@media (max-width: 760px) {
+  .detail-media-dock .detail-decision {
+    padding: 9px 14px 11px;
+    gap: 5px;
+  }
+}
