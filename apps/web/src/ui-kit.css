@@ -4374,3 +4374,12 @@ html {
   padding: 9px 15px 11px;
   border-radius: 18px 18px 5px 18px;
 }
+
+/* Saving must not change the annotation's height or text wrapping. */
+.detail-media-dock .detail-comment {
+  grid-template-columns: minmax(0, 1fr) 30px;
+  min-height: 30px;
+}
+.detail-media-dock .detail-comment-add {
+  min-height: 30px;
+}

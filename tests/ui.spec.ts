@@ -45,8 +45,15 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await detailNote.locator('.detail-decision').scrollIntoViewIfNeeded();
   await detailNote.screenshot({ path: 'test-results/detail-decision-desktop.png' });
   await detailNote.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
+  const impression = detailNote.locator('.detail-decision');
+  const cleanHeight = (await impression.boundingBox())!.height;
   await detailNote.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Уточнить счетчики');
+  expect((await impression.boundingBox())!.height).toBe(cleanHeight);
   await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
+  await expect(
+    detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }),
+  ).toHaveCount(0);
+  expect((await impression.boundingBox())!.height).toBe(cleanHeight);
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
     'Уточнить счетчики',
   );
