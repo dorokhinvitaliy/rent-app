@@ -4165,3 +4165,17 @@ html {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* The fixed navigation must scroll independently on short windows. */
+@media (min-width: 601px) {
+  .sidebar {
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #ffffff35 transparent;
+  }
+  .sidebar > * {
+    flex-shrink: 0;
+  }
+}

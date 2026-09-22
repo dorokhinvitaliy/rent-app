@@ -1197,3 +1197,17 @@ test('Saved search criteria apply immediately on reopening search and reload wit
   await expect(page.locator('.apartment-card')).toHaveCount(1);
   expect(searches).toBe(0);
 });
+
+test('Sidebar scrolls to its bottom independently in a short window', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const sidebar = page.locator('#main-navigation');
+  await expect(sidebar).toBeVisible();
+  const pageTop = await page.evaluate(() => window.scrollY);
+  await sidebar.hover();
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect(sidebar.locator('.profile')).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageTop);
+  await sidebar.screenshot({ path: 'test-results/sidebar-scrolled.png' });
+});
