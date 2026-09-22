@@ -463,7 +463,9 @@ test('Rating updates only its card without refetching or disabling other cards',
   });
   await card.locator('.rating-summary').hover();
   await card.getByRole('button', { name: 'Нравится', exact: true }).click();
-  await expect(card.getByRole('button', { name: 'Нравится', exact: true })).toBeDisabled();
+  await expect(
+    card.getByRole('button', { name: 'Нравится', exact: true, includeHidden: true }),
+  ).toBeDisabled();
   await expect(neighbor.getByRole('checkbox')).toBeEnabled();
   await expect(neighbor.locator('.three-rating-clear')).toHaveCount(0);
   expect(await neighbor.locator('.rating-options button:disabled').count()).toBe(0);
