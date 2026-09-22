@@ -4766,3 +4766,72 @@ html {
     transition: none;
   }
 }
+
+/* Once chosen, the rating becomes the leading icon of the note. */
+.decision-island-toolbar {
+  position: relative;
+  z-index: 1;
+  transition: height 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.decision-island-toolbar .rating-options {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  justify-content: flex-start;
+  gap: 0;
+}
+.decision-island-toolbar .rating-options > button {
+  flex: 0 0 32px;
+  margin-right: 12px;
+  transition:
+    margin-right 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    flex-basis 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms,
+    color 180ms,
+    background 180ms;
+}
+.decision-island-note {
+  transition: padding 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.decision-island[data-rated='true'] .decision-island-toolbar {
+  height: 0;
+}
+.decision-island[data-rated='true'] .decision-island-toolbar .rating-options {
+  width: 36px;
+}
+.decision-island[data-rated='true'] .rating-options > button {
+  margin-right: 0;
+}
+.decision-island[data-rated='true'] .rating-options > button[aria-pressed='true'] {
+  flex-basis: 32px;
+}
+.decision-island[data-rated='true'] .rating-options > button:not([aria-pressed='true']) {
+  flex-basis: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+}
+.decision-island[data-rated='true'] .decision-island-note {
+  padding: 1px 4px 1px 44px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision-island-toolbar,
+  .decision-island-note,
+  .decision-island-toolbar .rating-options > button {
+    transition: none;
+  }
+}
+
+.decision-island:not([data-open='true']) {
+  min-width: min(100%, 192px);
+}
+.decision-island-toolbar .rating-options {
+  width: 176px;
+}
+.decision-island-toolbar .rating-options > button:last-child {
+  margin-right: 0;
+}
+.decision-island[data-rated='true'] .rating-comment-action {
+  display: none;
+}

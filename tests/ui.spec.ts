@@ -653,6 +653,13 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog
     .locator('.detail-decision')
     .screenshot({ path: 'test-results/empty-impression.png' });
+  await dialog.getByRole('button', { name: 'Добавить комментарий', exact: true }).click();
+  await dialog.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Заметка без оценки');
+  await expect(dialog.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await dialog.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('');
   const favoriteBefore = (await (await request.get('/api/listings')).json()).find(
     (row: any) => row.title === firstTitle,
   ).favorite;

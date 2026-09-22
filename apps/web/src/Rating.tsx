@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Heart, Meh, Trash2, SlidersHorizontal } from 'lucide-react';
+import { useState, useRef, useEffect, Fragment } from 'react';
+import { Heart, Meh, Trash2, SlidersHorizontal, MessageCircle } from 'lucide-react';
 const choices = [
   { value: 5, label: 'Нравится', Icon: Heart },
   { value: 3, label: 'Думаю', Icon: Meh },
@@ -15,12 +15,14 @@ export function Rating({
   disabled,
   title,
   alwaysOpen = false,
+  onComment,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   disabled: boolean;
   title: string;
   alwaysOpen?: boolean;
+  onComment?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -42,18 +44,31 @@ export function Rating({
   const options = (
     <div className="rating-options" role="group" aria-label={'Оценка ' + title}>
       {choices.map(({ value: score, label, Icon }) => (
-        <button
-          key={score}
-          type="button"
-          data-score={score}
-          aria-label={label}
-          aria-pressed={selected === score}
-          disabled={disabled}
-          onClick={() => onChange(selected === score ? null : score)}
-          title={label}
-        >
-          <Icon size={18} strokeWidth={1.8} />
-        </button>
+        <Fragment key={score}>
+          {score === 1 && onComment && (
+            <button
+              type="button"
+              className="rating-comment-action"
+              aria-label="Добавить комментарий"
+              title="Добавить комментарий"
+              onClick={onComment}
+            >
+              <MessageCircle size={18} strokeWidth={1.8} />
+            </button>
+          )}
+          <button
+            key={score}
+            type="button"
+            data-score={score}
+            aria-label={label}
+            aria-pressed={selected === score}
+            disabled={disabled}
+            onClick={() => onChange(selected === score ? null : score)}
+            title={label}
+          >
+            <Icon size={18} strokeWidth={1.8} />
+          </button>
+        </Fragment>
       ))}
     </div>
   );

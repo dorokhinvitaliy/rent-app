@@ -1902,7 +1902,15 @@ function animateDetailPhoto(
   void geometry.finished.then(() => ghost.remove()).catch(() => {});
   return { cancel, finished: geometry.finished };
 }
-function DecisionIsland({ expanded, children }: { expanded: boolean; children: ReactNode }) {
+function DecisionIsland({
+  expanded,
+  rated,
+  children,
+}: {
+  expanded: boolean;
+  rated: boolean;
+  children: ReactNode;
+}) {
   const content = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number>();
   useLayoutEffect(() => {
@@ -1914,7 +1922,12 @@ function DecisionIsland({ expanded, children }: { expanded: boolean; children: R
     return () => observer.disconnect();
   }, []);
   return (
-    <div className="detail-decision decision-island" data-open={expanded} style={{ height }}>
+    <div
+      className="detail-decision decision-island"
+      data-open={expanded}
+      data-rated={rated}
+      style={{ height }}
+    >
       <div ref={content} className="decision-island-content">
         {children}
       </div>
@@ -2105,6 +2118,7 @@ function Detail({
   const dialog = useRef<HTMLDialogElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const drafts = useRef(new Map<string, string>());
+  const [commentFor, setCommentFor] = useState<string | null>(null);
   const closing = useRef(false);
   const transitionCleanup = useRef<(() => void) | null>(null);
   const [photo, setPhoto] = useState(initialPhoto);
@@ -2259,12 +2273,25 @@ function Detail({
             {l.photos.length ? `${safePhoto + 1} / ${l.photos.length}` : 'Нет фотографий'}
           </span>
           <div className="detail-media-dock">
-            <DecisionIsland expanded={!!l.rating || !!l.notes || !!drafts.current.get(l.id)}>
+            <DecisionIsland
+              rated={!!l.rating}
+              expanded={
+                !!l.rating || !!l.notes || !!drafts.current.get(l.id) || commentFor === l.id
+              }
+            >
               <div className="decision-island-toolbar">
                 <Rating
                   key={l.id}
                   value={l.rating ?? null}
                   alwaysOpen
+                  onComment={() => {
+                    setCommentFor(l.id);
+                    requestAnimationFrame(() =>
+                      dialog.current
+                        ?.querySelector<HTMLTextAreaElement>('.detail-comment textarea')
+                        ?.focus(),
+                    );
+                  }}
                   onChange={async (value) => {
                     if (await onRate(value)) close();
                   }}
@@ -2272,7 +2299,7 @@ function Detail({
                   title={l.title}
                 />
               </div>
-              {(!!l.rating || !!l.notes || !!drafts.current.get(l.id)) && (
+              {(!!l.rating || !!l.notes || !!drafts.current.get(l.id) || commentFor === l.id) && (
                 <div className="decision-island-note">
                   <DetailComment
                     reveal
