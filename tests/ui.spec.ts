@@ -667,6 +667,25 @@ test('Detail modal navigates apartments and photos independently and preserves n
     dialog.getByRole('button', { name: '3 из 5 — Нужно подумать', exact: true }).locator('svg'),
   ).toBeVisible();
   await toolbar.screenshot({ path: 'test-results/rating-icon-preview.png' });
+  const favoriteBefore = (await (await request.get('/api/listings')).json()).find(
+    (row: any) => row.title === firstTitle,
+  ).favorite;
+  await dialog.getByRole('button', { name: 'Поставить 5 — Отличный вариант', exact: true }).click();
+  await expect(
+    dialog.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get('/api/listings')).json()).find(
+          (row: any) => row.title === firstTitle,
+        ).rating,
+    )
+    .toBe(5);
+  expect(
+    (await (await request.get('/api/listings')).json()).find((row: any) => row.title === firstTitle)
+      .favorite,
+  ).toBe(favoriteBefore);
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
   await dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
   await expect(
@@ -1096,7 +1115,7 @@ test('Collection review visits only unrated apartments and advances after persis
   const modal = page.getByRole('dialog');
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 1');
   await expect(modal).toContainText('Оценка подборки · 1 из 2');
-  await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await modal.getByRole('button', { name: 'Поставить 1 — Не подходит', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 2');
   await expect(modal).toContainText('Оценка подборки · 2 из 2');
   await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();

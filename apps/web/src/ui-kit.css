@@ -4522,3 +4522,12 @@ html {
     transition: none;
   }
 }
+
+.decision-island-toolbar > .decision-island-action:first-child:is(:hover, :focus-visible) {
+  color: #77d6a2;
+  background: #53ba8924;
+}
+.decision-island-toolbar > .decision-island-action:last-child:is(:hover, :focus-visible) {
+  color: #f09699;
+  background: #d77a7e24;
+}

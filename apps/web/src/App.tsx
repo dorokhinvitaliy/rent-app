@@ -1321,7 +1321,6 @@ export default function App() {
             setDetail(null);
             setEdit(current);
           }}
-          onFavorite={() => void toggle(current)}
           onDelete={() => setConfirmDelete(current)}
           onSaveNotes={async (notes) => {
             await saveNote(current.id, notes);
@@ -2056,7 +2055,6 @@ function Detail({
   reviewLabel,
   viewingEditor,
   onEdit,
-  onFavorite,
   onDelete,
   onSaveNotes,
 }: {
@@ -2081,7 +2079,6 @@ function Detail({
   reviewLabel?: string;
   viewingEditor: string | null;
   onEdit: () => void;
-  onFavorite: () => void;
   onDelete: () => void;
   onSaveNotes: (notes: string) => Promise<void>;
 }) {
@@ -2239,11 +2236,15 @@ function Detail({
               <div className="decision-island-toolbar">
                 <button
                   className="decision-island-action"
-                  onClick={onFavorite}
-                  aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
-                  aria-pressed={l.favorite}
+                  disabled={ratingBusy}
+                  onClick={async () => {
+                    if (await onRate(5)) close();
+                  }}
+                  aria-label="Поставить 5 — Отличный вариант"
+                  title="5 из 5 · Отличный вариант"
+                  aria-pressed={l.rating === 5}
                 >
-                  <Heart size={17} fill={l.favorite ? 'currentColor' : 'none'} />
+                  <Heart size={17} fill={l.rating === 5 ? 'currentColor' : 'none'} />
                 </button>
                 <Rating
                   key={l.id}
@@ -2258,8 +2259,9 @@ function Detail({
                 <button
                   className="decision-island-action"
                   disabled={ratingBusy}
-                  aria-label="В архив"
-                  title="В архив · Не подходит"
+                  aria-label="Поставить 1 — Не подходит"
+                  title="1 из 5 · Не подходит"
+                  aria-pressed={l.rating === 1}
                   onClick={async () => {
                     if (await onRate(1)) close();
                   }}
