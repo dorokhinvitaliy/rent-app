@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, ThumbsUp, Meh, ThumbsDown } from 'lucide-react';
 const levels = [
   { value: 5, label: 'Отличный вариант', color: '#32996b' },
   { value: 4, label: 'Нравится', color: '#92ad59' },
@@ -63,6 +63,7 @@ export function Rating({
       className="personal-rating"
       data-expanded={shown}
       data-rated={value !== null}
+      data-active-rating={preview ?? value ?? ''}
       ref={root}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && !alwaysOpen) {
@@ -145,8 +146,15 @@ export function Rating({
                 onFocus={() => setPreview(level.value)}
                 onClick={() => onChange(level.value)}
                 data-preview={preview === level.value}
+                data-active={(preview ?? value) === level.value}
+                data-level={level.value}
+                title={level.label}
               >
-                <i />
+                <i>
+                  {alwaysOpen && level.value === 4 && <ThumbsUp size={13} aria-hidden="true" />}
+                  {alwaysOpen && level.value === 3 && <Meh size={14} aria-hidden="true" />}
+                  {alwaysOpen && level.value === 2 && <ThumbsDown size={13} aria-hidden="true" />}
+                </i>
               </button>
             ))}
           </div>

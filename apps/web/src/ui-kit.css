@@ -4463,3 +4463,62 @@ html {
     animation: none;
   }
 }
+
+.rating-thermometer button i svg {
+  display: none;
+}
+.decision-island .rating-thermometer button i {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  transition:
+    width 180ms ease,
+    height 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+.decision-island .rating-thermometer button:not([data-active='true']) i,
+.decision-island .rating-thermometer button[data-level='5'] i,
+.decision-island .rating-thermometer button[data-level='1'] i {
+  width: 3px;
+  height: 3px;
+  border: 0;
+  background: #ffffff80;
+  box-shadow: none;
+}
+.decision-island
+  .rating-thermometer
+  button[data-active='true']:is([data-level='2'], [data-level='3'], [data-level='4'])
+  i {
+  width: 25px;
+  height: 25px;
+  border: 0;
+  background: #353831;
+  box-shadow: 0 0 0 1.5px var(--rating-color);
+  color: var(--rating-color);
+}
+.decision-island .rating-thermometer button[data-active='true'] i svg {
+  display: block;
+}
+.decision-island-action {
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+.decision-island-toolbar:has([data-active-rating='5']) > .decision-island-action:first-child {
+  color: #77d6a2;
+  background: #53ba8924;
+  box-shadow: 0 0 14px #53ba8930;
+}
+.decision-island-toolbar:has([data-active-rating='1']) > .decision-island-action:last-child {
+  color: #f09699;
+  background: #d77a7e24;
+  box-shadow: 0 0 14px #d77a7e30;
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision-island .rating-thermometer button i,
+  .decision-island-action {
+    transition: none;
+  }
+}

@@ -640,6 +640,33 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog
     .locator('.detail-decision')
     .screenshot({ path: 'test-results/empty-impression.png' });
+  const toolbar = dialog.locator('.decision-island-toolbar');
+  await dialog.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).hover();
+  await expect
+    .poll(() =>
+      toolbar
+        .locator('.decision-island-action')
+        .first()
+        .evaluate((el) => getComputedStyle(el).color),
+    )
+    .toBe('rgb(119, 214, 162)');
+  await dialog.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).hover();
+  await expect
+    .poll(() =>
+      toolbar
+        .locator('.decision-island-action')
+        .last()
+        .evaluate((el) => getComputedStyle(el).color),
+    )
+    .toBe('rgb(240, 150, 153)');
+  await expect(
+    dialog.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'false');
+  await dialog.getByRole('button', { name: '3 из 5 — Нужно подумать', exact: true }).hover();
+  await expect(
+    dialog.getByRole('button', { name: '3 из 5 — Нужно подумать', exact: true }).locator('svg'),
+  ).toBeVisible();
+  await toolbar.screenshot({ path: 'test-results/rating-icon-preview.png' });
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
   await dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
   await expect(
