@@ -4343,3 +4343,34 @@ html {
 .detail-media-dock .personal-rating[data-expanded] .rating-live-label {
   display: none;
 }
+
+/* Empty impressions are an invitation, not an empty editor. */
+.detail-media-dock .personal-rating[data-rated='false'] .rating-popover {
+  right: 0;
+}
+.detail-comment-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 4px 0;
+  color: #ffffffb8;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: left;
+  border-radius: 5px;
+  transition: color 160ms ease;
+}
+.detail-comment-add:hover {
+  color: #fff;
+}
+.detail-comment-add:focus-visible {
+  outline: 2px solid #ffffff80;
+  outline-offset: 4px;
+}
+.detail-media-dock .detail-decision:has(.detail-comment-add):has([data-rated='false']) {
+  width: min(100%, 260px);
+  gap: 2px;
+  padding: 9px 15px 11px;
+  border-radius: 18px 18px 5px 18px;
+}

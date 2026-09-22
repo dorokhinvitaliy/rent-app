@@ -1912,6 +1912,7 @@ function DetailComment({
 }) {
   const { user, open: login } = useAuth();
   const [draft, setDraft] = useState(initialDraft ?? notes);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const field = useRef<HTMLTextAreaElement>(null);
@@ -1919,7 +1920,7 @@ function DetailComment({
     if (!field.current) return;
     field.current.style.height = '0px';
     field.current.style.height = Math.min(180, field.current.scrollHeight) + 'px';
-  }, [draft, user?.id]);
+  }, [draft, user?.id, editing]);
   const dirty = draft.trim() !== notes.trim();
   if (!user)
     return (
@@ -1927,6 +1928,13 @@ function DetailComment({
         <Plus size={16} />
         <span>Добавить комментарий</span>
         <ArrowUpRight size={15} />
+      </button>
+    );
+  if (!draft && !notes && !editing)
+    return (
+      <button type="button" className="detail-comment-add" onClick={() => setEditing(true)}>
+        <Plus size={15} />
+        <span>Добавить заметку</span>
       </button>
     );
   return (
@@ -1955,6 +1963,15 @@ function DetailComment({
       </label>
       <textarea
         ref={field}
+        autoFocus={editing}
+        onFocus={() => setEditing(true)}
+        onBlur={(event) => {
+          if (
+            !draft.trim() &&
+            !event.currentTarget.closest('.detail-decision')?.contains(event.relatedTarget)
+          )
+            setEditing(false);
+        }}
         id="detail-comment-field"
         aria-label="Быстрый комментарий"
         rows={1}
