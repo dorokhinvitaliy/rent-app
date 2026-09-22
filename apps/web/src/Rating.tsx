@@ -59,6 +59,7 @@ export function Rating({
       ref={root}
       className="personal-rating three-rating"
       data-expanded={open}
+      data-score={selected ?? undefined}
       onMouseLeave={() => {
         if (!root.current?.contains(document.activeElement)) setOpen(false);
       }}
