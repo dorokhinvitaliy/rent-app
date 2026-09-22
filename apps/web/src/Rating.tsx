@@ -24,10 +24,14 @@ export function Rating({
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const dismissed = useRef(false);
   useEffect(() => {
     if (!open || alwaysOpen) return;
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        dismissed.current = true;
+        setOpen(false);
+      }
     };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
@@ -45,7 +49,7 @@ export function Rating({
           aria-label={label}
           aria-pressed={selected === score}
           disabled={disabled}
-          onClick={() => onChange(!alwaysOpen && selected === score ? null : score)}
+          onClick={() => onChange(selected === score ? null : score)}
           title={label}
         >
           <Icon size={18} strokeWidth={1.8} />
@@ -61,6 +65,7 @@ export function Rating({
       data-expanded={open}
       data-score={selected ?? undefined}
       onMouseLeave={() => {
+        dismissed.current = false;
         if (!root.current?.contains(document.activeElement)) setOpen(false);
       }}
       onBlur={(event) => {
@@ -69,6 +74,7 @@ export function Rating({
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation();
+          dismissed.current = true;
           setOpen(false);
         }
       }}
@@ -80,9 +86,16 @@ export function Rating({
           title={ratingLabel(value) || 'Оценить вариант'}
           aria-label={'Оценить ' + title}
           aria-expanded={open}
-          onMouseEnter={() => setOpen(true)}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
+          onMouseEnter={() => {
+            if (!dismissed.current) setOpen(true);
+          }}
+          onFocus={() => {
+            if (!dismissed.current) setOpen(true);
+          }}
+          onClick={() => {
+            dismissed.current = false;
+            setOpen(true);
+          }}
         >
           <SelectedIcon size={18} strokeWidth={1.8} />
         </button>

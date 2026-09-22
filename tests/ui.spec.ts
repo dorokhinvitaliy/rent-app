@@ -375,6 +375,7 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await page.mouse.move(0, 0);
   await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
   await page.clock.runFor(500);
+  await page.waitForTimeout(650);
   await card.screenshot({ path: 'test-results/rating-expanded.png' });
   await page.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
   await card.getByRole('button', { name: 'Нравится', exact: true }).click();
@@ -673,13 +674,26 @@ test('Detail modal navigates apartments and photos independently and preserves n
       .favorite,
   ).toBe(favoriteBefore);
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
+  await notes.fill('Черновик для первой квартиры');
+  await dialog.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get('/api/listings')).json()).find(
+          (row: any) => row.title === firstTitle,
+        ).rating,
+    )
+    .toBe(null);
+  await expect(notes).toHaveValue('Черновик для первой квартиры');
   await dialog.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(notes).toBeVisible();
-  await notes.fill('Черновик для первой квартиры');
   await dialog.locator('.detail-info').evaluate((el) => (el.scrollTop = 0));
   await page.waitForTimeout(500);
   await dialog.screenshot({ path: 'test-results/photo-widget-desktop.png' });
