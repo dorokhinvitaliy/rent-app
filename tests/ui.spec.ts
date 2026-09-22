@@ -627,6 +627,9 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await expect(dialog.locator('.detail-photo-count')).toHaveText('2 / 2');
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
   await notes.fill('Черновик для первой квартиры');
+  await dialog.locator('.detail-info').evaluate((el) => (el.scrollTop = 0));
+  await page.waitForTimeout(500);
+  await dialog.screenshot({ path: 'test-results/photo-widget-desktop.png' });
   await dialog.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(dialog.getByRole('heading', { level: 2 })).not.toHaveText(firstTitle);
   await expect(dialog.locator('.detail-photo-count')).toHaveText('1 / 2');
@@ -635,6 +638,20 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await expect(notes).toHaveValue('Черновик для первой квартиры');
   await notes.fill('');
   await page.setViewportSize({ width: 390, height: 844 });
+  await notes.fill('Уточнить залог, коммунальные платежи и возможность заезда в выходные.');
+  const dock = dialog.locator('.detail-media-dock');
+  await expect(dock).toBeInViewport();
+  await expect(
+    dialog.getByRole('button', { name: 'Сохранить комментарий', exact: true }),
+  ).toBeInViewport();
+  await dialog.screenshot({ path: 'test-results/photo-widget-mobile.png' });
+  const mediaBounds = await dialog.locator('.detail-media').boundingBox();
+  const dockBounds = await dock.boundingBox();
+  expect(dockBounds!.y).toBeGreaterThan(mediaBounds!.y + 48);
+  expect(dockBounds!.y + dockBounds!.height).toBeLessThanOrEqual(
+    mediaBounds!.y + mediaBounds!.height,
+  );
+  await notes.fill('');
   await expect(
     dialog.getByRole('button', { name: 'Следующее объявление', exact: true }),
   ).toBeInViewport();

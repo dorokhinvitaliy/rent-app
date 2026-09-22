@@ -4179,3 +4179,76 @@ html {
     flex-shrink: 0;
   }
 }
+
+/* Personal impressions belong to the photo, with controls in a separate bottom dock. */
+.detail-media-dock {
+  position: absolute;
+  z-index: 2;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+}
+.detail-media-dock > * {
+  pointer-events: auto;
+}
+.detail-media-dock .detail-decision {
+  width: min(100%, 390px);
+  margin: 0;
+  padding: 12px 16px 14px;
+  background: linear-gradient(135deg, #393630da, #252521db);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid #ffffff26;
+  box-shadow:
+    0 8px 28px #00000026,
+    inset 0 1px #ffffff0a;
+  border-radius: 20px 20px 5px 20px;
+}
+.detail-media-dock .detail-thumbs {
+  position: static;
+  width: 100%;
+}
+.detail-media-dock .detail-comment textarea {
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff50 transparent;
+}
+.detail-media > .detail-photo-count {
+  top: 23px;
+  bottom: auto;
+}
+@media (max-width: 760px) {
+  .listing-panel {
+    grid-template-rows: minmax(260px, 48%) minmax(0, 1fr);
+  }
+  .detail-media-dock {
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    gap: 6px;
+  }
+  .detail-media-dock .detail-decision {
+    width: 100%;
+    padding: 8px 13px 10px;
+    border-radius: 16px 16px 4px 16px;
+    gap: 2px;
+  }
+  .detail-media-dock .detail-comment textarea {
+    max-height: 44px;
+    font-size: 12px;
+  }
+  .detail-media > .detail-photo-count {
+    top: 17px;
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+  .detail-photo-arrow {
+    top: 38%;
+  }
+}

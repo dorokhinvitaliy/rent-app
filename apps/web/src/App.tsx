@@ -2195,21 +2195,50 @@ function Detail({
           <span className="detail-photo-count">
             {l.photos.length ? `${safePhoto + 1} / ${l.photos.length}` : 'Нет фотографий'}
           </span>
-          {l.photos.length > 1 && (
-            <div className="detail-thumbs">
-              {l.photos.map((src, i) => (
-                <button
-                  key={i}
-                  className={cx(i === safePhoto && 'selected')}
-                  aria-label={`Фото ${i + 1}`}
-                  aria-pressed={i === safePhoto}
-                  onClick={() => setPhoto(i)}
-                >
-                  <Photo src={src} alt="" />
-                </button>
-              ))}
+          <div className="detail-media-dock">
+            <div className="detail-decision">
+              <Rating
+                key={l.id}
+                value={l.rating ?? null}
+                alwaysOpen
+                onChange={async (value) => {
+                  if (await onRate(value)) close();
+                }}
+                disabled={ratingBusy}
+                title={l.title}
+              />
+              <DetailComment
+                key={'comment-' + l.id}
+                notes={l.notes}
+                initialDraft={drafts.current.get(l.id)}
+                onDraft={(value) => drafts.current.set(l.id, value)}
+                onSave={async (value) => {
+                  setSaving(true);
+                  try {
+                    await onSaveNotes(value);
+                    drafts.current.delete(l.id);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              />
             </div>
-          )}
+            {l.photos.length > 1 && (
+              <div className="detail-thumbs">
+                {l.photos.map((src, i) => (
+                  <button
+                    key={i}
+                    className={cx(i === safePhoto && 'selected')}
+                    aria-label={`Фото ${i + 1}`}
+                    aria-pressed={i === safePhoto}
+                    onClick={() => setPhoto(i)}
+                  >
+                    <Photo src={src} alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
         <section className="detail-info">
           <div className="detail-topline">
@@ -2267,33 +2296,6 @@ function Detail({
               ))}
             </div>
           )}
-          <div className="detail-decision">
-            <Rating
-              key={l.id}
-              value={l.rating ?? null}
-              alwaysOpen
-              onChange={async (value) => {
-                if (await onRate(value)) close();
-              }}
-              disabled={ratingBusy}
-              title={l.title}
-            />
-            <DetailComment
-              key={'comment-' + l.id}
-              notes={l.notes}
-              initialDraft={drafts.current.get(l.id)}
-              onDraft={(value) => drafts.current.set(l.id, value)}
-              onSave={async (value) => {
-                setSaving(true);
-                try {
-                  await onSaveNotes(value);
-                  drafts.current.delete(l.id);
-                } finally {
-                  setSaving(false);
-                }
-              }}
-            />
-          </div>
           <ViewingWidget
             key={'viewing-' + l.id}
             listingId={l.id}
