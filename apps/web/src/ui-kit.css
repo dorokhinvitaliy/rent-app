@@ -4835,3 +4835,50 @@ html {
 .decision-island[data-rated='true'] .rating-comment-action {
   display: none;
 }
+
+/* The expanded card island keeps the explanation inside its surface. */
+.three-rating .rating-bubble {
+  transition:
+    width 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms;
+}
+.three-rating[data-expanded='true'] .rating-bubble {
+  width: 168px;
+  height: 66px;
+  border-radius: 23px;
+}
+.three-rating .rating-bubble > .rating-popover {
+  inset: 5px 15px;
+  width: 136px;
+}
+.rating-explanation {
+  display: block;
+  height: 19px;
+  margin-top: 3px;
+  text-align: center;
+  color: #f2f1eb;
+  font-size: 11px;
+  line-height: 19px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  animation: rating-caption-in 180ms ease both;
+}
+@keyframes rating-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .three-rating .rating-bubble {
+    transition: none;
+  }
+  .rating-explanation {
+    animation: none;
+  }
+}

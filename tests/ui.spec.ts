@@ -376,7 +376,10 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
   await page.clock.runFor(500);
   await page.waitForTimeout(650);
-  await card.screenshot({ path: 'test-results/rating-expanded.png' });
+  await card.getByRole('button', { name: 'Думаю', exact: true }).hover();
+  await expect(card.locator('.rating-explanation')).toHaveText('Думаю');
+  await page.waitForTimeout(250);
+  await card.screenshot({ path: 'test-results/rating-expanded.png', animations: 'disabled' });
   await page.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
   await card.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(
@@ -401,7 +404,7 @@ test('Rating one archives without deleting, survives reimport and can be restore
     has: page.getByRole('button', { name: 'Актуализировать ' + listing.title, exact: true }),
   });
   await card.locator('.rating-summary').hover();
-  await card.getByRole('button', { name: 'Мусор', exact: true }).click();
+  await card.getByRole('button', { name: 'Точно нет', exact: true }).click();
   await expect(card).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: 'Объявление в архиве' })).toBeVisible();
   await page.reload();
@@ -523,7 +526,7 @@ test('Apartment ranking orders rated listings, shares places and responds to rat
     'Рейтинг тест Лидер',
   ]);
   await reserve.locator('.rating-summary').hover();
-  await reserve.getByRole('button', { name: 'Мусор', exact: true }).click();
+  await reserve.getByRole('button', { name: 'Точно нет', exact: true }).click();
   await expect(cards).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/ranking-mobile.png', fullPage: true });
@@ -1124,7 +1127,7 @@ test('Collection review visits only unrated apartments and advances after persis
   const modal = page.getByRole('dialog');
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 1');
   await expect(modal).toContainText('Оценка подборки · 1 из 2');
-  await modal.getByRole('button', { name: 'Мусор', exact: true }).click();
+  await modal.getByRole('button', { name: 'Точно нет', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 2');
   await expect(modal).toContainText('Оценка подборки · 2 из 2');
   await modal.getByRole('button', { name: 'Нравится', exact: true }).click();
@@ -1198,7 +1201,7 @@ test('Archiving from the detail modal keeps listing navigation usable', async ({
   await modal.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', titles[1]);
   const archiveCurrent = async () => {
-    await modal.getByRole('button', { name: 'Мусор', exact: true }).click();
+    await modal.getByRole('button', { name: 'Точно нет', exact: true }).click();
   };
   await archiveCurrent();
   await expect(modal).toHaveAttribute('aria-label', titles[2]);

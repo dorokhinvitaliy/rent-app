@@ -3,7 +3,7 @@ import { Heart, Meh, Trash2, SlidersHorizontal, MessageCircle } from 'lucide-rea
 const choices = [
   { value: 5, label: 'Нравится', Icon: Heart },
   { value: 3, label: 'Думаю', Icon: Meh },
-  { value: 1, label: 'Мусор', Icon: Trash2 },
+  { value: 1, label: 'Точно нет', Icon: Trash2 },
 ];
 export const ratingCategory = (value: number | null | undefined) =>
   value == null ? null : value >= 4 ? 5 : value >= 2 ? 3 : 1;
@@ -25,10 +25,11 @@ export function Rating({
   onComment?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const dismissed = useRef(false);
   useEffect(() => {
-    if (!open || alwaysOpen) return;
+    if (alwaysOpen) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         dismissed.current = true;
@@ -37,7 +38,7 @@ export function Rating({
     };
     document.addEventListener('keydown', escape);
     return () => document.removeEventListener('keydown', escape);
-  }, [open, alwaysOpen]);
+  }, [alwaysOpen]);
   const selected = ratingCategory(value);
   const SelectedIcon =
     choices.find((choice) => choice.value === selected)?.Icon || SlidersHorizontal;
@@ -64,7 +65,9 @@ export function Rating({
             aria-pressed={selected === score}
             disabled={disabled}
             onClick={() => onChange(selected === score ? null : score)}
-            title={label}
+            title={alwaysOpen ? label : undefined}
+            onMouseEnter={() => setPreview(score)}
+            onFocus={() => setPreview(score)}
           >
             <Icon size={18} strokeWidth={1.8} />
           </button>
@@ -80,7 +83,7 @@ export function Rating({
       data-expanded={open}
       data-score={selected ?? undefined}
       onMouseLeave={() => {
-        dismissed.current = false;
+        setPreview(null);
         if (!root.current?.contains(document.activeElement)) setOpen(false);
       }}
       onBlur={(event) => {
@@ -116,6 +119,9 @@ export function Rating({
         </button>
         <div className="rating-popover" inert={!open} aria-hidden={!open}>
           {options}
+          <span className="rating-explanation" aria-hidden="true" key={preview ?? selected ?? 0}>
+            {ratingLabel(preview ?? selected)}
+          </span>
         </div>
       </div>
     </div>
