@@ -4716,7 +4716,7 @@ html {
 }
 .decision-island-toolbar .rating-options {
   width: 140px;
-  margin: 0 auto;
+  margin: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .three-rating .rating-bubble,
