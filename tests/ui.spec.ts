@@ -374,6 +374,8 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await page.setViewportSize({ width: 390, height: 844 });
   await page.mouse.move(0, 0);
   await card.getByRole('button', { name: 'Оценить ' + sourced.title, exact: true }).click();
+  await page.clock.runFor(500);
+  await card.screenshot({ path: 'test-results/rating-expanded.png' });
   await page.screenshot({ path: 'test-results/rating-thermometer-mobile.png' });
   await card.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(
