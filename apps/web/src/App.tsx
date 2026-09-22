@@ -1943,14 +1943,27 @@ function DetailComment({
   useLayoutEffect(() => {
     if (!field.current) return;
     const el = field.current;
-    const previous = el.style.height || '22px';
-    el.style.transition = 'none';
-    el.style.height = '0px';
-    const height = Math.min(180, el.scrollHeight) + 'px';
-    el.style.height = previous;
-    void el.offsetHeight;
-    el.style.transition = '';
-    el.style.height = height;
+    const resize = () => {
+      const previous = el.style.height || '22px';
+      el.style.transition = 'none';
+      el.style.height = '0px';
+      const height = Math.min(180, el.scrollHeight) + 'px';
+      el.style.height = previous;
+      void el.offsetHeight;
+      el.style.transition = '';
+      el.style.height = height;
+    };
+    resize();
+    let width = el.getBoundingClientRect().width;
+    const observer = new ResizeObserver(() => {
+      const next = el.getBoundingClientRect().width;
+      if (Math.abs(next - width) > 0.5) {
+        width = next;
+        resize();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [draft, user?.id, editing]);
   const dirty = draft.trim() !== notes.trim();
   if (!user)

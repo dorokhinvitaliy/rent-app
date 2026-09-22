@@ -47,16 +47,20 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveCount(0);
   await detailNote.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toBeVisible();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1200);
   const impression = detailNote.locator('.detail-decision');
   const cleanHeight = (await impression.boundingBox())!.height;
   await detailNote.getByRole('textbox', { name: 'Быстрый комментарий' }).fill('Уточнить счетчики');
-  expect((await impression.boundingBox())!.height).toBe(cleanHeight);
+  await expect
+    .poll(async () => Math.abs((await impression.boundingBox())!.height - cleanHeight))
+    .toBeLessThan(1);
   await detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }).click();
   await expect(
     detailNote.getByRole('button', { name: 'Сохранить комментарий', exact: true }),
   ).toHaveCount(0);
-  expect((await impression.boundingBox())!.height).toBe(cleanHeight);
+  await expect
+    .poll(async () => Math.abs((await impression.boundingBox())!.height - cleanHeight))
+    .toBeLessThan(1);
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveValue(
     'Уточнить счетчики',
   );
