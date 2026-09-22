@@ -45,7 +45,7 @@ function fullDetails(l: Listing, viewings: Viewing[]) {
         .join(''),
     )}
     ${section('Контакт', contact ? text([contact.name, contact.role === 'owner' ? 'Собственник' : contact.role === 'agent' ? 'Агент' : '', ...contact.phones, contact.relay ? 'Подменный номер площадки: может измениться.' : ''].filter(Boolean).join(' · ')) : '')}
-    ${l.rating != null ? section('Моя оценка', text(l.rating + ' из 5')) : ''}
+    ${l.rating != null ? section('Моя оценка', text(l.rating >= 4 ? 'Нравится' : l.rating >= 2 ? 'Думаю' : 'Мусор')) : ''}
     ${section('Мой комментарий', l.notes.trim() ? text(l.notes) : '')}
     ${section(
       'Мои просмотры',

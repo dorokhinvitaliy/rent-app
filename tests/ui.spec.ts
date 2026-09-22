@@ -45,7 +45,7 @@ test('Desktop and mobile: demo, filtering, calculator, favorite, comparison, XLS
   await detailNote.locator('.detail-decision').scrollIntoViewIfNeeded();
   await detailNote.screenshot({ path: 'test-results/detail-decision-desktop.png' });
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toHaveCount(0);
-  await detailNote.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await detailNote.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(detailNote.getByRole('textbox', { name: 'Быстрый комментарий' })).toBeVisible();
   await page.waitForTimeout(500);
   const impression = detailNote.locator('.detail-decision');
@@ -306,22 +306,26 @@ test('Personal ratings persist, sort listings and refresh an individual source l
   await card.locator('.card-title').hover();
   await expect(card.locator('.rating-popover')).toBeHidden();
   await card.locator('.rating-summary').hover();
-  await card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
-  await expect(
-    card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await card.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(card.locator('.rating-summary')).toHaveAttribute('title', 'Нравится');
+  await card.locator('.rating-summary').hover();
+  await expect(card.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.reload();
   await card.locator('.card-title').hover();
   await expect(card.locator('.rating-popover')).toBeHidden();
   await card.locator('.rating-summary').hover();
-  await expect(
-    card.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(card.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.getByRole('combobox', { name: 'Сортировка', exact: true }).click();
   await page.getByRole('option', { name: 'Оценка: по убыванию', exact: true }).click();
   await expect(page.locator('.apartment-card').first().locator('.rating-summary')).toHaveAttribute(
     'title',
-    '5/5 · Отличный вариант',
+    'Нравится',
   );
   let refreshed = false;
   await page.clock.install();
@@ -390,7 +394,7 @@ test('Rating one archives without deleting, survives reimport and can be restore
     has: page.getByRole('button', { name: 'Актуализировать ' + listing.title, exact: true }),
   });
   await card.locator('.rating-summary').hover();
-  await card.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await card.getByRole('button', { name: 'Мусор', exact: true }).click();
   await expect(card).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: 'Объявление в архиве' })).toBeVisible();
   await page.reload();
@@ -458,13 +462,13 @@ test('Rating updates only its card without refetching or disabling other cards',
     await route.continue();
   });
   await card.locator('.rating-summary').hover();
-  await card.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
-  await expect(card.getByRole('button', { name: '4 из 5 — Нравится', exact: true })).toBeDisabled();
+  await card.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(card.getByRole('button', { name: 'Нравится', exact: true })).toBeDisabled();
   await expect(neighbor.getByRole('checkbox')).toBeEnabled();
-  await expect(neighbor.locator('.rating-clear')).toBeDisabled();
-  expect(await neighbor.locator('.rating-thermometer button:disabled').count()).toBe(0);
+  await expect(neighbor.locator('.three-rating-clear')).toHaveCount(0);
+  expect(await neighbor.locator('.rating-options button:disabled').count()).toBe(0);
   release();
-  await expect(card.locator('.rating-summary')).toHaveAttribute('title', '4/5 · Нравится');
+  await expect(card.locator('.rating-summary')).toHaveAttribute('title', 'Нравится');
   expect(listFetches).toBe(0);
   expect(await page.evaluate(() => (window as any).neighborMutations)).toBe(0);
 });
@@ -503,14 +507,14 @@ test('Apartment ranking orders rated listings, shares places and responds to rat
   );
   const reserve = cards.filter({ hasText: 'Рейтинг тест Запасной' });
   await reserve.locator('.rating-summary').hover();
-  await reserve.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).click();
+  await reserve.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(cards.locator('.card-title')).toHaveText([
     'Рейтинг тест Доступный',
     'Рейтинг тест Запасной',
     'Рейтинг тест Лидер',
   ]);
   await reserve.locator('.rating-summary').hover();
-  await reserve.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+  await reserve.getByRole('button', { name: 'Мусор', exact: true }).click();
   await expect(cards).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/ranking-mobile.png', fullPage: true });
@@ -640,40 +644,14 @@ test('Detail modal navigates apartments and photos independently and preserves n
   await dialog
     .locator('.detail-decision')
     .screenshot({ path: 'test-results/empty-impression.png' });
-  const toolbar = dialog.locator('.decision-island-toolbar');
-  await dialog.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }).hover();
-  await expect
-    .poll(() =>
-      toolbar
-        .locator('.decision-island-action')
-        .first()
-        .evaluate((el) => getComputedStyle(el).color),
-    )
-    .toBe('rgb(119, 214, 162)');
-  await dialog.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).hover();
-  await expect
-    .poll(() =>
-      toolbar
-        .locator('.decision-island-action')
-        .last()
-        .evaluate((el) => getComputedStyle(el).color),
-    )
-    .toBe('rgb(240, 150, 153)');
-  await expect(
-    dialog.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'false');
-  await dialog.getByRole('button', { name: '3 из 5 — Нужно подумать', exact: true }).hover();
-  await expect(
-    dialog.getByRole('button', { name: '3 из 5 — Нужно подумать', exact: true }).locator('svg'),
-  ).toBeVisible();
-  await toolbar.screenshot({ path: 'test-results/rating-icon-preview.png' });
   const favoriteBefore = (await (await request.get('/api/listings')).json()).find(
     (row: any) => row.title === firstTitle,
   ).favorite;
-  await dialog.getByRole('button', { name: 'Поставить 5 — Отличный вариант', exact: true }).click();
-  await expect(
-    dialog.getByRole('button', { name: '5 из 5 — Отличный вариант', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect
     .poll(
       async () =>
@@ -687,10 +665,11 @@ test('Detail modal navigates apartments and photos independently and preserves n
       .favorite,
   ).toBe(favoriteBefore);
   const notes = dialog.getByRole('textbox', { name: 'Быстрый комментарий' });
-  await dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
-  await expect(
-    dialog.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(notes).toBeVisible();
   await notes.fill('Черновик для первой квартиры');
   await dialog.locator('.detail-info').evaluate((el) => (el.scrollTop = 0));
@@ -1002,10 +981,11 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await expect(modal.locator('.detail-memberships')).toContainText('PDF для просмотра');
   await expect(modal.getByRole('group', { name: 'Оценка Квартира для просмотра' })).toBeVisible();
   await expect(modal.getByText('Моя оценка', { exact: true })).toBeHidden();
-  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
-  await expect(
-    modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await modal.getByRole('button', { name: 'Нравится', exact: true }).click();
+  await expect(modal.getByRole('button', { name: 'Нравится', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(modal).toBeVisible();
   await modal.getByRole('button', { name: 'В подборках · 1', exact: true }).click();
   const picker = page.locator('dialog.modal');
@@ -1115,16 +1095,16 @@ test('Collection review visits only unrated apartments and advances after persis
   const modal = page.getByRole('dialog');
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 1');
   await expect(modal).toContainText('Оценка подборки · 1 из 2');
-  await modal.getByRole('button', { name: 'Поставить 1 — Не подходит', exact: true }).click();
+  await modal.getByRole('button', { name: 'Мусор', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', 'Оценить последовательно 2');
   await expect(modal).toContainText('Оценка подборки · 2 из 2');
-  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await modal.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(modal).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Оценить объявления подборки', exact: true }),
   ).toBeDisabled();
   const rows = await (await request.get('/api/listings')).json();
-  expect(ids.map((id) => rows.find((l: any) => l.id === id).rating)).toEqual([5, 1, 4]);
+  expect(ids.map((id) => rows.find((l: any) => l.id === id).rating)).toEqual([5, 1, 5]);
 });
 
 test('Guests export the filtered results to PDF without logging in', async ({
@@ -1189,7 +1169,7 @@ test('Archiving from the detail modal keeps listing navigation usable', async ({
   await modal.getByRole('button', { name: 'Следующее объявление', exact: true }).click();
   await expect(modal).toHaveAttribute('aria-label', titles[1]);
   const archiveCurrent = async () => {
-    await modal.getByRole('button', { name: '1 из 5 — Не подходит', exact: true }).click();
+    await modal.getByRole('button', { name: 'Мусор', exact: true }).click();
   };
   await archiveCurrent();
   await expect(modal).toHaveAttribute('aria-label', titles[2]);
@@ -1241,7 +1221,7 @@ test('Personal rating filters and sort orders keep unrated listings distinct fro
   await expect(cards).toHaveCount(1);
   await cards.first().getByRole('button', { name: 'Подробнее и расчет', exact: true }).click();
   const modal = page.getByRole('dialog');
-  await modal.getByRole('button', { name: '4 из 5 — Нравится', exact: true }).click();
+  await modal.getByRole('button', { name: 'Нравится', exact: true }).click();
   await expect(modal).toHaveCount(0);
   await expect(cards).toHaveCount(0);
   await filter.getByRole('button', { name: 'С оценкой', exact: true }).click();

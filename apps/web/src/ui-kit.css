@@ -4531,3 +4531,97 @@ html {
   color: #f09699;
   background: #d77a7e24;
 }
+
+.rating-options {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+.rating-options > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 17px;
+  font-size: 11px;
+  color: #e7e7e3;
+  background: transparent;
+  transition:
+    background 200ms,
+    color 200ms;
+}
+.rating-options > button:is(:hover, [aria-pressed='true'])[data-score='5'] {
+  background: #79bd9130;
+  color: #b5e0be;
+}
+.rating-options > button:is(:hover, [aria-pressed='true'])[data-score='3'] {
+  background: #d3b06d30;
+  color: #f3d99e;
+}
+.rating-options > button:is(:hover, [aria-pressed='true'])[data-score='1'] {
+  background: #d77a7e30;
+  color: #f7b5b8;
+}
+.rating-options > button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+.detail-media-dock .detail-decision.decision-island {
+  width: min(100%, 330px);
+}
+.decision-island-content {
+  padding: 8px;
+}
+.decision-island-toolbar {
+  height: 34px;
+}
+.decision-island-note {
+  padding: 9px 8px 7px;
+}
+.three-rating > .rating-summary {
+  position: static;
+  width: auto !important;
+  height: 34px !important;
+  background: #24262a;
+  border-radius: 18px;
+  padding: 0 11px !important;
+  font-size: 11px;
+}
+.three-rating .rating-popover {
+  top: auto;
+  bottom: 100%;
+  left: 0;
+  right: auto;
+  width: 272px;
+  background: #24262a;
+  padding: 8px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px #0003;
+  z-index: 8;
+}
+.three-rating-clear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px auto 0;
+  font-size: 10px;
+  color: #bbb;
+}
+.detail-favorite,
+.heart-button {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  color: white !important;
+  filter: drop-shadow(0 1px 3px #0009);
+}
+.detail-favorite[aria-pressed='true'],
+.heart-button.hearted {
+  color: #ffe1a0 !important;
+}

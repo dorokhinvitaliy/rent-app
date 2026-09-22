@@ -5,7 +5,7 @@ import { matchesDatabaseSearch } from './local-search';
 import { AccountButton, useAuth } from './Auth';
 import { MetroDots, listingMetroStation } from './MetroDots';
 import { CardNote } from './CardNote';
-import { Rating } from './Rating';
+import { Rating, ratingLabel, ratingCategory } from './Rating';
 import { Select } from './Select';
 import {
   memo,
@@ -34,7 +34,7 @@ import {
   ChevronRight,
   Clock3,
   Database,
-  Heart,
+  Star,
   House,
   LayoutGrid,
   Link2,
@@ -265,7 +265,8 @@ export default function App() {
   const active = listings.filter((l) => l.rating !== 1);
   const archived = listings.filter((l) => l.rating === 1);
   const rated = active.filter((l) => (l.rating ?? 0) >= 2);
-  const rankFor = (rating: number) => rated.filter((l) => l.rating! > rating).length + 1;
+  const rankFor = (rating: number) =>
+    rated.filter((l) => (ratingCategory(l.rating) ?? 0) > (ratingCategory(rating) ?? 0)).length + 1;
   const currentCollection = collections.find((c) => c.id === collectionId) || collections[0];
   const collection =
     view === 'archive'
@@ -367,12 +368,14 @@ export default function App() {
     )
     .sort((a, b) =>
       view === 'ranking'
-        ? (b.rating ?? 0) - (a.rating ?? 0) || a.rent - b.rent || a.id.localeCompare(b.id)
+        ? (ratingCategory(b.rating) ?? 0) - (ratingCategory(a.rating) ?? 0) ||
+          a.rent - b.rent ||
+          a.id.localeCompare(b.id)
         : sort === 'rating' || sort === 'rating-asc'
           ? (a.rating == null ? 1 : 0) - (b.rating == null ? 1 : 0) ||
             (sort === 'rating'
-              ? (b.rating ?? 0) - (a.rating ?? 0)
-              : (a.rating ?? 0) - (b.rating ?? 0)) ||
+              ? (ratingCategory(b.rating) ?? 0) - (ratingCategory(a.rating) ?? 0)
+              : (ratingCategory(a.rating) ?? 0) - (ratingCategory(b.rating) ?? 0)) ||
             b.createdAt.localeCompare(a.createdAt)
           : sort === 'unrated' || sort === 'rated'
             ? (sort === 'unrated'
@@ -459,7 +462,7 @@ export default function App() {
         <nav>
           {[
             ['all', 'Все квартиры', LayoutGrid, active.length],
-            ['favorites', 'Избранное', Heart, favorites.length],
+            ['favorites', 'Избранное', Star, favorites.length],
             ['ranking', 'Рейтинг', Trophy, rated.length],
             ['collections', 'Подборки', FolderHeart, collections.length],
             ['viewings', 'Просмотры', CalendarDays, null],
@@ -1299,6 +1302,7 @@ export default function App() {
           ratingBusy={ratingPending.includes(current.id)}
           memberships={collections.filter((group) => group.listingIds.includes(current.id))}
           onCollections={() => (user ? setCollectionPicker([current.id]) : openLogin())}
+          onFavorite={() => void toggle(current)}
           onRefresh={() => refreshListing(current)}
           refreshJob={jobs.find((j) => j.url === current.url)}
           refreshDisabled={
@@ -1539,10 +1543,10 @@ const Card = memo(function Card({
           <Photo src={l.photos[photo]} alt={l.title} />
         </button>
         {rank !== undefined && (
-          <span className="ranking-badge" aria-label={`Место ${rank}, оценка ${l.rating} из 5`}>
+          <span className="ranking-badge" aria-label={`Место ${rank}, ${ratingLabel(l.rating)}`}>
             <Trophy size={13} />
             <b>#{rank}</b>
-            <span>{l.rating}/5</span>
+            <span>{ratingLabel(l.rating)}</span>
           </span>
         )}
         <span className={'source-tag ' + l.source}>
@@ -1555,7 +1559,7 @@ const Card = memo(function Card({
           aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
           onClick={() => favorite(l)}
         >
-          <Heart size={18} fill={l.favorite ? 'currentColor' : 'none'} />
+          <Star size={18} fill={l.favorite ? 'currentColor' : 'none'} />
         </button>
         {l.commission === 0 && <span className="no-commission">Без комиссии</span>}
         {l.photos.length > 1 && (
@@ -2046,6 +2050,7 @@ function Detail({
   ratingBusy,
   memberships,
   onCollections,
+  onFavorite,
   onRefresh,
   refreshJob,
   refreshDisabled,
@@ -2070,6 +2075,7 @@ function Detail({
   ratingBusy: boolean;
   memberships: ApartmentCollection[];
   onCollections: () => void;
+  onFavorite: () => void;
   onRefresh: () => void;
   refreshJob?: Job;
   refreshDisabled: boolean;
@@ -2206,6 +2212,14 @@ function Detail({
       <div ref={panel} className="listing-panel">
         <section className="detail-media" aria-label="Фотографии квартиры">
           <Photo src={l.photos[safePhoto]} alt={l.title} />
+          <button
+            className="detail-favorite"
+            onClick={onFavorite}
+            aria-label={l.favorite ? 'Убрать из избранного' : 'В избранное'}
+            aria-pressed={l.favorite}
+          >
+            <Star size={22} fill={l.favorite ? 'currentColor' : 'none'} />
+          </button>
           <span className="detail-source">
             {sourceNames[l.source]}
             {l.demo ? ' · демо' : ''}
@@ -2234,18 +2248,6 @@ function Detail({
           <div className="detail-media-dock">
             <DecisionIsland expanded={!!l.rating || !!l.notes || !!drafts.current.get(l.id)}>
               <div className="decision-island-toolbar">
-                <button
-                  className="decision-island-action"
-                  disabled={ratingBusy}
-                  onClick={async () => {
-                    if (await onRate(5)) close();
-                  }}
-                  aria-label="Поставить 5 — Отличный вариант"
-                  title="5 из 5 · Отличный вариант"
-                  aria-pressed={l.rating === 5}
-                >
-                  <Heart size={17} fill={l.rating === 5 ? 'currentColor' : 'none'} />
-                </button>
                 <Rating
                   key={l.id}
                   value={l.rating ?? null}
@@ -2256,18 +2258,6 @@ function Detail({
                   disabled={ratingBusy}
                   title={l.title}
                 />
-                <button
-                  className="decision-island-action"
-                  disabled={ratingBusy}
-                  aria-label="Поставить 1 — Не подходит"
-                  title="1 из 5 · Не подходит"
-                  aria-pressed={l.rating === 1}
-                  onClick={async () => {
-                    if (await onRate(1)) close();
-                  }}
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
               {(!!l.rating || !!l.notes || !!drafts.current.get(l.id)) && (
                 <div className="decision-island-note">
@@ -2406,7 +2396,7 @@ function Detail({
           {l.demo && (
             <p className="detail-disclaimer">Демонстрационный пример с вымышленными условиями.</p>
           )}
-          {l.rating && <p className="detail-rating-label">Ваша оценка · {l.rating}/5</p>}
+          {l.rating && <p className="detail-rating-label">Ваша оценка · {ratingLabel(l.rating)}</p>}
           <div className="detail-actions">
             {l.url && (
               <a className="button primary" href={l.url} target="_blank" rel="noreferrer">
