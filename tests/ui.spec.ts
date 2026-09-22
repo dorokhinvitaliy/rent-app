@@ -987,7 +987,10 @@ test('Rich details, personal viewing feedback and collection PDF download', asyn
   await page.getByRole('option', { name: '18', exact: true }).click();
   await modal.getByRole('combobox', { name: 'Минуты просмотра' }).click();
   await page.getByRole('option', { name: '30', exact: true }).click();
-  await modal.getByRole('button', { name: 'Добавить заметку', exact: true }).click();
+  await modal
+    .getByRole('region', { name: 'Просмотр квартиры', exact: true })
+    .getByRole('button', { name: 'Добавить заметку', exact: true })
+    .click();
   await page.getByLabel('Фидбэк о просмотре').fill('Уточнить парковку, понравился вид');
   await page.getByRole('button', { name: 'Сохранить просмотр', exact: true }).click();
   await expect(modal.getByRole('button', { name: 'Изменить просмотр', exact: true })).toContainText(
